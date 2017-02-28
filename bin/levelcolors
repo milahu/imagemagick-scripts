@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 6/12/2008 .......... revised 6/13/2013
+# Developed by Fred Weinhaus 6/12/2008 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: levelcolors [-c channels] [lowcolorxhighcolor] infile outfile
 # USAGE: levelcolors [-h or -help]
@@ -70,8 +94,8 @@
 
 # set default values
 clow="rgba(0%,0%,0%,0)"
-chigh=""
-#chigh="rgba(100%,100%,100%,0)"
+#chigh=""
+chigh="rgba(100%,100%,100%,0)"
 channels=""
 
 # set directory for temporary files
@@ -85,13 +109,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -186,10 +210,11 @@ tmpR="$dir/levelcolors_Rd_$$.cache"
 tmpG="$dir/levelcolors_Gr_$$.cache"
 tmpB="$dir/levelcolors_Bl_$$.cache"
 tmpA="$dir/levelcolors_Al_$$.cache"
-trap "rm -f $tmpA $tmpB $tmpRd $tmpGr $tmpBl $tmpAl $tmpR $tmpG $tmpB $tmpA; exit 0" 0
+trap "rm -f $tmpA $tmpB $tmpRd $tmpGr $tmpBl $tmpAl $tmpR $tmpG $tmpB $tmpA;" 0
 trap "rm -f $tmpA $tmpB $tmpRd $tmpGr $tmpBl $tmpAl $tmpR $tmpG $tmpB $tmpA; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmpRd $tmpGr $tmpBl $tmpAl $tmpR $tmpG $tmpB $tmpA; exit 1" ERR
 
-if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
+if convert -quiet "$infile" +repage "$tmpA"
 	then
 	: ' Do Nothing '
 else
@@ -265,6 +290,11 @@ if [ "$im_version" -gt "06080504" ]; then
 	setcspace=""
 	cspace="sRGB"
 fi
+# need to use -set colorspace sRGB for Grayscale images in IM 7
+if [ "$im_version" -ge "07000000" ]; then
+	setcspace="-set colorspace sRGB"
+	cspace="sRGB"
+fi
 
 
 
@@ -312,10 +342,18 @@ ch=`echo "$ch" | sed -n 's/[ ]*//g p'`
 #echo "cl=$cl"
 #echo "ch=$ch"
 
+
 # get color triplet or quartet values in range 0-QuantumRange for cl
 # strip spaces then extract numbers
 # then replace commas with spaces and count words
-cl=`convert -size 1x1 xc:"$cl" txt:- | sed -n 's/[ ]*//g; s/^0,0:[(]\([0-9,%]*\)[)].*$/\1/p'`
+# need to convert grayscale to 3 channels for IM 7
+if [ "$im_version" -ge "07000000" ]; then
+	setcspace2="-set colorspace sRGB"
+else
+	setcspace2=""
+fi
+
+cl=`convert -size 1x1 xc:"$cl" $setcspace2 txt:- | sed -n 's/[ ]*//g; s/^0,0:[(]\([0-9,%]*\)[)].*$/\1/p'`
 clnum=`echo "$cl" | tr "," " " | wc -w`
 #echo "clnum=$clnum"
 #echo "cl=$cl"
@@ -419,22 +457,23 @@ isA=`expr "$channels" : '.*a'`
 
 # process channel by channel and then combine
 if [ "$imagechannels" = "g" -a "$channels" = "r" ]; then
-	convert $tmpRd -level ${cl1},${ch1} $outfile
+	convert $tmpRd -level ${cl1},${ch1} "$outfile"
 elif [ "$imagechannels" = "ga"  -a "$channels" = "ra" ]; then
 	[ $isR -ne 0 ] && convert $tmpRd -level ${cl1},${ch1} $tmpRd
 	[ $isA -ne 0 ] && convert $tmpAl -level ${cl4},${ch4} $tmpAl
 	# need to use copy_opacity -composite rather than -channel RA to keep 2 channels
-	convert $tmpRd $tmpAl -alpha off -compose copy_opacity -composite $outfile
+	convert $tmpRd $tmpAl -alpha off -compose copy_opacity -composite "$outfile"
 elif [ "$imagechannels" = "rgb" -o "$imagechannels" = "g" ]; then
-	[ $isR -ne 0 ] && convert $tmpRd -level ${cl1},${ch1} -write 2tmpr.png $tmpRd
-	[ $isG -ne 0 ] && convert $tmpGr -level ${cl2},${ch2} -write 2tmpg.png $tmpGr
-	[ $isB -ne 0 ] && convert $tmpBl -level ${cl3},${ch3} -write 2tmpb.png $tmpBl
-	convert $tmpRd $tmpGr $tmpBl -colorspace $cspace -combine $outfile
+echo "got here; $cl1; $ch1; $cl2; $ch2; $cl3; $ch3;"
+	[ $isR -ne 0 ] && convert $tmpRd -level ${cl1},${ch1} $tmpRd
+	[ $isG -ne 0 ] && convert $tmpGr -level ${cl2},${ch2} $tmpGr
+	[ $isB -ne 0 ] && convert $tmpBl -level ${cl3},${ch3} $tmpBl
+	convert $tmpRd $tmpGr $tmpBl -colorspace $cspace -combine "$outfile"
 elif [ "$imagechannels" = "rgba" -o "$imagechannels" = "ga" ]; then
 	[ $isR -ne 0 ] && convert $tmpRd -level ${cl1},${ch1} $tmpRd
 	[ $isG -ne 0 ] && convert $tmpGr -level ${cl2},${ch2} $tmpGr
 	[ $isB -ne 0 ] && convert $tmpBl -level ${cl3},${ch3} $tmpBl
 	convert $tmpRd $tmpGr $tmpBl -colorspace $cspace -combine \
-		$tmpAl -alpha off -compose copy_opacity -composite $outfile
+		$tmpAl -alpha off -compose copy_opacity -composite "$outfile"
 fi
 exit 0

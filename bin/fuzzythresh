@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 10/30/2008 .......... revised 6/6/2013
+# Developed by Fred Weinhaus 10/30/2008 .......... revised 11/3/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: fuzzythresh [-r radius] [-g graph] infile outfile
 # USAGE: fuzzythresh [-help]
@@ -88,13 +112,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -166,8 +190,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -218,7 +242,7 @@ if [ "$im_version" -gt "06080504" ]; then
 fi
 
 
-if convert -quiet -regard-warnings "$infile" $setcspace -colorspace Gray +repage "$tmpA1"
+if convert -quiet "$infile" $setcspace -colorspace Gray +repage "$tmpA1"
 	then
 	: ' do nothing '
 else
@@ -353,7 +377,7 @@ while [ "$test" != "1" ]; do
 	k=`expr $k + 1`
 #	echo "hmean=$hmean; lmean=$lmean; oldthresh=$oldthresh; thresh=$thresh; diff=$diff"
 done
-convert $tmpM1 $outfile
+convert $tmpM1 "$outfile"
 
 echo "Image Thresholded At $thresh%"
 echo ""

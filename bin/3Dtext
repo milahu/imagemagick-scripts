@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 10/4/2008 .......... revised 1/5/2009
+# Developed by Fred Weinhaus 10/4/2008 .......... revised 1/29/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: 3Dtext -t "some text" [-f fontname] [-p pointsize] [-i italic] [-c text-color] [-u under-color] [-b border-color] [-o outline-color] [-l lineweight] [x extrude-color] [-a amount] [-d direction] outfile
 # USAGE: 3Dtext [-h or -help]
@@ -102,7 +126,7 @@ bsize=5					#border size
 ocolor="black"			#outline color
 linewt="0"				#line weight for outline
 xcolor="gray"			#extrude color
-xamt=8					#extrude amount
+amount=8				#extrude amount
 xdir="northwest"		#extrude direction
 
 # set directory for temporary files
@@ -116,13 +140,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -306,8 +330,8 @@ else
 	stroke="-strokewidth $linewt -stroke $ocolor"
 fi
 
-# get required image dimension with padding equal 3x extrude amount
-pad=`expr 3 \* $xamt`
+# get required image dimension with padding equal at least 3x extrude amount
+pad=$((3*amount))
 dim=`convert -background $ucolor -font $fontname -pointsize $psize \
 	label:"$text" -trim -bordercolor $bcolor -border "$pad" +repage \
 	-format "%wx%h" info:`
@@ -315,14 +339,14 @@ dim=`convert -background $ucolor -font $fontname -pointsize $psize \
 
 # compute iterated extrusion -annotate commands
 # initialize offset to extrude amount
-xx=$xamt
-yy=$xamt
+xx=$amount
+yy=$amount
 i=0
 txtcmd=""
-while [ $i -lt $xamt ]; do
+while [ $i -lt $amount ]; do
 	# accumulate -annotate commands
 	# note single quotes around text required for each annotate (when text is more than one word) 
-	txtcmd="$txtcmd -fill $xcolor -gravity center -annotate 0x$italic+$xx+$yy '$text'"
+	txtcmd="$txtcmd -fill \"$xcolor\" -gravity center -annotate 0x$italic+$xx+$yy '$text'"
 
 	# increment offsets depending upon the extrude direction
 	case "$xdir" in
@@ -366,7 +390,7 @@ eval 'convert -size "$dim" xc:"$ucolor" \
 	-fill "$tcolor" $stroke \
 	-gravity center -annotate 0x$italic+$xx+$yy "$text" \
 	-trim -bordercolor "$bcolor" -border "$bsize" +repage \
-	$outfile'
+	"$outfile"'
 exit 0
 
 

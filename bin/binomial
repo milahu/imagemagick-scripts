@@ -1,7 +1,31 @@
 #!/bin/bash
 # 
-# Developed by Fred Weinhaus 9/18/2007 .......... revised 8/5/2012
+# Developed by Fred Weinhaus 9/18/2007 .......... revised 4/29/2015
+#
+# ------------------------------------------------------------------------------
 # 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
 # USAGE: binomial [-w width] [-t type] [-m mix] [-b bias] infile outfile
 # USAGE: binomial [-h or -help]
 # 
@@ -144,13 +168,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -247,8 +271,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 
@@ -266,6 +290,10 @@ if [ -f $infile -a -r $infile -a -s $infile ]
 		errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 		exit 1
 fi
+
+# get im version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 num=`expr $width \* $width`
 
@@ -384,8 +412,26 @@ kern1D=`echo $kern1D | sed 's/ /,/g'`
 echo $kern1D
 echo ""
 
+if [ "$type" = "high" -a "$mix" = "100" ]; then
+	normalizing=""
+else
+	normalizing="-define convolve:scale=!"
+fi
+
+
+# set up for biasing
+if [ "$im_version" -ge "07000000" ]; then
+	biasing="-define convolve:bias=$biasval%"
+else
+	biasing="-bias $biasval%"
+fi
 
 # convolve image with kernel
 # NOTE: improper nomalization for -convolve for zero sum (edge) filters between IM 6.7.6.6 and 6.7.8.7 (fixed 6.7.8.8)
-convert $infile -bias $biasval% -define convolve:scale=\! -convolve "$kern1D" $outfile
+if [ "$im_version" -gt "06050900" ]; then
+	convert $infile $biasing $normalizing -morphology convolve "${width}x${width}:$kern1D" "$outfile"
+else
+	convert $infile $biasing $normalizing -convolve "$kern1D" "$outfile"
+fi
+
 exit 0

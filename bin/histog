@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/30/2007 .......... revised 6/10/2013
+# Developed by Fred Weinhaus 8/30/2007 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: histog [-l labels] [-c number] [-rgb] infile [outfile]
 # USAGE: histog [-h or -help]
@@ -89,13 +113,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 #
 # function to report error messages
@@ -211,8 +235,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -240,8 +264,9 @@ tmp2="$dir/histog_2_$$.mpc"
 tmp22="$dir/histog_2_$$.cache"
 tmp3="$dir/histog_3_$$.mpc"
 tmp33="$dir/histog_3_$$.cache"
-trap "rm -f $tmpA $tmpB $tmp0 $tmp00 $tmp1 $tmp11 $tmp2 $tmp22 $tmp3 $tmp33; exit 0" 0
+trap "rm -f $tmpA $tmpB $tmp0 $tmp00 $tmp1 $tmp11 $tmp2 $tmp22 $tmp3 $tmp33;" 0
 trap "rm -f $tmpA $tmpB $tmp0 $tmp00 $tmp1 $tmp11 $tmp2 $tmp22 $tmp3 $tmp33" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmp0 $tmp00 $tmp1 $tmp11 $tmp2 $tmp22 $tmp3 $tmp33" ERR
 
 # get im version
 im_version=`convert -list configure | \
@@ -275,7 +300,7 @@ if [ "$im_version" -gt "06080504" ]; then
 fi
 
 
-if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
+if convert -quiet "$infile" +repage "$tmpA"
 	then
 		colorspace=`identify -ping -verbose $tmpA | sed -n 's/^.*Colorspace: \([^ ]*\).*$/\1/p'`
 		num_labels=${#labelArr[*]}
@@ -381,8 +406,8 @@ fi
 # append into one image
 if [ $num_labels -eq 4 -o "$labels" = "4" ]
 	then
-	convert $tmp0 $tmp1 $tmp2 $tmp3 -append -resize 50x50% $outfile
+	convert $tmp0 $tmp1 $tmp2 $tmp3 -append -resize 50x50% "$outfile"
 else
-	convert $tmp0 $tmp1 $tmp2 -append -resize 50x50% $outfile
+	convert $tmp0 $tmp1 $tmp2 -append -resize 50x50% "$outfile"
 fi
 exit 0

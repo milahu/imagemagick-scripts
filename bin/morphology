@@ -1,9 +1,33 @@
 #!/bin/bash
 # 
-# Modified by Fred Weinhaus 4/2/2009 ............ revised 4/18/2012
+# Modified by Fred Weinhaus 4/2/2009 ............ revised 4/25/2015
 # Enhanced by Anthony Thyssen ................... revised 1/8/2009
-# Developed by Fred Weinhaus 11/5/2007 .......... revised 4/26/2008
+# Developed by Fred Weinhaus 11/5/2007 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
 # 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
 # USAGE: morphology [-m mode] [-t type] [-i iterations] [-r ramp] infile outfile
 # USAGE: morphology [-h or -help]
 # 
@@ -161,13 +185,13 @@ usage()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage_verbose() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 # function to report error messages
@@ -264,8 +288,8 @@ else
   done
   #
   # get infile and outfile
-  infile=$1
-  outfile=$2
+  infile="$1"
+  outfile="$2"
 fi
 
 # test that infile provided
@@ -279,11 +303,12 @@ mkdir "$tmpdir" || errMsg "Failed to create temporary file directory"
 TMP="$tmpdir/morphology_$$.mpc"
 TMPORIG="$tmpdir/morphology_orig_$$.mpc"
 TMPOLD="$tmpdir/morphology_old_$$.mpc"
-trap "rm -rf $tmpdir; exit 0" 0
+trap "rm -rf $tmpdir;" 0
 trap "rm -ff $tmpdir; exit 1" 1 2 3 15
+trap "rm -ff $tmpdir; exit 1" ERR
 
 # read the input image into the TMP cached image.
-convert -quiet -regard-warnings "$infile" +repage "$TMP" ||
+convert -quiet "$infile" +repage "$TMP" ||
   errMsg "--- FILE $infile NOT READABLE OR HAS ZERO SIZE ---"
 
 # set default for iteration depending upon type
@@ -857,7 +882,7 @@ else
 fi
 
 # Final Output
-convert $TMP $outfile
+convert $TMP "$outfile"
 
 exit 0
 

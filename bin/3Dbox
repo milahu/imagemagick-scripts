@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 9/21/2008 .......... revised 7/27/2012
+# Developed by Fred Weinhaus 9/21/2008 .......... revised 2/23/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: 3Dbox option=value infile1 infile2 infile3 [infile4 infile5 infile6] outfile
 # USAGE: 3Dbox [-h or -help]
@@ -209,13 +233,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 # function to report error messages, usage and exit
@@ -505,18 +529,18 @@ echo "dwidth=$dwidth; dheight=$dheight; xflag=$xflag"
 	# get infiles and outfile
 	numimg=$#
 	if [ $numimg -eq 4 ]; then
-		infile1=$1
-		infile2=$2
-		infile3=$3
-		outfile=$4
+		infile1="$1"
+		infile2="$2"
+		infile3="$3"
+		outfile="$4"
 	elif [ $numimg -eq 7 ]; then
-		infile1=$1
-		infile2=$2
-		infile3=$3
-		infile4=$4
-		infile5=$5
-		infile6=$6
-		outfile=$7
+		infile1="$1"
+		infile2="$2"
+		infile3="$3"
+		infile4="$4"
+		infile5="$5"
+		infile6="$6"
+		outfile="$7"
 	else
 		errMsg "--- NUMBER OF INPUT IMAGES MUST BE EITHER 3 OR 6 ---"
 	fi	
@@ -541,30 +565,31 @@ fi
 # Setup directory for temporary files
 # On exit remove ALL the whole directory of temporary images
 dir="$tmpdir/$PROGNAME.$$"
-trap "rm -rf $dir; exit 0" 0
+trap "rm -rf $dir;" 0
 trap "rm -rf $dir; exit 1" 1 2 3 15
+trap "rm -rf $dir; exit 1" ERR
 mkdir "$dir" || {
   echo >&2 "$PROGNAME: UNABLE TO CREATE WORKING DIR \"$dir\" -- ABORTING"
   exit 10
 }
 
-convert -quiet -regard-warnings "$infile1" +repage "$dir/tmp1.mpc" || 
+convert -quiet "$infile1" +repage "$dir/tmp1.mpc" || 
 errMsg "--- FAILED TO READ \"$infile1\" ---"
 
-convert -quiet -regard-warnings "$infile2" +repage "$dir/tmp2.mpc" || 
+convert -quiet "$infile2" +repage "$dir/tmp2.mpc" || 
 errMsg "--- FAILED TO READ \"$infile2\" ---"
 
-convert -quiet -regard-warnings "$infile3" +repage "$dir/tmp3.mpc" || 
+convert -quiet "$infile3" +repage "$dir/tmp3.mpc" || 
 errMsg "--- FAILED TO READ \"$infile3\" ---"
 
 if [ $numimg -eq 7 ]; then
-	convert -quiet -regard-warnings "$infile4" +repage "$dir/tmp4.mpc" || 
+	convert -quiet "$infile4" +repage "$dir/tmp4.mpc" || 
 	errMsg "--- FAILED TO READ \"$infile4\" ---"
 	
-	convert -quiet -regard-warnings "$infile5" +repage "$dir/tmp5.mpc" || 
+	convert -quiet "$infile5" +repage "$dir/tmp5.mpc" || 
 	errMsg "--- FAILED TO READ \"$infile5\" ---"
 	
-	convert -quiet -regard-warnings "$infile6" +repage "$dir/tmp6.mpc" || 
+	convert -quiet "$infile6" +repage "$dir/tmp6.mpc" || 
 	errMsg "--- FAILED TO READ \"$infile6\" ---"
 fi
 
@@ -939,6 +964,12 @@ if [ "$format" = "auto" -a "$size" != "" ]; then
 #echo "ww=$ww; hh=$hh; dim=$dim; dwidth=$dwidth; dheight=$dheight xflag=$xflag zoom=$zoom"
 fi
 
+# set up $matting
+if [ "$im_version" -ge "07000000" -a "$im_version" -le "07000409" ]; then
+	matting="-alpha-color"
+else
+	matting="-mattecolor"
+fi
 
 #set resampling filter for perspective transform
 if [ "$filtermode" = "" ]; then
@@ -964,7 +995,7 @@ isFrontFacing "$u0,$v0" "$u1,$v1" "$u2,$v2"
 if [ $ff -eq 1 ]; then
 	s1="0,0 $u0,$v0  $lastwidth1,0 $u1,$v1  $lastwidth1,$lastheight1 $u2,$v2  0,$lastheight1 $u3,$v3"
 #	echo "s1=$s1"
-	proc1='$dir/tmp1.mpc -matte $filter -virtual-pixel transparent -mattecolor none +distort Perspective "$s1"'
+	proc1='$dir/tmp1.mpc -alpha set $filter -virtual-pixel transparent $matting none +distort Perspective "$s1"'
 else
 	proc1=""
 fi
@@ -976,7 +1007,7 @@ isFrontFacing "$u5,$v5" "$u0,$v0" "$u3,$v3"
 if [ $ff -eq 1 ]; then
 	s2="0,0 $u5,$v5  $lastwidth2,0 $u0,$v0  $lastwidth2,$lastheight2 $u3,$v3  0,$lastheight2 $u6,$v6"
 #	echo "s2=$s2"
-	proc2='$dir/tmp2.mpc -matte $filter -virtual-pixel transparent -mattecolor none +distort Perspective "$s2"'
+	proc2='$dir/tmp2.mpc -alpha set $filter -virtual-pixel transparent $matting none +distort Perspective "$s2"'
 else
 	proc2=""
 fi
@@ -988,7 +1019,7 @@ isFrontFacing "$u5,$v5" "$u4,$v4" "$u1,$v1"
 if [ $ff -eq 1 ]; then
 	s3="0,0 $u5,$v5  $lastwidth3,0 $u4,$v4  $lastwidth3,$lastheight3 $u1,$v1  0,$lastheight3 $u0,$v0"
 #	echo "s3=$s3"
-	proc3='$dir/tmp3.mpc -matte $filter -virtual-pixel transparent -mattecolor none +distort Perspective "$s3"'
+	proc3='$dir/tmp3.mpc -alpha set $filter -virtual-pixel transparent $matting none +distort Perspective "$s3"'
 else
 	proc3=""
 fi
@@ -1001,9 +1032,9 @@ if [ $ff -eq 1 ]; then
 	s4="0,0 $u4,$v4  $lastwidth4,0 $u5,$v5  $lastwidth4,$lastheight4 $u6,$v6  0,$lastheight4 $u7,$v7"
 #	echo "s4=$s4"
 	if [ $numimg -eq 4 ]; then
-		proc4='$dir/tmp1.mpc $rotate -matte $filter -virtual-pixel transparent -mattecolor none +distort Perspective "$s4"'
+		proc4='$dir/tmp1.mpc $rotate -alpha set $filter -virtual-pixel transparent $matting none +distort Perspective "$s4"'
 	elif [ $numimg -eq 7 ]; then
-		proc4='$dir/tmp4.mpc $rotate -matte $filter -virtual-pixel transparent -mattecolor none +distort Perspective "$s4"'
+		proc4='$dir/tmp4.mpc $rotate -alpha set $filter -virtual-pixel transparent $matting none +distort Perspective "$s4"'
 	fi
 else
 	proc4=""
@@ -1017,9 +1048,9 @@ if [ $ff -eq 1 ]; then
 	s5="0,0 $u1,$v1  $lastwidth5,0 $u4,$v4  $lastwidth5,$lastheight5 $u7,$v7  0,$lastheight5 $u2,$v2"
 #	echo "s5=$s5"
 	if [ $numimg -eq 4 ]; then
-		proc5='$dir/tmp2.mpc $rotate -matte $filter -virtual-pixel transparent -mattecolor none +distort Perspective "$s5"'
+		proc5='$dir/tmp2.mpc $rotate -alpha set $filter -virtual-pixel transparent $matting none +distort Perspective "$s5"'
 	elif [ $numimg -eq 7 ]; then
-		proc5='$dir/tmp5.mpc $rotate -matte $filter -virtual-pixel transparent -mattecolor none +distort Perspective "$s5"'
+		proc5='$dir/tmp5.mpc $rotate -alpha set $filter -virtual-pixel transparent $matting none +distort Perspective "$s5"'
 	fi
 else
 	proc5=""
@@ -1033,9 +1064,9 @@ if [ $ff -eq 1 ]; then
 	s6="0,0 $u7,$v7  $lastwidth6,0 $u6,$v6  $lastwidth6,$lastheight6 $u3,$v3  0,$lastheight6 $u2,$v2"
 #	echo "s6=$s6"
 	if [ $numimg -eq 4 ]; then
-		proc6='$dir/tmp3.mpc $rotate -matte $filter -virtual-pixel transparent -mattecolor none +distort Perspective "$s6"'
+		proc6='$dir/tmp3.mpc $rotate -alpha set $filter -virtual-pixel transparent $matting none +distort Perspective "$s6"'
 	elif [ $numimg -eq 7 ]; then
-		proc6='$dir/tmp6.mpc $rotate -matte $filter -virtual-pixel transparent -mattecolor none +distort Perspective "$s6"'
+		proc6='$dir/tmp6.mpc $rotate -alpha set $filter -virtual-pixel transparent $matting none +distort Perspective "$s6"'
 	fi
 else
 	proc6=""
@@ -1079,13 +1110,13 @@ fi
 
 # draw box
 eval 'convert \
-	\( '"$proc1"' -write 1tmp1.png \) \
-	\( '"$proc2"' -write 1tmp2.png \) \
-	\( '"$proc3"' -write 1tmp3.png \) \
+	\( '"$proc1"' \) \
+	\( '"$proc2"' \) \
+	\( '"$proc3"' \) \
 	\( '"$proc4"' \) \
 	\( '"$proc5"' \) \
 	\( '"$proc6"' \) \
 	$merge \
-	$outfile'
+	"$outfile"'
 
 exit 0

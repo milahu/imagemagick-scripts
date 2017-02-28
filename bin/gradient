@@ -1,7 +1,31 @@
 #!/bin/bash
 # 
-# Developed by Fred Weinhaus 9/18/2007 .......... revised 8/14/2012
+# Developed by Fred Weinhaus 9/18/2007 .......... revised 4/29/2015
+#
+# ------------------------------------------------------------------------------
 # 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
 # USAGE: gradient [-k kind] [-f filter] [t thresh] [-m mix] [-b bias] infile outfile
 # USAGE: gradient [-h or -help]
 # 
@@ -152,13 +176,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -276,8 +300,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 
@@ -295,8 +319,9 @@ tmpA="$dir/gradient_$$.mpc"
 tmpB="$dir/gradient_$$.cache"
 tmp0A="$dir/gradient_0_$$.mpc"
 tmp0B="$dir/gradient_0_$$.cache"
-trap "rm -f $tmpA $tmpB $tmp0A $tmp0B; exit 0" 0
+trap "rm -f $tmpA $tmpB $tmp0A $tmp0B;" 0
 trap "rm -f $tmpA $tmpB $tmp0 $tmp0B; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmp0 $tmp0B; exit 1" ERR
 
 
 # get filter
@@ -319,62 +344,71 @@ else
 	threshoption=""
 fi
 
+# get im version
 im_version=`convert -list configure | \
 	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# setup auto-level
 if [ "$im_version" -lt "06050501" ]; then
 	stretch="-contrast-stretch 0"
 else
 	stretch="-auto-level"
 fi
 
-# get im version
-im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
-
-if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
-	then
-	: 'do nothing'
-	else
-		errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+# set up for biasing
+if [ "$im_version" -ge "07000000" ]; then
+	biasing="-define convolve:bias=50%"
+else
+	biasing="-bias 50%"
 fi
 
 # read the input image and filter image into the temp files and test validity.
-convert -quiet -regard-warnings "$infile" +repage "$tmpA" ||
+convert -quiet "$infile" +repage "$tmpA" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
+# set up for gamma or evaluate pow
+# don't want gamma to change meta value of gamma from 0.4545, so use -evaluate pow
+if [ "$im_version" -lt "06040109" ]; then
+	sqrt="-gamma 2"
+else
+	sqrt="-evaluate pow 0.5"
+fi
+
 # process gradient
+# need to add -clamp for use with HDRI
+# should not matter for non-HDRI
 
 if [ $version -eq 1 ]; then
 	if [ $kind -eq 1 ]; then
 		# square then sqrt is equivalent to abs
-		convert \( $tmpA -convolve "$dx" \) \( $tmpA -convolve "$dy" \) \
-			\( -clone 0 -clone 0 -compose multiply -composite -gamma 2 \) \
-			\( -clone 1 -clone 1 -compose multiply -composite -gamma 2 \) \
+		convert \( $tmpA -convolve "$dx" -clamp \) \( $tmpA -convolve "$dy" -clamp \) \
+			\( -clone 0 -clone 0 -compose multiply -composite $sqrt \) \
+			\( -clone 1 -clone 1 -compose multiply -composite $sqrt \) \
 			-delete 0,1 -compose plus -composite $threshoption $tmp0A
 
 	elif [ $kind -eq 2 ]
 		then
-		convert \( $tmpA -convolve "$dx" \) \( $tmpA -convolve "$dy" \) \
+		convert \( $tmpA -convolve "$dx" -clamp \) \( $tmpA -convolve "$dy" -clamp \) \
 			\( -clone 0 -clone 0 -compose multiply -composite \) \
 			\( -clone 1 -clone 1 -compose multiply -composite \) \
-			-delete 0,1 -compose plus -composite -gamma 2 $threshoption $tmp0A			
+			-delete 0,1 -compose plus -composite $sqrt $threshoption $tmp0A			
 	fi
 elif [ $version -eq 2 ]; then
 	if [ $kind -eq 1 ]; then
 		# square then sqrt is equivalent to abs
-		convert \( $tmpA -bias 50% -convolve "$dx" -solarize 50% \) \
-			\( $tmpA -bias 50% -convolve "$dy" -solarize 50% \) \
-			\( -clone 0 -clone 0 -compose multiply -composite -gamma 2 \) \
-			\( -clone 1 -clone 1 -compose multiply -composite -gamma 2 \) \
+		convert \( $tmpA $biasing -convolve "$dx" -clamp -solarize 50% \) \
+			\( $tmpA $biasing -convolve "$dy" -clamp -solarize 50% \) \
+			\( -clone 0 -clone 0 -compose multiply -composite $sqrt \) \
+			\( -clone 1 -clone 1 -compose multiply -composite $sqrt \) \
 			-delete 0,1 -compose plus -composite -negate $threshoption $tmp0A
 
 	elif [ $kind -eq 2 ]
 		then
-		convert \( $tmpA -bias 50% -convolve "$dx" -solarize 50% \) \
-			\( $tmpA -bias 50% -convolve "$dy" -solarize 50% \) \
+		convert \( $tmpA $biasing -convolve "$dx" -clamp -solarize 50% \) \
+			\( $tmpA $biasing -convolve "$dy" -clamp -solarize 50% \) \
 			\( -clone 0 -clone 0 -compose multiply -composite \) \
 			\( -clone 1 -clone 1 -compose multiply -composite \) \
-			-delete 0,1 -compose plus -composite -gamma 2 -negate \
+			-delete 0,1 -compose plus -composite $sqrt -negate \
 			$stretch $threshoption $tmp0A
 	fi
 fi
@@ -391,7 +425,7 @@ else
 		convert $tmpA $tmp0A -define compose:args=$mix -compose blend -composite -evaluate add $bias% $tmp0A
 	
 fi
-convert $tmp0A $outfile
+convert $tmp0A "$outfile"
 
 exit 0
 

@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 12/11/2012 .......... revised 1/16/2013
+# Developed by Fred Weinhaus 12/11/2012 .......... revised 10/9/2014
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: accentedges [-w width] [-s strength] [-p polarity] [-b blur] 
 # [-c cmethod] infile outfile
@@ -70,13 +94,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -186,8 +210,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -200,8 +224,9 @@ fi
 # set up temp files
 tmpA1="$dir/accentedges_A_$$.mpc"
 tmpA2="$dir/accentedges_A_$$.cache"
-trap "rm -f $tmpA1 $tmpA2; exit 0" 0
+trap "rm -f $tmpA1 $tmpA2;" 0
 trap "rm -f $tmpA1 $tmpA2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2; exit 1" ERR
 
 
 # get im version
@@ -230,7 +255,7 @@ fi
 
 
 # read input image
-convert -quiet -regard-warnings "$infile" $setcspace +repage $tmpA1 ||
+convert -quiet "$infile" $setcspace +repage $tmpA1 ||
 	echo  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 
@@ -248,7 +273,7 @@ convert $tmpA1 \
 	\( -clone 0 -fill $polarity -colorize 100 \) \
 	\( -clone 0 $setcspace -colorspace gray \
 		-morphology edgeout diamond:$width $blurring -evaluate multiply $strength \) \
-	-compose $cmethod -composite $outfile
+	-compose $cmethod -composite "$outfile"
 
 
 exit 0

@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 3/7/2008 .......... revised 11/26/2011
+# Developed by Fred Weinhaus 3/7/2008 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: bubblewarp ["osx,dx,isx,iox [osy,dy,isy,ioy]"] [-t type] [-m mode] [-f format] [-v vp] [-c vpcolor] [-b bgcolor] infile outfile
 # USAGE: bubblewarp [-h or -help]
@@ -142,13 +166,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -277,8 +301,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -290,10 +314,11 @@ fi
 tmpA="$dir/bubblewarp_$$.mpc"
 tmpB="$dir/bubblewarp_$$.cache"
 tmp0="$dir/bubblewarp_0_$$.png"
-trap "rm -f $tmpA $tmpB $tmp0; exit 0" 0
+trap "rm -f $tmpA $tmpB $tmp0;" 0
 trap "rm -f $tmpA $tmpB $tmp0; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmp0; exit 1" ERR
 
-if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
+if convert -quiet "$infile" +repage "$tmpA"
 	then
 	width=`identify -format %w $tmpA`
 	height=`identify -format %h $tmpA`
@@ -380,7 +405,7 @@ elif [ "$mode" = "polar" ]
 		then
 		out="$tmpA +swap -composite $outfile"
 	else
-		out="+matte $outfile"
+		out="-alpha off $outfile"
 	fi
 	im_version=`convert -list configure | \
 	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
@@ -397,11 +422,11 @@ elif [ "$mode" = "polar" ]
 		else
 			ffr="ffr=rd?$ipid2*asin(rd)/rd:0;"
 		fi			
-		convert -monitor $tmpA -matte -channel RGBA -virtual-pixel $vp -background $vc -fx \
+		convert -monitor $tmpA -alpha set -channel RGBA -virtual-pixel $vp -background $vc -fx \
 			"xd=$sxc*(i-$xc); yd=$syc*(j-$yc); $rd $ffr xs=$isx*$xc*ffr*xd+$xc+$iox; ys=$isy*$yc*ffr*yd+$yc+$ioy; $result" \
 			$out
 	else
-		convert -monitor $tmpA -matte -channel RGBA -virtual-pixel $vp -background $vc -fx \
+		convert -monitor $tmpA -alpha set -channel RGBA -virtual-pixel $vp -background $vc -fx \
 			"xd=$sxc*(i-$xc); yd=$syc*(j-$yc); $rd $ffrx $ffry xs=$isx*$xc*ffrx*xd+$xc+$iox; ys=$isy*$yc*ffry*yd+$yc+$ioy; $result" \
 			$out
 	fi	

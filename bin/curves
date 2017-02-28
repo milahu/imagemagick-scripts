@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/18/2007 .......... revised 6/13/2013
+# Developed by Fred Weinhaus 8/18/2007 .......... revised 1/14/2016
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: curves [-s xscale,yscale] [-c channel] [-g graphmode] "x1,y1 x2,y2 ..." infile outfile
 # USAGE: curves [-s xscale,yscale] [-c channel] [-g graphmode] -f point_file infile outfile
@@ -119,13 +143,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 # function to report error messages, usage and exit
@@ -305,12 +329,14 @@ tmp1="$dir/$outname$gg.gif"
 # remove temporaries
 if [ "$graph" = "view" ] 
 	then 
-	trap "rm -f $tmpA $tmpB $tmp1; exit 0" 0
+	trap "rm -f $tmpA $tmpB $tmp1;" 0
 	trap "rm -f $tmpA $tmpB $tmp1; exit 1" 1 2 3 15
+#	trap "rm -f $tmpA $tmpB $tmp1; exit 1" ERR
 elif [ "$graph" = "save" ]
 	then
-	trap "rm -f $tmpA $tmpB; exit 0" 0
+	trap "rm -f $tmpA $tmpB;" 0
 	trap "rm -f $tmpA $tmpB; exit 1" 1 2 3 15
+#	trap "rm -f $tmpA $tmpB; exit 1" ERR
 else
 	errMsg "--- NOT A VALID GRAPH DISPLAY OPTION ---"
 fi
@@ -326,7 +352,7 @@ test=`expr "$infile" : '^[0-9]*,.*$'`
 [ $test -gt 0 ] && errMsg "--- INPUT/OUTPUT FILES IMPROPERLY SPECIFIED ---"
 
 # test input image
-if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
+if convert -quiet "$infile" +repage "$tmpA"
 	then
 	: 'do nothing special'
 	else
@@ -557,12 +583,12 @@ fi
 # then box average the columns to get the lut and apply it to the image.
 ww=`convert xc: -format "%[fx:$xscale+1]" info:`
 hh=`convert xc: -format "%[fx:$yscale+1]" info:`
-convert \( $tmpA $cproc1 \) \
+convert $tmpA \
 	\( -size ${ww}x${hh} xc:black -fill white \
 	-draw "polygon $plistnew" -alpha off \
 	-crop ${ww}x${yscale}+0+1 +repage \
 	-scale ${ww}x1! \) \
-	$proc $cproc2 $outfile
+	$cproc1 $proc $cproc2 "$outfile"
 
 
 # display graph if option -g

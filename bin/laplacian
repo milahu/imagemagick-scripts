@@ -1,7 +1,31 @@
 #!/bin/bash
 # 
-# Developed by Fred Weinhaus 9/20/2007 .......... revised 8/17/2012
+# Developed by Fred Weinhaus 9/20/2007 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
 # 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
 # USAGE: laplacian [-f filter] [t thresh] [-m mix] infile outfile
 # USAGE: laplacian [-h or -help]
 # 
@@ -160,13 +184,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -257,8 +281,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 
@@ -279,8 +303,9 @@ fi
 
 # setup temporary images and auto delete upon exit
 tmp0="$dir/laplacian_0_$$.miff"
-trap "rm -f $tmp0; exit 0" 0
+trap "rm -f $tmp0;" 0
 trap "rm -f $tmp0; exit 1" 1 2 3 15
+trap "rm -f $tmp0; exit 1" ERR
 
 # get im version
 im_version=`convert -list configure | \
@@ -302,38 +327,26 @@ num=${#kernArr[*]}
 width=`echo "scale=0; sqrt($num)" | bc -l`
 
 # print 2D laplacian
-i=0
 k=0
-while [ $i -lt $width ]
-	do
-	j=0
+for ((i=0; i<width; i++)); do
 	krn=""
-	while [ $j -lt $width ]
-		do
+	for ((j=0; j<width; j++)); do
 		krn="$krn ${kernArr[$k]}"
 		kernel[$i]=$krn
 		k=`expr $k + 1`
-		j=`expr $j + 1`
 	done
-	i=`expr $i + 1`	
 done
 echo ""
 echo "2D Laplacian Kernel"
-i=0
-while [ $i -lt $width ]
-	do
+for ((i=0; i<width; i++)); do
 	printf %-10s ${kernel[$i]}
 	echo ""
-	i=`expr $i + 1`
 done
 
 
 # create final mixed filter
-i=0
-while [ $i -lt $num ]
-	do
+for ((i=0; i<num; i++)); do
 	kernArr[$i]=`echo "scale=3; $mix * ${kernArr[$i]} / 100" | bc`
-	i=`expr $i + 1`
 done
 num2=`echo "scale=0; ($num - 1) / 2" | bc`
 kernArr[$num2]=`echo "scale=3; (((100 - $mix) / 100) + ${kernArr[$num2]})" | bc`
@@ -382,12 +395,6 @@ else
 fi
 
 # process image
-convert $infile -convolve "$kernIM" $threshoption $tmp0
-if [ "$im_version" -lt "06050304" ]; then
-	[ $mix -lt 100 ] && composite -blend $mix $tmp0 $infile $tmp0
-else
-	[ $mix -lt 100 ] && convert $infile $tmp0 -define compose:args=$mix -compose blend -composite $tmp0
-fi
-convert $tmp0 $outfile
+convert $infile -convolve "$kernIM" $threshoption "$outfile"
 exit 0
 

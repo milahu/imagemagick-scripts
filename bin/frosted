@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 7/13/2009 .......... revised 6/6/2013
+# Developed by Fred Weinhaus 7/13/2009 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: frosted [-s spread] [-b bluramt] [-r reseed] infile outfile
 # USAGE: frosted [-h or -help]
@@ -146,8 +170,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -160,8 +184,9 @@ fi
 tmpA1="$dir/frosted_1_$$.mpc"
 tmpA2="$dir/frosted_1_$$.cache"
 tmp0="$dir/frosted_0_$$.miff"
-trap "rm -f $tmpA1 $tmpA2 $tmp0; exit 0" 0
+trap "rm -f $tmpA1 $tmpA2 $tmp0;" 0
 trap "rm -f $tmpA1 $tmpA2 $tmp0; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2 $tmp0; exit 1" ERR
 
 # get im version
 im_version=`convert -list configure | \
@@ -191,10 +216,10 @@ fi
 
 # read the input images into the temp files and test validity.
 if [ "$bluramt" != "0" -a "$bluramt" != "0.0" ]; then
-convert -quiet -regard-warnings "$infile" -blur 0x${bluramt} +repage "$tmpA1" ||
+convert -quiet "$infile" -blur 0x${bluramt} +repage "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 else
-convert -quiet -regard-warnings "$infile" +repage "$tmpA1" ||
+convert -quiet "$infile" +repage "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 fi
 
@@ -218,17 +243,32 @@ convert -size ${ww}x${hh} xc: $seed +noise Random \
 
 
 # process image with noise image as displacement map
-if [ "$im_version" -ge "06040805" ]; then
+if [ "$im_version" -ge "07000000" ]; then
+# need to convert grayscale $tmp0 to color in IM 7
+	convert $tmp0 -colorspace sRGB\
+		-channel R -evaluate sine $density \
+		-channel G -evaluate cosine $density \
+		-channel RG -separate $tmpA1 -insert 0 \
+		$setcspace -define compose:args=${spread}x${spread} \
+		-compose displace -composite "$outfile"
+elif [ "$im_version" -ge "06050304" ]; then
+	convert $tmp0 \
+		-channel R -evaluate sine $density \
+		-channel G -evaluate cosine $density \
+		-channel RG -separate $tmpA1 -insert 0 \
+		$setcspace -define compose:args=${spread}x${spread} \
+		-compose displace -composite "$outfile"
+elif [ "$im_version" -ge "06040805" ]; then
 	# create multi-image miff (sine tmpA1 cosine), then pass to composite -displace
 	convert $tmp0 \
 		-channel R -evaluate sine $density \
 		-channel G -evaluate cosine $density \
 		-channel RG -separate $tmpA1 -insert 0 miff:- | \
-		convert - $setcspace -define compose:args=${spread}x${spread} -compose displace -composite $outfile
+		convert - $setcspace -define compose:args=${spread}x${spread} -compose displace -composite "$outfile"
 
 # old last lines
 #		-channel RG -separate $tmpA1 +swap miff:- | \
-#		composite - -displace ${spread}x${spread} $outfile
+#		composite - -displace ${spread}x${spread} "$outfile"
 
 elif [ "$im_version" -ge "06040400" ]; then
 	# use -fx to create multi-image miff (sine tmpA1 cosine), then pass to composite -displace
@@ -236,15 +276,15 @@ elif [ "$im_version" -ge "06040400" ]; then
 		-channel R -monitor -fx "0.5+0.5*sin(2*pi*u*$density)" \
 		-channel G -monitor -fx "0.5+0.5*cos(2*pi*u*$density)" \
 		-channel RG -separate $tmpA1 -insert 0 miff:- | \
-		convert - $setcspace -define compose:args=${spread}x${spread} -compose displace -composite $outfile
+		convert - $setcspace -define compose:args=${spread}x${spread} -compose displace -composite "$outfile"
 
 # old last lines
 #		-channel RG -separate $tmpA1 +swap miff:- | \
-#		composite - -displace ${spread}x${spread} $outfile
+#		composite - -displace ${spread}x${spread} "$outfile"
 
 else
 	convert $tmpA1 $tmp0 -monitor \
 		-fx "xx=i+$spread*sin($density*v*2*pi); yy=j+$spread*cos($density*v*2*pi); u.p{xx,yy}" \
-		$outfile
+		"$outfile"
 fi
 exit 0

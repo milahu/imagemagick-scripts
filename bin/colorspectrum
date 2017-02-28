@@ -1,7 +1,29 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 3/24/2008 .......... revised 6/4/2013
+# Developed by Fred Weinhaus 3/24/2008 .......... revised 8/17/2015
 #
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
 # USAGE: colorspectrum [-c columns] [-r rows] [-l] infile outfile
 # USAGE: colorspectrum [-h or -help]
 #
@@ -63,13 +85,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 # function to report error messages
@@ -148,8 +170,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -164,10 +186,11 @@ tmp0="$dir/colorspectrum_0_$$.miff"
 tmp1="$dir/colorspectrum_1_$$.miff"
 tmp2="$dir/colorspectrum_2_$$.miff"
 tmp3="$dir/colorspectrum_3_$$.miff"
-trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2 $tmp3; exit 0" 0
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2 $tmp3;" 0
 trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2 $tmp3; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2 $tmp3; exit 1" ERR
 
-if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
+if convert -quiet "$infile" +repage "$tmpA"
 	then
 	: 'do nothing'
 	else
@@ -223,28 +246,116 @@ fi
 qmax=`convert xc: -format "%[fx:QuantumRange]" info:`
 qval=`convert xc: -format "%q" info:`
 
-# 1st sed command removes spaces
-# 2nd sed command strips everything but color values
-# 3rd sed command replaces commas with spaces
-# 4th sed command prints all lines but first
-# when echo "$spectrum" it prints each row
-# when echo $spectrum it prints each line feed as a space so it is all one line.
-
 # get unique spectrum colors from rgb image as lines of text
-spectrum1=`convert $tmpA -alpha off -depth $qval +dither -colors $columns -unique-colors txt:- | \
-	sed -n 's/ //g; s/[0-9]*,[0-9]*:(\([0-9]*,[0-9]*,[0-9]*\).*/\1/; s/,/ /g; 2,$p'`
-	
+data1=`convert $tmpA -alpha off -depth $qval +dither -colors $columns -unique-colors txt:-`
+# test if % or empty
+# keep only second line
+# remove all chars but 0-9.%
+# get third word (first/red graylevel value)
+# remove every char but %
+test1=`echo "$data1" | sed -n 2p | tr -cs "0-9.%" " " | cut -d\  -f3 | sed -n 's/[^%]*//p'`
+#echo "test1=$test1;"
+if [ "$test1" = "%" ]; then
+	# newer txt format using % values
+	# 1st sed command removes spaces
+	# 2nd sed command strips everything but color values
+	# 3rd sed command replaces commas with spaces
+	# 4th sed removes %
+	# 5th sed command prints all lines but first
+	# when echo "$data" it prints each row
+	# when echo $data it prints each line feed as a space so it is all one line.
+	spectrum1=`echo "$data1" |\
+		sed -n 's/ //g; s/^[0-9]*,[0-9]*[:][ ]*[(]\([.0-9%]*,[.0-9%]*,[.0-9%]*\)[)][#].*$/\1/; s/,/ /g; s/%//g; 2,$p'`
+elif [ "$test1" = "" ]; then
+	# older txt format using raw values
+	# 1st sed command removes spaces
+	# 2nd sed command strips everything but color values
+	# 3rd sed command replaces commas with spaces
+	# 4th sed command prints all lines but first
+	# when echo "$data" it prints each row
+	# when echo $data it prints each line feed as a space so it is all one line.
+	spectrum1=`echo "$data1" |\
+		sed -n 's/ //g; s/^[0-9]*,[0-9]*[:][ ]*[(]\([ 0-9]*,[ 0-9]*,[ 0-9]*\)[)][#].*$/\1/; s/,/ /g; 2,$p'`
+else
+	errMsg "---	INVALID TXT FORMAT ---"
+fi
+
+if [ "$test1" = "%" ]; then
+spectrum1=`echo "$spectrum1" |\
+	awk -v qmax="$qmax" ' { r=int($1*qmax/100+0.5); g=int($2*qmax/100+0.5); b=int($3*qmax/100+0.5); print r, g, b; } '`
+fi
+#echo "spectrum1=$spectrum1"
+
+# use actual number of colors found
+colorsArr=($spectrum1)
+numcolors=${#colorsArr[*]}
+columns=`convert xc: -format "%[fx:floor($numcolors/3)]" info:`
+#echo "numcolors=$numcolors; columns=$columns;"
+
 # convert rgb text spectrum to HSL single row image
 # Use NetPBM (PPM plain color format implied intermediate image)
-echo "P3 $columns 1 $qmax\n $spectrum1" | convert - $setcspace -colorspace HSL $tmp0
+echo "P3 $columns 1 $qmax $spectrum1" | convert - $setcspace -colorspace HSL $tmp0
+
 
 # convert HSL single row colors image back to text and sort according to hue
-spectrum2=`convert $tmp0 txt:- | \
-	sed -n 's/ //g; s/[0-9]*,[0-9]*:(\([0-9]*,[0-9]*,[0-9]*\).*/\1/; s/,/ /g; 2,$p' | \
-	sort -n -k 1,1`
+data2=`convert $tmp0 txt:-`
+# test if % or empty
+# keep only second line
+# remove all chars but 0-9.%
+# get third word (first/red graylevel value)
+# remove every char but %
+test2=`echo "$data2" | sed -n 2p | tr -cs "0-9.%" " " | cut -d\  -f5 | sed -n 's/[^%]*//p'`
+#echo "test2=$test2;"
+if [ "$test2" = "%" ]; then
+	# newer txt format using % values
+	# 1st sed command removes spaces
+	# 2nd sed command strips everything but color values
+	# 3rd sed command replaces commas with spaces
+	# 4th sed removes %
+	# 5th sed command prints all lines but first
+	# when echo "$data" it prints each row
+	# when echo $data it prints each line feed as a space so it is all one line.
+	#
+	# note: starting at IM 6.9.2.1 HSL is in format HSL(0-360,percent,percent)
+	if [ "$im_version" -lt "06090201" ]; then
+		spectrum2=`echo "$data2" |\
+			sed -n 's/ //g; s/^[0-9]*,[0-9]*[:][ ]*[(]\([.0-9%]*,[.0-9%]*,[.0-9%]*\)[)][#].*$/\1/; s/,/ /g; s/%//g; 2,$p' |\
+			sort -n -k 1,1`
+	elif [ "$im_version" -ge "06090201" ]; then
+		spectrum2=`echo "$data2" |\
+			sed -n 's/ //g; s/^[0-9]*,[0-9]*[:][ ]*[(]\([0-9]*,[.0-9%]*,[.0-9%]*\)[)][#].*$/\1/; s/,/ /g; s/%//g; 2,$p' |\
+			sort -n -k 1,1`
+	fi
+elif [ "$test2" = "" ]; then
+	# older txt format using raw values
+	# 1st sed command removes spaces
+	# 2nd sed command strips everything but color values
+	# 3rd sed command replaces commas with spaces
+	# 4th sed command prints all lines but first
+	# when echo "$data" it prints each row
+	# when echo $data it prints each line feed as a space so it is all one line.
+	spectrum2=`echo "$data2" |\
+		sed -n 's/ //g; s/^[0-9]*,[0-9]*[:][ ]*[(]\([ 0-9]*,[ 0-9]*,[ 0-9]*\)[)][#].*$/\1/; s/,/ /g; 2,$p' |\
+		sort -n -k 1,1`
+else
+	errMsg "---	INVALID TXT FORMAT ---"
+fi
+
+if [ "$test2" = "%" ]; then
+	if [ "$im_version" -lt "06090201" ]; then
+		spectrum2=`echo "$spectrum2" |\
+			awk -v qmax="$qmax" ' { r=int($1*qmax/100+0.5); g=int($2*qmax/100+0.5); b=int($3*qmax/100+0.5); print r, g, b; } '`
+	elif [ "$im_version" -ge "06090201" ]; then
+		spectrum2=`echo "$spectrum2" |\
+			awk -v qmax="$qmax" ' { r=int($1*qmax/360+0.5); g=int($2*qmax/100+0.5); b=int($3*qmax/100+0.5); print r, g, b; } '`
+	fi
+fi
+#echo "spectrum2=$spectrum2"
+
 
 # convert sorted HSL text colors to single row HSL image
-echo "P3 $columns 1 $qmax\n $spectrum2" | convert - $tmp0
+echo "P3 $columns 1 $qmax $spectrum2" | convert - $tmp0
+
 
 # convert HSL colors single row image to RGB single row spectrum image
 convert $tmp0 $setcspace -channel Red -separate $tmp1
@@ -256,20 +367,52 @@ convert $tmp1 -colorspace HSL \
 	$tmp3 -compose CopyBlue -composite \
 	-colorspace $cspace $tmp0
 
+
 if [ "$list" = "on" ]
 	then
+
+	data3=`convert $tmp0 txt:-`
+	# test if % or empty
+	# keep only second line
+	# remove all chars but 0-9.%
+	# get third word (first/red graylevel value)
+	# remove every char but %
+	test3=`echo "$data3" | sed -n 2p | tr -cs "0-9.%" " " | cut -d\  -f3 | sed -n 's/[^%]*//p'`
+	#echo "test3=$test3;"
+	if [ "$test3" = "%" ]; then
+		# newer txt format using % values
+		# 1st sed command removes spaces
+		# 2nd sed command strips everything but color values
+		# 3rd sed command replaces commas with spaces
+		# 4th sed removes %
+		# 5th sed command prints all lines but first
+		# when echo "$data" it prints each row
+		# when echo $data it prints each line feed as a space so it is all one line.
+		spectrum3=`echo "$data3" |\
+			sed -n 's/ //g; s/^[0-9]*,[0-9]*[:][ ]*[(]\([.0-9%]*,[.0-9%]*,[.0-9%]*\)[)][#].*$/\1/; s/,/ /g; 2,$p'`
+	elif [ "$test3" = "" ]; then
+		# older txt format using raw values
+		# 1st sed command removes spaces
+		# 2nd sed command strips everything but color values
+		# 3rd sed command replaces commas with spaces
+		# 4th sed command prints all lines but first
+		# when echo "$data" it prints each row
+		# when echo $data it prints each line feed as a space so it is all one line.
+		spectrum3=`echo "$data3" |\
+			sed -n 's/ //g; s/^[0-9]*,[0-9]*[:][ ]*[(]\([ 0-9]*,[ 0-9]*,[ 0-9]*\)[)][#].*$/\1/; s/,/ /g; 2,$p'`
+	else
+		errMsg "---	INVALID TXT FORMAT ---"
+	fi
 	
-	spectrum3=`convert $tmp0 txt:- | \
-		sed -n 's/ //g; s/[0-9]*,[0-9]*:(\([0-9]*,[0-9]*,[0-9]*\).*/\1/; s/,/ /g; 2,$p'`	
 	echo ""
-	echo "List Of Colors - RGB Values 0 to Quantum Max"
+	echo "List Of Colors - RGB Values 0 to Quantum Max or Percent"
 	echo ""
 	echo "$spectrum3"
 	echo ""
 fi
 
 # scale to desired height
-convert $tmp0 -scale ${columns}x${rows}! $outfile
+convert $tmp0 -scale ${columns}x${rows}! "$outfile"
 
 exit 0
 

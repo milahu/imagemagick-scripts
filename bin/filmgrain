@@ -1,7 +1,31 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 9/30/2012 .......... revised 1/19/2013
+# Developed by Fred Weinhaus 9/30/2012 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
 # 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
 # USAGE: filmgrain [-n noise] [-a amount1] [-A amount2] [-d density1] 
 # [-D density2] [-s seed1] [-S seed2] [-c compose1] [-C compose2] 
 # [-b blur] [-m monotone] infile outfile
@@ -123,13 +147,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -177,7 +201,7 @@ else
 					   errorMsg="--- INVALID NOISE SPECIFICATION ---"
 					   checkMinus "$1"
 					   noise=`echo "$1" | tr '[A-Z]' '[a-z]'`
-					   case "$compose" in 
+					   case "$noise" in 
 					   		gaussian) ;;
 					   		impulse) ;;
 					   		laplacian) ;;
@@ -305,8 +329,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -323,12 +347,13 @@ tmpdir="."
 dir="$tmpdir/FILMGRAIN.$$"
 
 mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
-trap "rm -rf $dir; exit 0" 0
+trap "rm -rf $dir;" 0
 trap "rm -rf $dir; exit 1" 1 2 3 15
+trap "rm -rf $dir; exit 1" ERR
 
 
 # test input image
-convert -quiet -regard-warnings "$infile" +repage  "$dir/tmpI.mpc" ||
+convert -quiet "$infile" +repage  "$dir/tmpI.mpc" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 amt1=`convert xc: -format "%[fx:$amount1/100]" info:`
@@ -366,7 +391,7 @@ if [ "$amount2" = "0" ]; then
 	convert $dir/tmpI.mpc \
 	\( $dir/tmpG.mpc -attenuate $amt1 -seed $seed1 +noise $noise $monoproc $densityproc1 -blur 0x$blur \) \
 	\( -clone 0 -clone 1 -compose $compose1 -composite \) \
-	-delete 0,1 $outfile
+	-delete 0,1 "$outfile"
 
 elif [ "$amount2" != "0" ]; then
 	convert $dir/tmpI.mpc \
@@ -374,7 +399,7 @@ elif [ "$amount2" != "0" ]; then
 		\( -clone 0 -clone 1 -compose $compose1 -composite \) \
 		\( $dir/tmpG.mpc -attenuate $amt2 -seed $seed2 +noise $noise $monoproc $densityproc2 -blur 0x$blur \) \
 		\( -clone 2 -clone 3 -compose $compose2 -composite \) \
-		-delete 0-3 $outfile
+		-delete 0-3 "$outfile"
 
 fi	
 

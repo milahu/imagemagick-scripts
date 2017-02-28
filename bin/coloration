@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 11/9/2012 .......... revised 6/3/2013
+# Developed by Fred Weinhaus 11/9/2012 .......... revised 11/29/16
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: coloration [-h hue] [-s sat] [-l light] [-r red] [-g green] [-b blue] 
 # [-B bright] [-C contrast] infile outfile [lutfile]
@@ -110,13 +134,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -264,14 +288,14 @@ else
 	#
 	# get infile, outfile and lutfile
 	if [ $# -eq 3 ]; then
-		infile=$1
-		outfile=$2
-		lutfile=$3
+		infile="$1"
+		outfile="$2"
+		lutfile="$3"
 	elif [ $# -eq 2 ]; then
-		infile=$1
-		outfile=$2
+		infile="$1"
+		outfile="$2"
 	elif [ $# -eq 1 ]; then
-		lutfile=$1
+		lutfile="$1"
 	else
 		errMsg "--- INCONSISTENT NUMBER OF INPUT AND OUTPUT IMAGES SPECIFIED ---"
 	fi
@@ -290,11 +314,12 @@ tmpA2="$dir/color2gray_A_$$.cache"
 tmpB1="$dir/color2gray_B_$$.mpc"
 tmpB2="$dir/color2gray_B_$$.cache"
 tmpL="$dir/color2gray_L_$$.miff"
-trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2 $tmpL; exit 0" 0
+trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2 $tmpL;" 0
 trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2 $tmpL; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2 $tmpL; exit 1" ERR
 
 # read and test input
-convert -quiet -regard-warnings "$infile" +repage "$tmpA1" ||
+convert -quiet "$infile" +repage "$tmpA1" ||
 	echo  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 # get im version
@@ -348,10 +373,18 @@ gf=`convert xc: -format "%[fx:$green/100]" info:`
 bf=`convert xc: -format "%[fx:$blue/100]" info:`
 #echo "rf=$rf; gf=$gf; bf=$bf; of=$of"
 
-# convert hue in degrees to hue in percent for IM usage
-if [ "$units" = "degrees" ]; then
+# convert hue per IM version
+# note: starting at IM 6.9.2.1 HSL txt output is in format HSL(0-360,0-255 or %,0-255 or %) and raw values are all non-percent again
+# also at IM 6.9.2.1 all raw hsl values including alpha now back to range 0-quantumrange
+if [ "$units" = "degrees" -a "$im_version" -lt "06090201" ]; then
+	# convert to percent
 	hue=`convert xc: -format "%[fx:100*$hue/360]" info:`
+elif [ "$units" = "percent" ] && [ "$im_version" -ge "06090201" -o "$im_version" -lt "06050606" ]; then
+	# convert to 0 to 360
+	hue=`convert xc: -format "%[fx:360*$hue/100]" info:`
 fi
+
+
 
 # convert light to GIMP-like (percent) values
 test=`convert xc: -format "%[fx:$light<0?0:1]" info:`
@@ -366,7 +399,12 @@ fi
 bright=`convert xc: -format "%[fx:$bright*128/100]" info:`
 
 # create colorized lut
-convert -size 1x1 xc:black xc:"hsl($hue%,$sat%,50%)" xc:white +append \
+if [ "$im_version" -lt "06090201" ]; then
+	hslcolor="hsl($hue%,$sat%,50%)"
+elif [ "$im_version" -ge "06090201" ]; then
+	hslcolor="hsl($hue,$sat%,50%)"
+fi
+convert -size 1x1 xc:black xc:"$hslcolor" xc:white +append \
 	-filter $filter -resize 256x1! \
 	$setcspace -contrast-stretch 0 \
 	-virtual-pixel edge -fx "u.p{(i-(w/2))*(100+$contrast)/(100)+(w/2)+$bright,j}" \
@@ -398,9 +436,9 @@ convert $tmpA1 $channelmix "\
 
 # put alpha channel back
 if [ "$test2" != "1" ]; then
-	convert $tmpA1 $tmpB1 -alpha off -compose copy_opacity -composite $outfile
+	convert $tmpA1 $tmpB1 -alpha off -compose copy_opacity -composite "$outfile"
 else
-	convert $tmpA1 $outfile
+	convert $tmpA1 "$outfile"
 fi
 
 exit 0

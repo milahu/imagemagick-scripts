@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 4/2/2009 .......... revised 11/28/2011
+# Developed by Fred Weinhaus 4/2/2009 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: nearestcolor [-c color] [-m mode] [-f fontname] [-p pointsize] [-l labelcolor] infile [outfile]
 # USAGE: nearestcolor [-h or -help]
@@ -82,13 +106,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -190,11 +214,11 @@ else
 	# get infile and outfile
 	nfiles=$#
 	if [ $nfiles -eq 1 ]; then
-		infile=$1
+		infile="$1"
 		outfile=""
 	elif [ $nfiles -eq 2 ]; then
-		infile=$1
-		outfile=$2
+		infile="$1"
+		outfile="$2"
 	else
 		errMsg "--- INCONSISTENT NUMBER OF FILES PROVIDED ---"
 	fi
@@ -203,10 +227,11 @@ fi
 # set up temporary file
 tmpA="$dir/nearestcolor_$$.mpc"
 tmpB="$dir/nearestcolor_$$.cache"
-trap "rm -f $tmpA $tmpB; exit 0" 0
+trap "rm -f $tmpA $tmpB;" 0
 trap "rm -f $tmpA $tmpB; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB; exit 1" ERR
 	
-if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
+if convert -quiet "$infile" +repage "$tmpA"
 	then
 	: ' do nothing '
 else
@@ -282,6 +307,6 @@ if [ "$outfile" != "" ]; then
 		\( -background "$mcolor" \
 		-fill $labelcolor -font $fontname -pointsize $point \
 		-gravity northwest label:"Nearest Color:\n\n\n$mcolor" \) \
-		+append $outfile
+		+append "$outfile"
 fi
 exit 0

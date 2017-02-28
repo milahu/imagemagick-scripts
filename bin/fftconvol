@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/17/2009 .......... revised 10/25/2012
+# Developed by Fred Weinhaus 8/17/2009 .......... revised 9/12/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: fftconvol infile filtfile outfile
 # USAGE: fftconvol [-h or -help]
@@ -36,6 +60,12 @@
 # in any quantum level of Q8, Q16 or Q32. Also requires the FFTW delegate 
 # library.
 # 
+# LIMITATIONS: This script works well only with even, square images. Otherwise,   
+# the FFT will pad them with black to conform. However, there will be excessive 
+# ringing due to the color discontinuity associated with the padding. This 
+# even, square limitation is a ramification of the current IM implementation 
+# that needs addressing at some future time. It is not a limitation of FFTW.
+# 
 # See http://www.fmwconcepts.com/imagemagick/fourier_transforms/fourier.html 
 # for more details about the Fourier Transform with ImageMagick.
 # 
@@ -60,13 +90,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -122,9 +152,9 @@ else
 	done
 	#
 	# get infile, filtfile and outfile
-	infile=$1
-	filtfile=$2
-	outfile=$3
+	infile="$1"
+	filtfile="$2"
+	outfile="$3"
 fi
 
 # test that infile provided
@@ -142,8 +172,9 @@ tmpB1="$dir/fftconvol_1_$$.cache"
 tmpA2="$dir/fftconvol_2_$$.mpc"
 tmpB2="$dir/fftconvol_2_$$.cache"
 tmpA="$dir/fftconvol_A_$$.pfm"
-trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA;" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA; exit 1" ERR
 
 # LAST TESTED with IM 6.7.4.10, 6.7.6.10, 6.7.9.4 all HDRI (10/25/2012)
 
@@ -153,16 +184,20 @@ im_version=`convert -list configure | \
 [ "$im_version" -lt "06050407" ] && errMsg "--- REQUIRES IM VERSION 6.5.4-7 OR HIGHER ---"
 
 # test for hdri enabled
-hdri_on=`convert -list configure | grep "enable-hdri"`
+if [ "$im_version" -ge "07000000" ]; then
+	hdri_on=`convert -version | grep "HDRI"`	
+else
+	hdri_on=`convert -list configure | grep "enable-hdri"`
+fi
 [ "$hdri_on" = "" ] && errMsg "--- REQUIRES HDRI ENABLED IN IM COMPILE ---"
 
 
 # read the input image and filter image into the temp files and test validity.
-convert -quiet -regard-warnings "$infile" +repage "$tmpA1" ||
+convert -quiet "$infile" +repage "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 # read the filter image.
-convert -quiet -regard-warnings "$filtfile" -alpha off +repage "$tmpA2" ||
+convert -quiet "$filtfile" -alpha off +repage "$tmpA2" ||
 	errMsg "--- FILE $filtfile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 
@@ -176,8 +211,8 @@ cy=`convert xc: -format "%[fx:floor(($height+1)/2)]" info:`
 
 
 # test if image has alpha and set up copy to output
-is_alpha=`convert $tmpA1 -format "%A" info:`
-if [ "$is_alpha" = "True" ]; then
+is_alpha=`identify -ping -verbose $tmpA1 | grep "Alpha" | head -n 1`
+if [ "$is_alpha" != "" ]; then
 	convert $tmpA1 -alpha extract $tmpA 
 	addalpha="$tmpA -compose copy_opacity -composite"
 else
@@ -237,6 +272,11 @@ else
 	setcspace="-set colorspace RGB"
 	setcspace2="-set colorspace sRGB"
 fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+	setcspace2=""
+fi
 
 
 # transform the image to real and imaginary components,
@@ -257,13 +297,13 @@ fi
 # note +fft produces a two-frame images, thus the two +ffts make 4 images
 convert \( $tmpA2 $setcspace -roll -${cx}-${cy} -virtual-pixel $vp +fft -evaluate multiply $gain \) \
 	\( $tmpA1 $setcspace -alpha off -strip -virtual-pixel $vp +fft \) \
-	\( -clone 0 -clone 2 -compose multiply -composite \) \
-	\( -clone 1 -clone 3 -compose multiply -composite \) \
-	\( -clone 4 -clone 5 +swap -compose minus -composite \) \
-	\( -clone 1 -clone 2 -compose multiply -composite \) \
-	\( -clone 0 -clone 3 -compose multiply -composite \) \
-	\( -clone 7 -clone 8 -compose plus -composite \) \
+	\( -clone 0 -clone 2 -define compose:clamp=false -compose multiply -composite \) \
+	\( -clone 1 -clone 3 -define compose:clamp=false -compose multiply -composite \) \
+	\( -clone 4 -clone 5 +swap -define compose:clamp=false -compose minus -composite \) \
+	\( -clone 1 -clone 2 -define compose:clamp=false -compose multiply -composite \) \
+	\( -clone 0 -clone 3 -define compose:clamp=false -compose multiply -composite \) \
+	\( -clone 7 -clone 8 -define compose:clamp=false -compose plus -composite \) \
 	-delete 0,1,2,3,4,5,7,8 -virtual-pixel $vp +ift \
-	-crop ${width}x${height}+0+0 +repage $addalpha $setcspace2 $outfile
+	-crop ${width}x${height}+0+0 +repage $addalpha $setcspace2 "$outfile"
 
 exit 0

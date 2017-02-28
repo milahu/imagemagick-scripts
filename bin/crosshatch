@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 7/19/2012 .......... revised 7/19/2012
+# Developed by Fred Weinhaus 7/19/2012 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: crosshatch [-l length] [-s sharp ] [-g gain ] [-a amount] [-p prune] 
 # [-b balance] [-e effect] [-m mix] [-B bri] [-C con] [-S sat] infile outfile
@@ -49,7 +73,8 @@
 # -a amount ... EDGE AMOUNT. Values are integers>0. The default=1.
 # 
 # -p prune ... EDGE PRUNING. Values are integers (positive or negative).
-# The default=0.
+# Positives remove lighter edges and negatives remove darker edges. The 
+# default=0.
 # 
 # -b balance ... BALANCE between plus and minus 45 degree diagonal strokes. 
 # Values are -100<=integer<=100. The default=0.
@@ -102,13 +127,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -179,7 +204,7 @@ else
 		do
 			# get parameter values
 			case "$1" in
-		     -help)    # help information
+		 -help|-h)    # help information
 					   echo ""
 					   usage2
 					   exit 0
@@ -299,8 +324,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -312,17 +337,14 @@ fi
 dir="$tmpdir/CROSSHATCH.$$"
 
 mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
-trap "rm -rf $dir; exit 0" 0
+trap "rm -rf $dir;" 0
 trap "rm -rf $dir; exit 1" 1 2 3 15
+trap "rm -rf $dir; exit 1" ERR
 
 
 # read input image
-convert -quiet -regard-warnings "$infile" $dir/tmpA0.mpc ||
+convert -quiet "$infile" $dir/tmpA0.mpc ||
 	echo  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
-
-# get input size
-ww=`convert $dir/tmpA0.mpc -format "%w" info:`
-hh=`convert $dir/tmpA0.mpc -format "%h" info:`
 
 # convert sat from 0 to 100 basis
 sat=`convert xc: -format "%[fx:100+$sat]" info:`
@@ -390,6 +412,6 @@ convert $dir/tmpB.mpc -unsharp 0x1+${sharp}+0 $dir/tmpBs.mpc
 convert $dir/tmpA0.mpc  $dir/tmpBs.mpc \
 	-compose blend -define compose:args=$mix -composite \
 	-brightness-contrast $bri,$con -modulate 100,$sat,100 \
-	$outfile
+	"$outfile"
 
 exit 0

@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 11/22/2008 .......... revised 11/22/2008
+# Developed by Fred Weinhaus 11/21/2008 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: bilinearwarp [-f format] [-v vpmode] [-b bgcolor] "x1,y1 x2,y2 x3,y3 x4,y4" infile outfile
 # USAGE: bilinearwarp [-h or -help]
@@ -82,13 +106,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 # function to report error messages, usage and exit
@@ -236,10 +260,11 @@ y3=`echo "$point3" | cut -d, -f2`
 # use mpc/cache to hold input image temporarily in memory
 tmpA="$dir/bilinearwarp_$$.mpc"
 tmpB="$dir/bilinearwarp_$$.cache"
-trap "rm -f $tmpA $tmpB; exit 0" 0
+trap "rm -f $tmpA $tmpB;" 0
 trap "rm -f $tmpA $tmpB; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB; exit 1" ERR
 
-if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
+if convert -quiet "$infile" +repage "$tmpA"
 	then
 	# get last x and y pixel
 	nx=`convert $tmpA -format "%[fx:w-1]" info:`
@@ -377,12 +402,12 @@ fi
 if [ "$format" = "box" ]; then
 	convert \( -size ${ww}x${hh} xc:$xcolor \) \( $tmpA $channels \) \
 	-virtual-pixel $vpmode -background $bgcolor -monitor \
-	-fx "bb=$B1+($b3*i)-($a3*j); cc=$C1+($b1*i)-($a1*j); rt=(bb*bb)-(4*$A*cc); il=(-bb+sqrt(rt))/(2*$A); is=(i-$a0-($a2*il))/($a1+($a3*il)); rt<0?$skycolor:v.p{is,il}" $outfile
+	-fx "bb=$B1+($b3*i)-($a3*j); cc=$C1+($b1*i)-($a1*j); rt=(bb*bb)-(4*$A*cc); il=(-bb+sqrt(rt))/(2*$A); is=(i-$a0-($a2*il))/($a1+($a3*il)); rt<0?$skycolor:v.p{is,il}" "$outfile"
 
 elif [ "$format" = "input" ]; then
 	convert $tmpA $channels -virtual-pixel $vpmode \
 	-background $bgcolor -monitor \
-	-fx "bb=$B1+($b3*i)-($a3*j); cc=$C1+($b1*i)-($a1*j); rt=(bb*bb)-(4*$A*cc); il=(-bb+sqrt(rt))/(2*$A); is=(i-$a0-($a2*il))/($a1+($a3*il)); rt<0?$skycolor:u.p{is,il}" $outfile
+	-fx "bb=$B1+($b3*i)-($a3*j); cc=$C1+($b1*i)-($a1*j); rt=(bb*bb)-(4*$A*cc); il=(-bb+sqrt(rt))/(2*$A); is=(i-$a0-($a2*il))/($a1+($a3*il)); rt<0?$skycolor:u.p{is,il}" "$outfile"
 fi
 exit 0
 

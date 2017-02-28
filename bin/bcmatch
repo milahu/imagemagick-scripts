@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 6/25/2009 .......... revised 6/3/2013
+# Developed by Fred Weinhaus 6/25/2009 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: bcmatch [-c colormode] [-s satmode] infile1 infile2 outfile
 # USAGE: bcmatch [-h or -help]
@@ -95,13 +119,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -214,9 +238,9 @@ else
 	done
 	#
 	# get infile and outfile
-	infile1=$1
-	infile2=$2
-	outfile=$3
+	infile1="$1"
+	infile2="$2"
+	outfile="$3"
 fi
 
 # test that infile1 provided
@@ -234,6 +258,19 @@ fi
 im_version=`convert -list configure | \
 	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 [ "$im_version" -lt "06040809" ] && errMsg "--- REQUIRES IM VERSION 6.4.6-9 OR HIGHER ---"
+
+
+# test if infiles are grayscale
+# NOTE: must put grep before trap using ERR in case it does not find a match
+gray1="no"
+gray2="no"
+grayscale1=`convert -ping "$infile1" -format "%[colorspace]" info:`
+typegray1=`convert -ping "$infile1" -format '%r' info: | grep 'Gray'`
+grayscale2=`convert -ping "$infile2" -format "%[colorspace]" info:`
+typegray2=`convert -ping "$infile2" -format '%r' info: | grep 'Gray'`
+[ "$grayscale1" = "Gray" -o "$typegray1" != "" ] && gray1="yes"
+[ "$grayscale2" = "Gray" -o "$typegray2" != "" ] && gray2="yes"
+#echo "gray1=$gray1; gray2=$gray2"
 
 
 # set up temporary files
@@ -263,14 +300,15 @@ tmpSA2="$dir/bcmatch_S2_$$.mpc"
 tmpSB2="$dir/bcmatch_S2_$$.cache"
 tmpOA2="$dir/bcmatch_O2_$$.mpc"
 tmpOB2="$dir/bcmatch_O2_$$.cache"
-trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpIA1 $tmpIB1 $tmpIA2 $tmpIB2 $tmpRA1 $tmpRB1 $tmpRA2 $tmpRB2 $tmpGA1 $tmpGB1 $tmpGA2 $tmpGB2 $tmpBA1 $tmpBB1 $tmpBA2 $tmpBB2 $tmpSA1 $tmpSB1 $tmpSA2 $tmpSB2 $tmpOA2 $tmpOB2; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpIA1 $tmpIB1 $tmpIA2 $tmpIB2 $tmpRA1 $tmpRB1 $tmpRA2 $tmpRB2 $tmpGA1 $tmpGB1 $tmpGA2 $tmpGB2 $tmpBA1 $tmpBB1 $tmpBA2 $tmpBB2 $tmpSA1 $tmpSB1 $tmpSA2 $tmpSB2 $tmpOA2 $tmpOB2;" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpIA1 $tmpIB1 $tmpIA2 $tmpIB2 $tmpRA1 $tmpRB1 $tmpRA2 $tmpRB2 $tmpGA1 $tmpGB1 $tmpGA2 $tmpGB2 $tmpBA1 $tmpBB1 $tmpBA2 $tmpBB2 $tmpSA1 $tmpSB1 $tmpSA2 $tmpSB2 $tmpOA2 $tmpOB2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpIA1 $tmpIB1 $tmpIA2 $tmpIB2 $tmpRA1 $tmpRB1 $tmpRA2 $tmpRB2 $tmpGA1 $tmpGB1 $tmpGA2 $tmpGB2 $tmpBA1 $tmpBB1 $tmpBA2 $tmpBB2 $tmpSA1 $tmpSB1 $tmpSA2 $tmpSB2 $tmpOA2 $tmpOB2; exit 1" ERR
 
 # read the input images into the temp files and test validity.
-convert -quiet -regard-warnings "$infile1" +repage "$tmpA1" ||
+convert -quiet "$infile1" +repage "$tmpA1" ||
 	errMsg "--- FILE $infile1 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
-convert -quiet -regard-warnings "$infile2" +repage "$tmpA2" ||
+convert -quiet "$infile2" +repage "$tmpA2" ||
 	errMsg "--- FILE $infil2 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 
@@ -331,23 +369,14 @@ if [ "$im_version" -gt "06080504" ]; then
 fi
 
 
-# test if infiles are grayscale
-gray1="no"
-gray2="no"
-grayscale1=`convert $tmpA1 -format "%[colorspace]" info:`
-typegray1=`convert $tmpA1 -format '%r' info: | grep 'Gray'`
-grayscale2=`convert $tmpA2 -format "%[colorspace]" info:`
-typegray2=`convert $tmpA2 -format '%r' info: | grep 'Gray'`
-[ "$grayscale1" = "Gray" -o "$typegray1" != "" ] && gray1="yes"
-[ "$grayscale2" = "Gray" -o "$typegray2" != "" ] && gray2="yes"
-#echo "gray1=$gray1; gray2=$gray2"
-
 # convert infile1 to colormode if not already gray
 if [ "$gray1" = "no" ]; then
 	if [ "$colormode" = "intensity" -o "$colormode" = "gray" ]; then
 		convert $tmpA1 $setcspace -colorspace Gray $tmpIA1
-	elif [ "$colormode" = "luminance" ]; then
-		convert $tmpA1 $setcspace -colorspace Rec709Luma $tmpIA1
+	elif [ "$colormode" = "luminance" -a "$im_version" -ge "07000000" ]; then
+		convert $tmpA1 $setcspace -grayscale Rec709Luma $tmpI1
+	elif [ "$colormode" = "luminance" -a "$im_version" -lt "07000000" ]; then
+		convert $tmpA1 $setcspace -colorspace Rec709Luma $tmpI1
 	elif [ "$colormode" = "lightness" ]; then
 		convert $tmpA1 $setcspace -colorspace HSL -channel B -separate $tmpIA1
 	elif [ "$colormode" = "brightness" ]; then
@@ -417,7 +446,7 @@ if [ "$satmode" != "" ]; then
 	getSlopeIntercept "$tmpSA1" "$tmpSA2"
 	satpct=`convert xc: -format "%[fx:100*(1+$bb)]" info:`
 	convert $tmpA2 -set option:modulate:colorspace $satmode \
-		-modulate 100,${satpct} $outfile
+		-modulate 100,${satpct} "$outfile"
 else
 	convert $tmpA2 $outfile
 fi

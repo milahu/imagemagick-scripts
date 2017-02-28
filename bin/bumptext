@@ -1,7 +1,31 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 1/7/2010 .......... revised 7/31/2012
+# Developed by Fred Weinhaus 1/7/2010 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
 # 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
 # USAGE: bumptext -t text -s size [-p pointsize] [-f font] [-m mode] [-a angles] [-i intensity] [-g gravity] [-o offsets] [-c color] [-b blendval] infile outfile
 # USAGE: bumptext [-h or -help]
 # 
@@ -122,13 +146,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -285,6 +309,8 @@ else
 					   [ "$xoff" = "" ] && errMsg "--- XOFFSET=$xoff MUST BE A POSITIVE INTEGER VALUE (with no sign) ---"
 					   yoff=`expr "$yy" : '\([0-9]*\)'`
 					   [ "$yoff" = "" ] && errMsg "--- YOFFSET=$yoff MUST BE A POSITIVE INTEGER VALUE (with no sign) ---"
+					   # remove trailing +
+					   offsets=`echo "$offsets" | sed 's/[+]*$//'`
 					   ;;
 				-c)    # get color
 					   shift  # to get the next parameter
@@ -318,8 +344,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -335,8 +361,9 @@ tmpB1="$dir/bumptext_1_$$.cache"
 tmpA2="$dir/bumptext_2_$$.mpc"
 tmpB2="$dir/bumptext_2_$$.cache"
 
-trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2;" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" ERR
 
 # set up colorization
 if [ $blendval -eq 0 ]; then
@@ -347,7 +374,7 @@ fi
 
 
 # read the input image into the temp files and test validity.
-convert -quiet -regard-warnings "$infile" -alpha off +repage $colorization "$tmpA1" ||
+convert -quiet "$infile" -alpha off +repage $colorization "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 
@@ -394,7 +421,7 @@ fi
 
 
 # get background grayscale percent from pixel 0,0 of shaded text
-grayval=`convert $tmpA2[1x1+0+0] -format "%[fx:100*u.r]" info:`
+grayval=`convert -precision 15 $tmpA2[1x1+0+0] -format "%[fx:100*u.r]" info:`
 
 # get im version
 im_version=`convert -list configure | \
@@ -415,6 +442,10 @@ if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
 else
 	setcspace=""
 fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
 
 
 # test for IM 6.5.3.4 or higher to conform to new -compose -compose modulate
@@ -423,11 +454,11 @@ fi
 if [ "$im_version" -gt "06050304" ]; then
 convert $tmpA1 \( $tmpA2 -trim +repage -transparent "gray($grayval%)" \) \
 	-gravity "$gravity" -geometry "$offsets" $setcspace -compose modulate \
-	-set option:compose:args $intensity -composite $outfile
+	-set option:compose:args $intensity -composite "$outfile"
 else
 convert $tmpA2 -trim +repage -transparent "gray($grayval%)" $tmpA2
 composite -watermark $intensity \
-	-gravity "$gravity" -geometry "$offsets" $tmpA2 $tmpA1 $outfile
+	-gravity "$gravity" -geometry "$offsets" $tmpA2 $tmpA1 "$outfile"
 fi
 
 exit 0

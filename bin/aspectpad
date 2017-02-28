@@ -1,7 +1,29 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 12/1/2009 .......... revised 12/4/2009
+# Developed by Fred Weinhaus 12/1/2009 .......... revised 11/2/2016
 #
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
 # USAGE: aspectpad [-a aspect] [-m mode] [-p pcolor] [-t toler] infile outfile
 # USAGE: aspectpad [-help]
 #
@@ -74,13 +96,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -175,8 +197,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -188,12 +210,13 @@ fi
 # setup temporary images
 tmpA1="$dir/aspectpad_1_$$.mpc"
 tmpA2="$dir/aspectpad_1_$$.cache"
-trap "rm -f $tmpA1 $tmpA2; exit 0" 0
+trap "rm -f $tmpA1 $tmpA2;" 0
 trap "rm -f $tmpA1 $tmpA2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2; exit 1" ERR
 
 
 # read the input image and test validity.
-convert -quiet -regard-warnings "$infile" +repage "$tmpA1" ||
+convert -quiet "$infile" +repage "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 # get size and aspect ratio of input
@@ -215,29 +238,29 @@ ttest=`convert xc: -format "%[fx:abs($tratio-$aspect)<=$toler?1:0]" info:`
 
 # copy input to output if image aspect is within toler
 if [ $ttest -eq 1 ]; then
-	convert $tmpA1 $outfile
+	convert $tmpA1 "$outfile"
 	exit
 fi
 
 # force landscape mode
 if [ "$mode" = "l" -a $wtest -eq 1 ]; then
 	ww=`convert xc: -format "%[fx:$hh*$aspect]" info:`
-	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} $outfile
+	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} "$outfile"
 	exit
 elif [ "$mode" = "l" -a $wtest -eq 0 ]; then
 	hh=`convert xc: -format "%[fx:$hh*$wratio/$aspect]" info:`
-	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} $outfile
+	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} "$outfile"
 	exit
 fi
 
 # force portrait mode
 if [ "$mode" = "p" -a $htest -eq 1 ]; then
 	hh=`convert xc: -format "%[fx:$ww*$aspect]" info:`
-	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} $outfile
+	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} "$outfile"
 	exit
 elif [ "$mode" = "p" -a $htest -eq 0 ]; then
 	ww=`convert xc: -format "%[fx:$ww*$hratio/$aspect]" info:`
-	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} $outfile
+	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} "$outfile"
 	exit
 fi
 
@@ -245,11 +268,11 @@ fi
 # auto square image
 if [ "$mode" = "al" -a $ww -eq $hh ]; then
 	ww=`convert xc: -format "%[fx:$hh*$aspect]" info:`
-	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} $outfile
+	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} "$outfile"
 	exit
 elif [ "$mode" = "ap" -a $ww -eq $hh ]; then
 	hh=`convert xc: -format "%[fx:$ww*$aspect]" info:`
-	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} $outfile
+	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} "$outfile"
 	exit
 fi
 
@@ -257,11 +280,11 @@ fi
 # auto landscape image 
 if [ $ww -gt $hh -a $wtest -eq 1 ]; then
 	ww=`convert xc: -format "%[fx:$hh*$aspect]" info:`
-	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} $outfile
+	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} "$outfile"
 	exit
 elif [ $ww -gt $hh -a $wtest -eq 0 ]; then
 	hh=`convert xc: -format "%[fx:$hh*$wratio/$aspect]" info:`
-	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} $outfile
+	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} "$outfile"
 	exit
 fi
 
@@ -269,11 +292,11 @@ fi
 # auto portrait image
 if [ $hh -gt $ww -a $htest -eq 1 ]; then
 	hh=`convert xc: -format "%[fx:$ww*$aspect]" info:`
-	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} $outfile
+	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} "$outfile"
 	exit
 elif [ $hh -gt $ww -a $htest -eq 0 ]; then
 	ww=`convert xc: -format "%[fx:$ww*$hratio/$aspect]" info:`
-	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} $outfile
+	convert $tmpA1 -gravity center -background "$pcolor" -extent ${ww}x${hh} "$outfile"
 	exit
 fi
 

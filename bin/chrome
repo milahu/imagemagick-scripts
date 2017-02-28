@@ -1,8 +1,34 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 4/10/2010 .......... revised 11/27/2011
+# Developed by Fred Weinhaus 4/10/2010 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
 # 
-# USAGE: chrome [-i intensity] [-n numcycles] [-s smooth] [-a azimuth] [-e elevation] [-c color] [-b bgcolor] [-f fuzzfact] infile outfile
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: chrome [-i intensity] [-n numcycles] [-s smooth] [-a azimuth] 
+# [-e elevation] [-c color] [-b bgcolor] [-d dilation] [-B brightness] 
+# [-C contrast] [-A alpha] infile outfile
 # USAGE: chrome [-h or -help]
 # 
 # OPTIONS:
@@ -21,8 +47,17 @@
 #                           default=no special coloration
 # -b      bgcolor           background color outside chrome area; any valid 
 #                           IM color including none for transparent
-# -f      fuzzfact          percent fuzz factor for extracting the background 
-#                           area; float>=0; default=1
+# -d      dilation          dilation of alpha channel; integer>=0; default=1
+# -B      brightness        percent brightness change; -100<=integer<=100; 
+#                           default=0 
+# -C      contrast     		percent contrast change; -100<=integer<=100; 
+#                           default=0
+# -A      alpha             alpha channel handling; choices are: off or 
+#                           extract; if off, the alpha channel is turned off; 
+#                           if extract, the alpha channel is used in place of 
+#                           the image; default is no change of input alpha 
+#                           status 
+#                            
 # 
 ###
 # 
@@ -31,7 +66,9 @@
 # PURPOSE: To apply a chrome effect to a binary image.
 # 
 # DESCRIPTION: CHROME applies an chrome effect to a binary image. Coloration 
-# is optional.
+# is optional. A mostly binary image with antialiasing is OK, but the results 
+# will be slightly different. If the image has an alpha channel, then the 
+# results will be quite different.
 # 
 # 
 # ARGUMENTS: 
@@ -62,9 +99,20 @@
 # items. Any valid IM color is allowed including none for transparency. 
 # The default is no special background color.
 # 
-# -f fuzzfact ... FUZZFACT is the fuzz factor in percent used to extract the 
-# background region for coloring. Values are floats>=0. The default=1.
+# -d dilation ... DILATION of alpha channel when bgcolor is specified. 
+# Values are integers>=0. The default=1.
 # 
+# -B brightness ... percent BRIGHTNESS change. Values are -100<=integer<=100. 
+# The default=0.
+#  
+# -C contrast ... percent CONTRAST change; Values are -100<=integer<=100. The
+# default=0. 
+# 
+# -A alpha ... ALPHA channel handling. The choices are: off (o) or extract (e). 
+# If off, then the alpha channel is turned off and the image is used alone. 
+# If extract, then the alpha channel is used in place of the base image. The 
+# default is no change of input image alpha status. 
+#
 # REQUIREMENTS: IM 6.4.8-9 in order to support -function sinusoid.
 # 
 # CAVEAT: No guarantee that this script will work on all platforms, 
@@ -82,7 +130,10 @@ intensity=100			#intensity; integer>=0
 numcycles=2				#number cycles; integer>0
 color=""				#color for chrome
 bgcolor=""				#background color
-fuzzfact=1				#fuzzfactor for backround/foreground mask; float>=0
+dilation=1              #dilation of alpha channel; integer>=0
+brightness=0			#percent brightness adjustment
+contrast=0              #percent contrast adjustment
+alpha=""                #alpha channel handling
 
 # set directory for temporary files
 dir="."    # suggestions are dir="." or dir="/tmp"
@@ -95,13 +146,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -130,7 +181,7 @@ if [ $# -eq 0 ]
    echo ""
    usage2
    exit 0
-elif [ $# -gt 18 ]
+elif [ $# -gt 24 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -205,13 +256,48 @@ else
 					   checkMinus "$1"
 					   bgcolor="$1"
 					   ;;
-				-f)    # get fuzzfact
+				-d)    # get dilation
 					   shift  # to get the next parameter
 					   # test if parameter starts with minus sign 
-					   errorMsg="--- INVALID FUZZFACT SPECIFICATION ---"
+					   errorMsg="--- INVALID DILATION SPECIFICATION ---"
 					   checkMinus "$1"
-					   fuzzfact=`expr "$1" : '\([.0-9]*\)'`
-					   [ "$fuzzfact" = "" ] && errMsg "--- FUZZFACT=$fuzzfact MUST BE A NON-NEGATIVE FLOAT ---"
+					   dilation=`expr "$1" : '\([0-9]*\)'`
+					   [ "$dilation" = "" ] && errMsg "--- DILATION=$dilation MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-B)    # get brightness
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID BRIGHTNESS SPECIFICATION ---"
+					   #checkMinus "$1"
+					   brightness=`expr "$1" : '\([-]*[.0-9]*\)'`
+					   [ "$brightness" = "" ] && errMsg "--- BRIGHTNESS=$brightness MUST BE AN INTEGER ---"
+		   			   testA=`echo "$brightness < -100" | bc`
+		   			   testB=`echo "$brightness > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- BRIGHTNESS=$brightness MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
+					   ;;
+				-C)    # get contrast
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   #errorMsg="--- INVALID CONTRAST SPECIFICATION ---"
+					   #checkMinus "$1"
+					   contrast=`expr "$1" : '\([-]*[0-9]*\)'`
+					   [ "$contrast" = "" ] && errMsg "--- CONTRAST=$contrast MUST BE AN INTEGER ---"
+		   			   testA=`echo "$contrast < -100" | bc`
+		   			   testB=`echo "$contrast > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- CONTRAST=$contrast MUST BE AN INTEGER -100 AND 100 ---"
+					   ;;
+				-A)    # get  alpha
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ALPHA SPECIFICATION ---"
+					   checkMinus "$1"
+					   alpha="$1"
+					   alpha=`echo "$alpha" | tr "[:upper:]" "[:lower:]"`
+					   case "$alpha" in 
+					   		off|o) alpha="off" ;;
+					   		extract|e) alpha="extract" ;;
+					   		*) errMsg "--- ALPHA=$alpha IS AN INVALID VALUE ---" 
+					   	esac
 					   ;;
 				 -)    # STDIN and end of arguments
 					   break
@@ -227,8 +313,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -247,11 +333,22 @@ tmpA3="$dir/chrome_3_$$.mpc"
 tmpB3="$dir/chrome_3_$$.cache"
 tmpA4="$dir/chrome_3_$$.mpc"
 tmpB4="$dir/chrome_3_$$.cache"
-trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4;" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4; exit 1" ERR
+
+
+# set up alpha channel handling
+if [ "$alpha" = "off" ]; then
+	aproc="-alpha off"
+elif [ "$alpha" = "extract" ]; then
+	aproc="-alpha extract"
+else
+	aproc=""
+fi
 
 # read the input image and filter image into the temp files and test validity.
-convert -quiet -regard-warnings "$infile" +repage "$tmpA1" ||
+convert -quiet "$infile" $aproc +repage "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 
@@ -295,25 +392,31 @@ convert $tmpA3 $tmpA2 -clut $colorize $tmpA4
 
 # process background if needed
 if [ "$bgcolor" = "" ]; then
-	convert $tmpA4 $outfile
+	convert $tmpA4 "$outfile"
 else
-	# set up fuzzify
-	if [ $fuzzfact -eq 0 ]; then
-		fuzzify=""
-	else
-		fuzzify="-fuzz $fuzzfact%"
-	fi
-
 	# set up bgcolorize
-	if [ "$bgcolor" = "none" ]; then
+	if [ "$bgcolor" = "none" -o "$bgcolor" = "transparent" ]; then
 		bgcolorize=""
 	else
 		bgcolorize="-compose over -background $bgcolor -flatten"
 	fi
 
-	convert $tmpA4 \
-		\( $tmpA3 $fuzzify -fill black -draw "color 0,0 floodfill" -fill white +opaque black \) \
-		-alpha off -compose copy_opacity -composite $bgcolorize $outfile	
+	# set up dilation
+	if [ "$dilation" != "0" ]; then
+		dilating="-morphology dilate octagon:$dilation"
+	else
+		dilating=""
+	fi
+
+	# set up brightness/contast
+	if [ "$brightness" = "0" -a "$contrast" = "0" ]; then
+		bricon=""
+	else
+		bricon="-brightness-contrast ${brightness},${contast}"
+	fi
+	
+	convert \( $tmpA4 $bricon \) \( $tmpA1 $dilating \) \
+		-alpha off -compose copy_opacity -composite $bgcolorize "$outfile"	
 fi
 exit 0
 

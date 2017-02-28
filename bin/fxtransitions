@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 6/3/2008 .......... revised 6/4/2008
+# Developed by Fred Weinhaus 6/3/2008 .......... revised 8/12/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: fxtransitions [-e effect] [-f frames] [-d delay] [-p pause] [-b bgcolor] [-r] infile1 infile2 [outfile]
 # USAGE: fxtransitions [-h or -help]
@@ -83,24 +107,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
-	}
-
-
-# function to report error messages
-errMsg()
-	{
-	echo ""
-	echo $1
-	echo ""
-	usage1
-	exit 1
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -201,9 +214,9 @@ else
 	done
 	#
 	# get infile and outfile
-	infile1=$1
-	infile2=$2
-	outfile=$3
+	infile1="$1"
+	infile2="$2"
+	outfile="$3"
 fi
 
 # test that infile1 provided
@@ -218,19 +231,20 @@ tmpA="$dir/fxtransitions_1_$$.mpc"
 tmpB="$dir/fxtransitions_1_$$.cache"
 tmpC="$dir/fxtransitions_2_$$.mpc"
 tmpD="$dir/fxtransitions_2_$$.cache"
-tmp0="$dir/fxtransitions_0_$$.gif"
-tmp1="$dir/fxtransitions_1_$$.gif"
-trap "rm -f $tmpA $tmpB $tmpC $tmpD $tmp0 $tmp1; exit 0" 0
+tmp0="$dir/fxtransitions_0_$$.miff"
+tmp1="$dir/fxtransitions_1_$$.miff"
+trap "rm -f $tmpA $tmpB $tmpC $tmpD $tmp0 $tmp1;" 0
 trap "rm -f $tmpA $tmpB $tmpC $tmpD $tmp0 $tmp1; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmpC $tmpD $tmp0 $tmp1; exit 1" ERR
 
-if convert -quiet -regard-warnings "$infile1" +repage "$tmpA"
+if convert -quiet "$infile1" +repage "$tmpA"
 	then
 	: ' Do Nothing '
 else
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 fi
 
-if convert -quiet -regard-warnings "$infile2" +repage "$tmpC"
+if convert -quiet "$infile2" +repage "$tmpC"
 	then
 	: ' Do Nothing '
 else
@@ -242,6 +256,9 @@ h1=`convert $tmpA -format "%h" info:`
 w2=`convert $tmpC -format "%w" info:`
 h2=`convert $tmpC -format "%h" info:`
 [ $w1 -ne $w2 -a $h1 -ne $h2 ] && errMsg "--- IMAGE SIZES DO NOT MATCH ---"
+
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 count=`expr $frames - 1`
 case "$effect" in
@@ -293,7 +310,11 @@ case "$effect" in
 	   spin)		
 				factor=`convert xc: -format "%[fx:359.9/$count]" info:`
 				expression="359.9*\(\(1000^\(\$k*$factor/359.9\)-1\)/999\)\)"
-				func1="-radial-blur"
+				if [ "$im_version" -ge "07000000" ]; then
+					func1="-rotational-blur"
+				else
+					func1="-radial-blur"
+				fi
 				op=""
 				parm=""
 				func2=""
@@ -303,7 +324,7 @@ case "$effect" in
 				# solve for x^(count)=1/dim
 				factor=`convert xc: -format "%[fx:1/$count)]" info:`
 				expression="100*\(10^\($factor*\$k\)-1\)/9"
-				func1="-spread"
+				func1="-interpolate bilinear -spread"
 				op="%"
 				parm=""
 				func2=""
@@ -355,7 +376,7 @@ transitionFrames()
 		ff=`convert xc: -format "%[fx:$ee]" info:`
 #		echo "k=$k; ff=$ff func1=$func1;"
 		convert $tmpA $func1 "$ff${op} $parm" $func2 miff:- |\
-			convert -delay $delay $tmp0 -page +0+0 - -page +0+0 $tmp0
+			convert -delay $delay $tmp0 - $tmp0
 		i=`expr $i + 1`
 	done
 	
@@ -372,13 +393,13 @@ transitionFrames()
 		ff=`convert xc: -format "%[fx:$ee]" info:`
 #		echo "j=$j; k=$k; ff=$ff; func1=$func1;"
 		convert $tmpC $func1 "$ff${op} $parm" $func2 miff:- |\
-			convert -delay $delay $tmp0 -page +0+0 - -page +0+0 $tmp0
+			convert -delay $delay $tmp0 - $tmp0
 		i=`expr $i + 1`
 		k=`expr $k - 1`
 	done
 	echo "$count"
 		convert $tmpC miff:- |\
-			convert -delay $delay $tmp0 -page +0+0 - -page +0+0 $tmp0
+			convert -delay $delay $tmp0 - $tmp0
 	}
 
 # function to change the delay on two specified frames
@@ -426,7 +447,7 @@ fi
 
 if [ "$outfile" != "" ]
 	then
-	convert $tmp0 -loop 0 $outfile
+	convert $tmp0 -loop 0 "$outfile"
 else
 	animate $tmp0
 fi

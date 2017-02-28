@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 1/22/2009 .......... revised 6/3/2013
+# Developed by Fred Weinhaus 1/22/2009 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: bump [-t type] [-a amplitude] [-r radius] [-c center] [-m] [-b bgcolor] infile outfile
 # USAGE: bump [-h or -help]
@@ -84,13 +108,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -194,8 +218,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -209,8 +233,9 @@ tmpA1="$dir/bump_$$.mpc"
 tmpB1="$dir/bump_$$.cache"
 tmp1="$dir/bump_1_$$.miff"
 tmp2="$dir/bump_2_$$.miff"
-trap "rm -f $tmpA1 $tmpB1 $tmp1 $tmp2; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmp1 $tmp2;" 0
 trap "rm -f $tmpA1 $tmpB1 $tmp1 $tmp2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmp1 $tmp2; exit 1" ERR
 
 # get im version
 im_version=`convert -list configure | \
@@ -236,7 +261,7 @@ if [ "$im_version" -gt "06080504" ]; then
 	setcspace=""
 fi
 
-if convert -quiet -regard-warnings "$infile" +repage $setcspace "$tmpA1"
+if convert -quiet "$infile" +repage $setcspace "$tmpA1"
 	then
 	: ' Do Nothing '
 else
@@ -264,9 +289,12 @@ hh=`convert $tmpA1 -format %h info:`
 hmr=`convert xc: -format "%[fx:max(1,$hh-$rad1)]" info:`
 hhh=`convert xc: -format "%[fx:$rad1+$hmr]" info:`
 
-# get im version
-im_version=`convert -list configure | \
-sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+# set up for -separate --- not needed for grayscale in IM 7
+if [ "$im_version" -ge "07000000" ]; then
+	separating=""
+else
+	separating="-channel g -separate"
+fi
 
 # convert image to polar coords
 convert $tmpA1 -distort depolar -1,0,$cx,$cy $tmpA1
@@ -276,7 +304,7 @@ if [ $type -eq 1 ]; then
 	# create bump map equal to negative half sine wave
 	if [ "$im_version" -ge "06040805" ]; then
 		convert -size 1x${rad1} gradient:"gray(255)-gray(0)" \
-			-channel G -separate +channel \
+			$separating +channel \
 			-evaluate sine 0.5 -negate \
 			$tmp1
 	else
@@ -290,7 +318,7 @@ elif [ $type -eq 2 ]; then
 	# need to use just slightly less than 50% in +level to avoid a black dot in the center
 	convert \( -size 1x${rad2} gradient:"gray(255)-gray(0)" \) \
 		\( +clone -negate \) -append \
-		-channel G -separate +channel \
+		$separating +channel \
 		+level 0%,49.999999% \
 		$tmp1
 elif [ $type -eq 3 ]; then
@@ -298,7 +326,7 @@ elif [ $type -eq 3 ]; then
 	# create bump map as lower half circle
 	convert \( -size 1x${rad2} gradient:"gray(255)-gray(0)" \) \
 		\( +clone -negate \) -append -negate \
-		-channel G -separate +channel \
+		$separating +channel \
 		-fx "sqrt(1-(u-1)*(u-1))" -negate \
 		+level 0%,49.999999% \
 		$tmp1
@@ -306,7 +334,7 @@ elif [ $type -eq 3 ]; then
 	# alternate hemisphere
 	convert \( -size 1x${rad2} gradient:"gray(255)-gray(0)" \) \
 		\( +clone -negate \) -append -negate \
-		-channel G -separate +channel \
+		$separating +channel \
 		-negate +clone -compose multiply -composite \
 		-negate -evaluate pow 0.5 -negate \
 		+level 0%,49.999999% \
@@ -339,7 +367,7 @@ if [ "$mask" = "yes" ]; then
 # create and convert mask to rectangular coords and composite with image
 	convert $tmp1 -threshold 50% -distort polar -1,0,$cx,$cy $tmp1
 	convert $tmpA1 \( -size ${ww}x${hh} xc:$bgcolor \) $tmp1 \
-		-compose over -composite $outfile
+		-compose over -composite "$outfile"
 else
 	convert $tmpA1 $outfile
 fi

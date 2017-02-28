@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 10/16/2008 .......... revised 6/3/2013
+# Developed by Fred Weinhaus 10/16/2008 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: clip [-c colormode] [-l cliplow] [-h cliphigh] infile outfile
 # USAGE: clip [-help]
@@ -90,13 +114,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -182,8 +206,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -211,8 +235,9 @@ tmpS2="$dir/clip_S_$$.cache"
 tmpL1="$dir/clip_L_$$.mpc"
 tmpL2="$dir/clip_L_$$.cache"
 
-trap "rm -f $tmpA1 $tmpA2 $tmpI1 $tmpI2 $tmpR1 $tmpR2 $tmpG1 $tmpG2 $tmpB1 $tmpB2 $tmpH1 $tmpH2 $tmpS1 $tmpS2 $tmpL1 $tmpL2; exit 0" 0
+trap "rm -f $tmpA1 $tmpA2 $tmpI1 $tmpI2 $tmpR1 $tmpR2 $tmpG1 $tmpG2 $tmpB1 $tmpB2 $tmpH1 $tmpH2 $tmpS1 $tmpS2 $tmpL1 $tmpL2;" 0
 trap "rm -f $tmpA1 $tmpA2 $tmpI1 $tmpI2 $tmpR1 $tmpR2 $tmpG1 $tmpG2 $tmpB1 $tmpB2 $tmpH1 $tmpH2 $tmpS1 $tmpS2 $tmpL1 $tmpL2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2 $tmpI1 $tmpI2 $tmpR1 $tmpR2 $tmpG1 $tmpG2 $tmpB1 $tmpB2 $tmpH1 $tmpH2 $tmpS1 $tmpS2 $tmpL1 $tmpL2; exit 1" ERR
 
 # get im version
 im_version=`convert -list configure | \
@@ -247,7 +272,7 @@ if [ "$im_version" -gt "06080504" ]; then
 fi
 
 # test if infile exists and is valid
-if convert -quiet -regard-warnings "$infile" +repage $setcspace "$tmpA1"
+if convert -quiet "$infile" +repage $setcspace "$tmpA1"
 	then
 	: ' do nothing '
 else
@@ -411,9 +436,9 @@ fi
 if [ "$colormode" = "i" -a "$use_level" = "yes" ]; then
 	getChannelStats "$tmpI1"
 	#echo "I: min=$min; max=$max;"
-	convert $tmpA1 -level ${min}%,${max}% $outfile
+	convert $tmpA1 -level ${min}%,${max}% "$outfile"
 elif [ "$colormode" = "i" ]; then
-	convert $tmpA1 $setcspace -contrast-stretch ${cliplownum},${cliphighnum} $outfile
+	convert $tmpA1 $setcspace -contrast-stretch ${cliplownum},${cliphighnum} "$outfile"
 elif [ "$colormode" = "rgb" -a "$use_level" = "yes" ]; then
 	getChannelStats "$tmpR1"
 	#echo "R: min=$min; max=$max;"
@@ -424,12 +449,12 @@ elif [ "$colormode" = "rgb" -a "$use_level" = "yes" ]; then
 	getChannelStats "$tmpB1"
 	#echo "R: min=$min; max=$max;"
 	convert $tmpB1 -level ${min}%,${max}% $tmpB1
-	convert $tmpR1 $tmpG1 $tmpB1 -colorspace $cspace -combine $outfile
+	convert $tmpR1 $tmpG1 $tmpB1 -colorspace $cspace -combine "$outfile"
 elif [ "$colormode" = "rgb" ]; then
 	convert $tmpR1 $setcspace -contrast-stretch ${cliplownum},${cliphighnum} $tmpR1
 	convert $tmpG1 $setcspace -contrast-stretch ${cliplownum},${cliphighnum} $tmpG1
 	convert $tmpB1 $setcspace -contrast-stretch ${cliplownum},${cliphighnum} $tmpB1
-	convert $tmpR1 $tmpG1 $tmpB1 -colorspace $cspace -combine $outfile
+	convert $tmpR1 $tmpG1 $tmpB1 -colorspace $cspace -combine "$outfile"
 elif [ "$colormode" = "sb" -a "$use_level" = "yes" ]; then
 	getChannelStats "$tmpS1"
 	#echo "S: min=$min; max=$max;"
@@ -441,7 +466,7 @@ elif [ "$colormode" = "sb" -a "$use_level" = "yes" ]; then
 		$tmpH1 -compose CopyRed   -composite \
 		$tmpS1 -compose CopyGreen -composite \
 		$tmpL1 -compose CopyBlue  -composite \
-		-colorspace $cspace $outfile
+		-colorspace $cspace "$outfile"
 elif [ "$colormode" = "sb" ]; then
 	convert $tmpS1 -contrast-stretch ${cliplownum},${cliphighnum} $tmpS1
 	convert $tmpL1 -contrast-stretch ${cliplownum},${cliphighnum} $tmpL1
@@ -449,7 +474,7 @@ elif [ "$colormode" = "sb" ]; then
 		$tmpH1 -compose CopyRed   -composite \
 		$tmpS1 -compose CopyGreen -composite \
 		$tmpL1 -compose CopyBlue  -composite \
-		-colorspace $cspace $outfile
+		-colorspace $cspace "$outfile"
 elif [ "$colormode" = "sl" -a "$use_level" = "yes" ]; then
 	getChannelStats "$tmpS1"
 	#echo "S: min=$min; max=$max;"
@@ -461,7 +486,7 @@ elif [ "$colormode" = "sl" -a "$use_level" = "yes" ]; then
 		$tmpH1 -compose CopyRed   -composite \
 		$tmpS1 -compose CopyGreen -composite \
 		$tmpL1 -compose CopyBlue  -composite \
-		-colorspace $cspace $outfile
+		-colorspace $cspace "$outfile"
 elif [ "$colormode" = "sl" ]; then
 	convert $tmpS1 $setcspace -contrast-stretch ${cliplownum},${cliphighnum} -write 1tmp4.jpg $tmpS1
 	convert $tmpL1 $setcspace -contrast-stretch ${cliplownum},${cliphighnum} -write 1tmp5.jpg $tmpL1
@@ -469,7 +494,7 @@ elif [ "$colormode" = "sl" ]; then
 		$tmpH1 -compose CopyRed   -composite \
 		$tmpS1 -compose CopyGreen -composite \
 		$tmpL1 -compose CopyBlue  -composite \
-		-colorspace $cspace $outfile
+		-colorspace $cspace "$outfile"
 fi
 exit 0
 

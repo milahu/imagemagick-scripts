@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 5/27/2010 .......... 5/28/2010
+# Developed by Fred Weinhaus 5/27/2010 .......... 12/11/2014
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: cone [-s size] [-r radii] [-c center] [-a apex]  [-e ecolors] [-t tcolors] [-b bcolor] [-m mode] [infile] outfile
 # USAGE: cone [-help or -h]
@@ -103,13 +127,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -229,10 +253,10 @@ else
 	#
 	# get infile and outfile
 	if [ $# -eq 2 ]; then
-		infile=$1
-		outfile=$2
+		infile="$1"
+		outfile="$2"
 	elif [ $# -eq 1 ]; then
-		outfile=$1
+		outfile="$1"
 		infile=""
 	else
 		errMsg "--- INCONSISTENT NUMBER OF INPUT AND OUTPUT IMAGES SPECIFIED ---"
@@ -246,11 +270,12 @@ if [ "$infile" != "" ]; then
 	# set up temp files
 	tmpA1="$dir/cone_A_$$.mpc"
 	tmpA2="$dir/cone_A_$$.cache"
-	trap "rm -f $tmpA1 $tmpA2; exit 0" 0
+	trap "rm -f $tmpA1 $tmpA2;" 0
 	trap "rm -f $tmpA1 $tmpA2; exit 1" 1 2 3 15
+	trap "rm -f $tmpA1 $tmpA2; exit 1" ERR
 
 	# read the input image and filter image into the temp files and test validity.
-	convert -quiet -regard-warnings "$infile" +repage "$tmpA1" ||
+	convert -quiet "$infile" +repage "$tmpA1" ||
 		errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 fi
 
@@ -341,12 +366,12 @@ if [ $mode -eq 1 ]; then
 	convert $input \
 		-fill $ecolor -stroke $estroke -strokewidth $ewidth -draw "translate $xc,$yc rotate $angle ellipse 0,0 $a,$b 0,360" \
 		-fill $tcolor -stroke $tstroke -strokewidth $twidth -draw "polygon $x1,$y1 $x9,$y9 $x10,$y10" \
-		$outfile
+		"$outfile"
 elif [ $mode -eq 2 ]; then
 	convert $input \
 		-fill $tcolor -stroke $tstroke -strokewidth $twidth -draw "polygon $x1,$y1 $x9,$y9 $x10,$y10" \
 		-fill $ecolor -stroke $estroke -strokewidth $ewidth -draw "translate $xc,$yc rotate $angle ellipse 0,0 $a,$b 0,360" \
-		$outfile
+		"$outfile"
 fi
 
 exit 0

@@ -1,7 +1,31 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 5/17/2011 .......... revised 7/5/2013
+# Developed by Fred Weinhaus 5/17/2011 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
 # 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
 # USAGE: entropy infile
 # USAGE: entropy [-h or -help]
 # 
@@ -38,6 +62,9 @@
 # then Red, Green and Blue should then be interpreted as channels 1, 2 and 3, 
 # respectively, for that colorspace.
 # 
+# NOTE: This script will process only the first frame/page of a multiframe or 
+# multipage image.
+#
 # CAVEAT: No guarantee that this script will work on all platforms, 
 # nor that trapping of inconsistent parameters is complete and 
 # foolproof. Use At Your Own Risk. 
@@ -58,13 +85,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -120,7 +147,7 @@ else
 	done
 	#
 	# get infile
-	infile=$1
+	infile="$1"
 fi
 
 # test that infile provided
@@ -130,11 +157,12 @@ fi
 # setup temporary images and auto delete upon exit
 tmpA1="$dir/entropy_1_$$.mpc"
 tmpB1="$dir/entropy_1_$$.cache"
-trap "rm -f $tmpA1 $tmpB1; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1;" 0
 trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1; exit 1" ERR
 
 # read the input image and filter image into the temp files and test validity.
-convert -quiet -regard-warnings "$infile" +repage "$tmpA1" ||
+convert -quiet "$infile[0]" +repage "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 # get total number of pixels
@@ -154,51 +182,92 @@ if [ "$cspace" = "Gray" -o "$cspace" = "Rec709Luma" -o "$cspace" = "Rec601Luma" 
 	gray_entropy=$(convert $tmpA1 -channel r -separate -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- |\
 	tr -cs '0-9\012' ' ' |\
 	awk -v totpix="$totpix" ' 
-	NF>1 { p = $1/totpix; gray_entropy += -p*log(p); }
-	END { print gray_entropy/log(256); } ')
+	NF>1 { p = $1/totpix; gray_entropy += -p*log(p); numbins++; }
+	END { print gray_entropy/log(numbins); } ')
 	echo "Gray Entropy = $gray_entropy"
 
 
 elif [ "$cspace" = "CMYK" ]; then
 
-	entropyArr=(`convert $tmpA1 -depth 8 -format "%c" histogram:info:- |\
+	# get cyan entropy from red channel
+	# get histogram, remove all chars not numeric or space and collapse multiple spaces
+	# use NF>1 (i.e. number of fields > 1) in AWK to remove empty lines or lines with only one field 
+	cyan_entropy=$(convert $tmpA1 -channel c -separate -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- |\
 	tr -cs '0-9\012' ' ' |\
 	awk -v totpix="$totpix" ' 
-	{ c[$2] += $1; m[$3] += $1; y[$4] += $1; k[$5] += $1; }
-	END { for (i=0;i<256;i++)  
-	{ c[i] = (c[i]+0)/totpix; m[i] = (m[i]+0)/totpix; y[i] = (y[i]+0)/totpix; k[i] = (k[i]+0)/totpix;
-	if ( c[i] == 0 ) ec[i] = 0; else ec[i] = -c[i]*log(c[i]); 
-	if ( m[i] == 0 ) em[i] = 0; else em[i] = -m[i]*log(m[i]); 
-	if ( y[i] == 0 ) ey[i] = 0; else ey[i] = -y[i]*log(y[i]);  
-	if ( k[i] == 0 ) ek[i] = 0; else ek[i] = -k[i]*log(k[i]);  
-	cyan_entropy += ec[i]; magenta_entropy += em[i]; yellow_entropy += ey[i]; black_entropy += ek[i]; } 
-	print cyan_entropy/log(256), magenta_entropylog(256), yellow_entropylog(256), black_entropylog(256), 
-	(cyan_entropy + magenta_entropy + yellow_entropy + black_entropy)/(4*log(256)); }
-	'` )
-	echo "Cyan Entropy = ${entropyArr[0]}"
-	echo "Magenta Entropy = ${entropyArr[1]}"
-	echo "Yellow Entropy = ${entropyArr[2]}"
-	echo "Black Entropy = ${entropyArr[3]}"
-	echo "Average CMYK Entropy = ${entropyArr[4]}"
+	NF>1 { p = $1/totpix; cyan_entropy += -p*log(p); numbins++; }
+	END { print cyan_entropy/log(numbins); } ')
+
+	# get magenta entropy from red channel
+	# get histogram, remove all chars not numeric or space and collapse multiple spaces
+	# use NF>1 (i.e. number of fields > 1) in AWK to remove empty lines or lines with only one field 
+	magenta_entropy=$(convert $tmpA1 -channel m -separate -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- |\
+	tr -cs '0-9\012' ' ' |\
+	awk -v totpix="$totpix" ' 
+	NF>1 { p = $1/totpix; magenta_entropy += -p*log(p); numbins++; }
+	END { print magenta_entropy/log(numbins); } ')
+
+	# get yellow entropy from red channel
+	# get histogram, remove all chars not numeric or space and collapse multiple spaces
+	# use NF>1 (i.e. number of fields > 1) in AWK to remove empty lines or lines with only one field 
+	yellow_entropy=$(convert $tmpA1 -channel y -separate -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- |\
+	tr -cs '0-9\012' ' ' |\
+	awk -v totpix="$totpix" ' 
+	NF>1 { p = $1/totpix; yellow_entropy += -p*log(p); numbins++; }
+	END { print yellow_entropy/log(numbins); } ')
+
+	# get black entropy from red channel
+	# get histogram, remove all chars not numeric or space and collapse multiple spaces
+	# use NF>1 (i.e. number of fields > 1) in AWK to remove empty lines or lines with only one field 
+	black_entropy=$(convert $tmpA1 -channel k -separate -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- |\
+	tr -cs '0-9\012' ' ' |\
+	awk -v totpix="$totpix" ' 
+	NF>1 { p = $1/totpix; black_entropy += -p*log(p); numbins++; }
+	END { print black_entropy/log(numbins); } ')
+
+	ave_entropy=`echo "scale=6; ($cyan_entropy+$magenta_entropy+$yellow_entropy+$black_entropy)/4" | bc`
+
+	echo "Cyan Entropy = $cyan_entropy"
+	echo "Magenta Entropy = $magenta_entropy"
+	echo "Yellow Entropy = $yellow_entropy"
+	echo "Black Entropy = $black_entropy"
+	echo "Average CMYK Entropy = $ave_entropy"
 
 else
 
-	entropyArr=(`convert $tmpA1 -depth 8 -format "%c" histogram:info:- |\
+	# get red entropy from red channel
+	# get histogram, remove all chars not numeric or space and collapse multiple spaces
+	# use NF>1 (i.e. number of fields > 1) in AWK to remove empty lines or lines with only one field 
+	red_entropy=$(convert $tmpA1 -channel r -separate -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- |\
 	tr -cs '0-9\012' ' ' |\
 	awk -v totpix="$totpix" ' 
-	{ r[$2] += $1; g[$3] += $1; b[$4] += $1; }
-	END { for (i=0;i<256;i++)  
-	{ r[i] = (r[i]+0)/totpix; g[i] = (g[i]+0)/totpix; b[i] = (b[i]+0)/totpix;
-	if ( r[i] == 0 ) er[i] = 0; else er[i] = -r[i]*log(r[i]); 
-	if ( g[i] == 0 ) eg[i] = 0; else eg[i] = -g[i]*log(g[i]); 
-	if ( b[i] == 0 ) eb[i] = 0; else eb[i] = -b[i]*log(b[i]);  
-	red_entropy += er[i]; green_entropy += eg[i]; blue_entropy += eb[i]; } 
-	print red_entropy/log(256), green_entropy/log(256), blue_entropy/log(256), (red_entropy + green_entropy + blue_entropy)/(3*log(256)); }
-	'` )
-	echo "Red Entropy = ${entropyArr[0]}"
-	echo "Green Entropy = ${entropyArr[1]}"
-	echo "Blue Entropy = ${entropyArr[2]}"
-	echo "Average RGB Entropy = ${entropyArr[3]}"
+	NF>1 { p = $1/totpix; red_entropy += -p*log(p); numbins++; }
+	END { print red_entropy/log(numbins); } ')
+
+	# get green entropy from red channel
+	# get histogram, remove all chars not numeric or space and collapse multiple spaces
+	# use NF>1 (i.e. number of fields > 1) in AWK to remove empty lines or lines with only one field 
+	green_entropy=$(convert $tmpA1 -channel g -separate -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- |\
+	tr -cs '0-9\012' ' ' |\
+	awk -v totpix="$totpix" ' 
+	NF>1 { p = $1/totpix; green_entropy += -p*log(p); numbins++; }
+	END { print green_entropy/log(numbins); } ')
+
+	# get blue entropy from red channel
+	# get histogram, remove all chars not numeric or space and collapse multiple spaces
+	# use NF>1 (i.e. number of fields > 1) in AWK to remove empty lines or lines with only one field 
+	blue_entropy=$(convert $tmpA1 -channel b -separate -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- |\
+	tr -cs '0-9\012' ' ' |\
+	awk -v totpix="$totpix" ' 
+	NF>1 { p = $1/totpix; blue_entropy += -p*log(p); numbins++; }
+	END { print blue_entropy/log(numbins); } ')
+
+	ave_entropy=`echo "scale=6; ($red_entropy+$green_entropy+$blue_entropy)/3" | bc`
+
+	echo "Red Entropy = $red_entropy"
+	echo "Green Entropy = $green_entropy"
+	echo "Blue Entropy = $blue_entropy"
+	echo "Average RGB Entropy = $ave_entropy"
 
 fi
 echo ""

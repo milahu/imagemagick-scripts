@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 1/2/2008 .......... revised 11/27/2011
+# Developed by Fred Weinhaus 1/2/2008 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: colortemp [-t temperatures] [-f fov] [infile] outfile
 # USAGE: colortemp [-h or -help]
@@ -78,13 +102,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -155,8 +179,8 @@ else
 	done
 	#
 	# get infile and outfile
-	file1=$1
-	file2=$2
+	file1="$1"
+	file2="$2"
 fi
 
 # setup temporary images and auto delete upon exit
@@ -167,8 +191,9 @@ tmp0="$dir/colortemp_0_$$.png"
 tmp1="$dir/colortemp_1_$$.png"
 tmp2="$dir/colortemp_2_$$.png"
 tmp3="$dir/colortemp_3_$$.png"
-trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2 $tmp3; exit 0" 0
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2 $tmp3;" 0
 trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2 $tmp3; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2 $tmp3; exit 1" ERR
 
 if [ "$file1" != "" -a "$file2" = "" ]
 	then
@@ -177,7 +202,7 @@ elif [ "$file1" != "" -a "$file2" != "" ]
 	then
 	infile="$file1"
 	outfile="$file2"
-	if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
+	if convert -quiet "$infile" +repage "$tmpA"
 		then
 		: 'do nothing - continue processing below'
 		else
@@ -1026,10 +1051,10 @@ if [ "$infile" = "" -a "$t1" = "" ]
 	then
 	# now convert arrays into images
 	# Use NetPBM (PGM format implied intermediate image)
-#	echo "P2 391 1 65535\n ${tempArr[*]}" | convert - -scale 391x50! $tmp0
-	echo "P2 391 1 255\n ${redArr[*]}" | convert - -scale 391x50! $tmp1
-	echo "P2 391 1 255\n ${greenArr[*]}" | convert - -scale 391x50! $tmp2
-	echo "P2 391 1 255\n ${blueArr[*]}" | convert - -scale 391x50! $tmp3
+#	echo "P2 391 1 65535 ${tempArr[*]}" | convert - -scale 391x50! $tmp0
+	echo "P2 391 1 255 ${redArr[*]}" | convert - -scale 391x50! $tmp1
+	echo "P2 391 1 255 ${greenArr[*]}" | convert - -scale 391x50! $tmp2
+	echo "P2 391 1 255 ${blueArr[*]}" | convert - -scale 391x50! $tmp3
 
 	convert $tmp1 $tmp2 $tmp3 -combine $tmp0
 	
@@ -1040,7 +1065,7 @@ if [ "$infile" = "" -a "$t1" = "" ]
 	convert $tmp3 -stroke white -font Arial -pointsize 10 \
 		-draw "text 20,100 '1000' text 60,100 '2000' text 100,100 '3000' text 140,100 '4000' text 180,100 '5000' text 220,100 '6000' text 260,100 '7000' text 300,100 '8000' text 340,100 '9000' text 380,100 '10000' text 420,100 '11000' text 460,100 '12000' text 500,100 '13000'" \
 		-stroke white -font Arial -pointsize 14 \
-		-draw "text 180,20 'Color vs Temperture (deg K)'" $outfile
+		-draw "text 180,20 'Color vs Temperture (deg K)'" "$outfile"
 fi
 
 
@@ -1074,7 +1099,7 @@ if [ "$infile" = "" -a "$t1" != "" ]
 	convert -size 100x100 xc:"rgb($red,$green,$blue)" \
 		-bordercolor gray -border 30 -bordercolor white -border 2 \
 		-stroke white -font Arial -pointsize 12 \
-		-draw "text 50,150 '$temp deg K'" $outfile
+		-draw "text 50,150 '$temp deg K'" "$outfile"
 fi
 
 # get im version
@@ -1128,7 +1153,7 @@ if [ "$infile" != "" -a "$outfile" != "" -a "$t1" != "" ]
 		bluefrac=`echo "scale=3; $dblue / $cblue" | bc`
 	fi
 
-	convert $tmpA $process "$redfrac 0 0 0 $greenfrac 0 0 0 $bluefrac" $outfile
+	convert $tmpA $process "$redfrac 0 0 0 $greenfrac 0 0 0 $bluefrac" "$outfile"
 fi
 exit 0
 

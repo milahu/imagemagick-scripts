@@ -1,7 +1,31 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 10/10/2012 .......... revised 10/10/2012
+# Developed by Fred Weinhaus 10/10/2012 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
 # 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
 # USAGE: meshwarp -f file [-i] [-p] infile outfile
 # USAGE: meshwarp [-h or -help]
 # 
@@ -64,13 +88,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -139,8 +163,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 
@@ -151,12 +175,13 @@ tmpdir="."
 dir="$tmpdir/MESHWARP.$$"
 
 mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
-trap "rm -rf $dir; exit 0" 0
+trap "rm -rf $dir;" 0
 trap "rm -rf $dir; exit 1" 1 2 3 15
+trap "rm -rf $dir; exit 1" ERR
 
 
 # read input image
-convert -quiet -regard-warnings "$infile" -depth 8 $dir/tmpI.mpc ||
+convert -quiet "$infile" -depth 8 $dir/tmpI.mpc ||
 echo  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 # get image dimensions
@@ -323,7 +348,7 @@ for ((i=0; i<numt; i++)); do
 done
 
 # write to output
-convert $dir/tmpT.mpc $outfile
+convert $dir/tmpT.mpc "$outfile"
 
 
 exit 0

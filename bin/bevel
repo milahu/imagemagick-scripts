@@ -1,7 +1,31 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 7/29/2010 .......... revised 7/31/2012
+# Developed by Fred Weinhaus 7/29/2010 .......... revised 9/12/2015
+#
+# ------------------------------------------------------------------------------
 # 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
 # USAGE: bevel [-w width] [-a azimuth] [-e elevation] [-d depth] [-f form] [-i innermode] [-o outermode] [-s soften] [-t taper] [-b bcolor] [-c colormode] infile outfile
 # USAGE: bevel [-h or -help]
 # 
@@ -120,13 +144,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -293,8 +317,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 
@@ -311,16 +335,16 @@ trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4; exit 0" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4; exit 1" 1 2 3 15
 
 # read the input image and filter image into the temp files and test validity.
-convert -quiet -regard-warnings "$infile" +repage "$tmpA1" ||
+convert -quiet "$infile" +repage "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 
 # test if alpha channel enabled and completely opaque alpha channel
-is_alpha=`convert $tmpA1 -ping -format "%A" info:`
+is_alpha=`identify -ping -verbose $tmpA1 | grep "Alpha" | head -n 1`
 alpha_mean=""
-[ "$is_alpha" = "True" ] && alpha_mean=`convert $tmpA1 -alpha extract -format "%[fx:mean]" info:`
+ [ "$is_alpha" != "" ] && alpha_mean=`convert $tmpA1 -alpha extract -format "%[fx:mean]" info:`
 opaque_alpha="no"
-[ "$is_alpha" = "False" -o "$alpha_mean" = "1" ] && opaque_alpha="yes"
+[ "$is_alpha" = "" -o "$alpha_mean" = "1" ] && opaque_alpha="yes"
 
 # get im version
 im_version=`convert -list configure | \
@@ -347,11 +371,15 @@ if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
 else
 	setcspace=""
 fi
+if [ "$im_version" -gt "06080504" ]; then
+	cspace="sRGB"
+	setcspace=""
+fi
 
 # flatten alpha channel into image, but keep alpha channel
 convert $tmpA1 $setcspace \( -clone 0 -alpha extract \) \
 	\( -clone 0 -background "gray(50%)" -flatten \) -delete 0 +swap \
-	-compose copy_opacity -composite $tmpA1
+	-alpha off -compose copy_opacity -composite $tmpA1
 
 
 # set up defaults for taper
@@ -450,7 +478,7 @@ if [ "$form" = "inner" ]; then
 		-compose over -composite \
 		\( $tmpA1 -alpha off \) +swap $setcspace -compose hardlight -composite \
 		$tmpA2 -alpha off -compose copy_opacity -composite \
-		$outfile
+		"$outfile"
 elif [ "$form" = "outer" -a "$opaque_alpha" = "yes" ]; then
 	width1=$(($width+1))
 	thresholding="-shave ${width}x${width} -bordercolor black -border $width1 -blur ${width}x65000 -threshold 0"
@@ -464,7 +492,7 @@ elif [ "$form" = "outer" -a "$opaque_alpha" = "yes" ]; then
 		-compose over -composite \
 		\( $tmpA1 -alpha off \) +swap $setcspace -compose hardlight -composite \
 		$tmpA2 -alpha off -compose copy_opacity -composite \
-		$outfile
+		"$outfile"
 elif [ "$form" = "outer" ]; then
 	thresholding="-threshold 0 -negate"
 	smoothing=""
@@ -479,7 +507,7 @@ elif [ "$form" = "outer" ]; then
 		-compose over -composite $negating \
 		\( $tmpA1 -alpha off \) +swap $setcspace -compose hardlight -composite \
 		$tmpA2 -alpha off -compose copy_opacity -composite \
-		$outfile
+		"$outfile"
 elif [ "$form" = "emboss" ]; then
 	# do inner bevel
 	if [ "$imode" = "hard" ]; then
@@ -511,7 +539,7 @@ elif [ "$form" = "emboss" ]; then
 		-compose over -composite $negating \
 		\( $tmpA3 -alpha off \) +swap $setcspace -compose hardlight -composite \
 		$tmpA2 -alpha off -compose copy_opacity -composite \
-		$outfile
+		"$outfile"
 		
 fi
 

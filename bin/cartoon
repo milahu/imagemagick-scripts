@@ -1,8 +1,33 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 3/6/2013 .......... revised 6/4/2013
+# Developed by Fred Weinhaus 3/6/2013 .......... revised 2/19/2017
+#
+# ------------------------------------------------------------------------------
 # 
-# USAGE: cartoon [-p pattern] [-n numlevels] [-e edgeamount] [-b brightness] [-s saturation] infile outfile
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: cartoon [-p pattern] [-n numlevels] [-m method] [-e edgeamount] 
+# [-b brightness] [-s saturation] infile outfile
 # USAGE: cartoon [-h or -help]
 # 
 # OPTIONS:
@@ -11,6 +36,7 @@
 #                           default=70
 # -n      numlevels         number of desired segmentation levels; integer>=2;
 #                           default=6
+# -m      method            edge method; 1, 2, 3 or 4; default=1
 # -e      edgeamount        amount of edges; float>=0; default=4
 # -b      brightness        brightness of cartoon; integer>=0; default=100
 # -s      saturation        saturation of cartoon; integer>=0; default=100
@@ -36,6 +62,8 @@
 # -n numlevels ... NUMLEVELS is the desired number of segmentation levels.  
 # Values are integers>=2. The default=6.
 # 
+# -m method ... edge METHOD. Choices are 1, 2, 3 or 4. The default=1. 
+# 
 # -e edgeamount ... EDGEAMOUNT is the amount of edges to overlay on the 
 # cartoon. Values are floats>=0. The default=4.
 # 
@@ -55,6 +83,7 @@
 # set default values
 pattern=70			# segmentation pattern; 0<=integer<=100
 numlevels=6			# numlevels; integer>=2
+method=1            # edge method; 1 or 2
 edgeamount=4		# edge amount; float>=0
 brightness=100		# brightness; integer>=0
 saturation=150		# saturation; integer>=0
@@ -62,6 +91,7 @@ saturation=150		# saturation; integer>=0
 # fixed arguments
 edgewidth=2			# edge width; integer>=0
 edgethresh=90		# edge threshold; 0<=integer<=100
+edgegain=4			# edge gain for method=2
 
 # set directory for temporary files
 dir="."    # suggestions are dir="." or dir="/tmp"
@@ -74,13 +104,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -109,7 +139,7 @@ if [ $# -eq 0 ]
    echo ""
    usage2
    exit 0
-elif [ $# -gt 12 ]
+elif [ $# -gt 14 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -142,6 +172,17 @@ else
 					   [ "$numlevels" = "" ] && errMsg "--- NUMLEVELS=$numlevels MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
 					   test=`echo "$numlevels < 2" | bc`
 					   [ $test -eq 1 ] && errMsg "--- NUMLEVELS=$numlevels MUST BE AN INTEGER GREATER THAN 1 ---"
+					   ;;
+				-m)    # get  method
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID METHOD SPECIFICATION ---"
+					   checkMinus "$1"
+					   method=`expr "$1" : '\([0-9]*\)'`
+					   [ "$method" = "" ] && errMsg "--- METHOD=$method MUST BE A NON-NEGATIVE INTEGER VALUE (with no sign) ---"
+					   test1=`echo "$method <= 0" | bc`
+					   test2=`echo "$method >= 5" | bc`
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- METHOD=$method MUST BE EITHER 1, 2, 3 or 4 ---"
 					   ;;
 				-e)    # get  edgeamount
 					   shift  # to get the next parameter
@@ -181,8 +222,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -198,6 +239,7 @@ tmpA2="$dir/cartoon_2_$$.mpc"
 tmpB2="$dir/cartoon_2_$$.cache"
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 0" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
+#trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" ERR
 
 # get im version
 im_version=`convert -list configure | \
@@ -230,7 +272,7 @@ if [ "$im_version" -gt "06080504" ]; then
 fi
 
 # read the input image into the temporary cached image, convert to depth 8 and selective blur
-convert -quiet -regard-warnings "$infile" +repage -depth 8 -selective-blur 0x5+10% "$tmpA1" ||
+convert -quiet "$infile" +repage -depth 8 -selective-blur 0x5+10% "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
 
 ww=`identify -ping -format "%w" $tmpA1`
@@ -240,7 +282,7 @@ hh=`identify -ping -format "%h" $tmpA1`
 if [ "$im_version" -ge "06060806" ]; then
 	medproc="-statistic median 3x3"
 else
-	medproc="-median 3"
+	medproc="-median 1"
 fi
 
 
@@ -248,21 +290,58 @@ fi
 # convert $tmpA1 -level 0x$pattern% $setcspace -colorspace gray -posterize $numlevels -colorspace $cspace -depth 8 $tmpA2
 convert $tmpA1 -level 0x$pattern% $setcspace -colorspace gray -posterize $numlevels -depth 8 $proc $tmpA2
 
-
-# process image
-# multiply the blurred posterized graycale mask with the smoothed input
-# convert smoothed input to grayscale
-# negate and blur
-# colordodge composite the grayscale and negated/blurred version to make edgewidth image
-# use power to amplify and then threshold and median filter
-# multiply composite the edgewidth with the blended image
-convert $tmpA1 \( $tmpA2 -blur 0x1 \) \
-	\( -clone 0 -clone 1 -compose over -compose multiply -composite -modulate $brightness,$saturation,100 \) \
-	\( -clone 0 $setcspace -colorspace gray \) \
-	\( -clone 3 -negate -blur 0x${edgewidth} \) \
-	\( -clone 3 -clone 4 -compose over -compose colordodge -composite \
-		-evaluate pow $edgeamount -threshold $edgethresh% $medproc \) \
-		-delete 0,1,3,4 -compose over -compose multiply -composite $outfile
+if [ $method -eq 1 ]; then
+	# process image
+	# multiply the blurred posterized graycale mask with the smoothed input
+	# convert smoothed input to grayscale
+	# negate and blur
+	# colordodge composite the grayscale and negated/blurred version to make edgewidth image
+	# use power to amplify and then threshold and median filter
+	# multiply composite the edgewidth with the blended image
+	convert $tmpA1 \( $tmpA2 -blur 0x1 \) \
+		\( -clone 0 -clone 1 -compose over -compose multiply -composite -modulate $brightness,$saturation,100 \) \
+		\( -clone 0 $setcspace -colorspace gray \) \
+		\( -clone 3 -negate -blur 0x${edgewidth} \) \
+		\( -clone 3 -clone 4 -compose over -compose colordodge -composite \
+			-evaluate pow $edgeamount -threshold $edgethresh% $medproc \) \
+			-delete 0,1,3,4 -compose over -compose multiply -composite "$outfile"
+elif [ $method -eq 2 ]; then
+	# process image
+	# multiply the blurred posterized graycale mask with the smoothed input
+	# convert smoothed input to grayscale
+	# apply high pass filter to grayscale, use power to amplify and threshold
+	# multiply composite the edge image with the smoothed color image
+	convert $tmpA1 \( $tmpA2 -blur 0x1 \) \
+		\( -clone 0 -clone 1 -compose over -compose multiply -composite -modulate $brightness,$saturation,100 \) \
+		\( -clone 0 $setcspace -colorspace gray -negate -define convolve:scale=$edgegain \
+			-morphology Convolve DoG:0,0,${edgewidth} -negate \
+			-evaluate pow $edgeamount -white-threshold $edgethresh% \) \
+		-delete 0,1 -compose over -compose multiply -composite "$outfile"
+elif [ $method -eq 3 ]; then
+	# process image
+	# multiply the blurred posterized graycale mask with the smoothed input
+	# convert smoothed input to grayscale
+	# create sobel edges
+	# multiply composite the edge image with the smoothed color image
+	convert $tmpA1 \( $tmpA2 -blur 0x1 \) \
+		\( -clone 0 -clone 1 -compose over -compose multiply -composite -modulate $brightness,$saturation,100 \) \
+		\( -clone 0 $setcspace -colorspace gray -define convolve:scale='!' \
+			-define morphology:compose=Lighten -morphology Convolve  'Sobel:>' \
+			-negate -evaluate pow $edgeamount -white-threshold $edgethresh% \) \
+		-delete 0,1 -compose over -compose multiply -composite "$outfile"
+elif [ $method -eq 4 ]; then
+	# process image
+	# multiply the blurred posterized graycale mask with the smoothed input
+	# convert smoothed input to grayscale
+	# create morphology edges
+	# multiply composite the edge image with the smoothed color image
+	convert $tmpA1 \( $tmpA2 -blur 0x1 \) \
+		\( -clone 0 -clone 1 -compose over -compose multiply -composite -modulate $brightness,$saturation,100 \) \
+		\( -clone 0 $setcspace -colorspace gray -define convolve:scale='!' \
+			-morphology edge diamond:1 \
+			-negate -evaluate pow $edgeamount -white-threshold $edgethresh% \) \
+		-delete 0,1 -compose over -compose multiply -composite "$outfile"
+fi
 
 
 exit 0	

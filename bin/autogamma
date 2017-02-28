@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 10/7/2008 .......... revised 6/1/2013
+# Developed by Fred Weinhaus 10/7/2008 .......... revised 11/6/2014
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: autogamma [-c colormode] [-m midrange] infile outfile
 # USAGE: autogamma [-h or -help]
@@ -80,13 +104,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -171,8 +195,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -195,10 +219,11 @@ tmpB1="$dir/autogamma_B_$$.mpc"
 tmpB2="$dir/autogamma_B_$$.cache"
 trap "rm -f $tmpA1 $tmpA2 $tmpI1 $tmpI2 $tmpR1 $tmpR2 $tmpG1 $tmpG2 $tmpB1 $tmpB2; exit 0" 0
 trap "rm -f $tmpA1 $tmpA2 $tmpI1 $tmpI2 $tmpR1 $tmpR2 $tmpG1 $tmpG2 $tmpB1 $tmpB2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2 $tmpI1 $tmpI2 $tmpR1 $tmpR2 $tmpG1 $tmpG2 $tmpB1 $tmpB2; exit 1" ERR
 
 
 # read input and convert to appropriate colorspace/channel
-if convert -quiet -regard-warnings "$infile" +repage "$tmpA1"
+if convert -quiet "$infile" +repage "$tmpA1"
 	then
 	: ' do nothing '
 else
@@ -239,7 +264,9 @@ fi
 #convert image to RGB and separate channels according to colormode
 if [ "$colormode" = "intensity" -o "$colormode" = "gray" ]; then
 	convert $tmpA1 $setcspace -colorspace Gray $tmpI1
-elif [ "$colormode" = "luminance" ]; then
+elif [ "$colormode" = "luminance" -a "$im_version" -ge "07000000" ]; then
+	convert $tmpA1 $setcspace -grayscale Rec709Luma $tmpI1
+elif [ "$colormode" = "luminance" -a "$im_version" -lt "07000000" ]; then
 	convert $tmpA1 $setcspace -colorspace Rec709Luma $tmpI1
 elif [ "$colormode" = "lightness" ]; then
 	convert $tmpA1 $setcspace -colorspace HSL -channel B -separate $tmpI1
@@ -283,7 +310,7 @@ echo ""
 if [ "$colormode" != "rgb" ]; then
 	getChannelStats "$tmpI1"
 	echo "gamma=$gammaval"
-	convert $tmpA1 -gamma $gammaval $outfile
+	convert $tmpA1 -gamma $gammaval "$outfile"
 else
 	getChannelStats "$tmpR1"
 	echo "RED: gamma=$gammaval"
@@ -294,7 +321,7 @@ else
 	getChannelStats "$tmpB1"
 	echo "BLUE: gamma=$gammaval"
 	convert $tmpB1 -gamma $gammaval $tmpB1
-	convert $tmpR1 $tmpG1 $tmpB1 -combine -colorspace $cspace $outfile
+	convert $tmpR1 $tmpG1 $tmpB1 -combine -colorspace $cspace "$outfile"
 fi
 echo ""
 exit 0

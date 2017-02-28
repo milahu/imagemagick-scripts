@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 7/2/2011 .......... 7/2/2011
+# Developed by Fred Weinhaus 7/2/2011 .......... 2/17/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: interweave [-m mode] [-b bandsize] infile1 infile2 outfile
 # USAGE: interweave [-h or -help]
@@ -56,13 +80,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -142,9 +166,9 @@ else
 	done
 	#
 	# get infile and outfile
-	infile1=$1
-	infile2=$2
-	outfile=$3
+	infile1="$1"
+	infile2="$2"
+	outfile="$3"
 	[ "$4" != "" ] && errMsg "--- TOO MANY IMAGES SPECIFIED ---"
 fi
 
@@ -162,13 +186,14 @@ tmpA1="$dir/interweave_1_$$.mpc"
 tmpB1="$dir/interweave_1_$$.cache"
 tmpA2="$dir/interweave_2_$$.mpc"
 tmpB2="$dir/interweave_2_$$.cache"
-trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2;" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" ERR
 
 # test input images
-convert -quiet -regard-warnings "$infile1" +repage "$tmpA1" ||
+convert -quiet "$infile1" +repage "$tmpA1" ||
 	errMsg "--- FILE $infile1 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
-convert -quiet -regard-warnings "$infile2" +repage "$tmpA2" ||
+convert -quiet "$infile2" +repage "$tmpA2" ||
 	errMsg "--- FILE $infile2 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 
 # get image width, height and test the same size
@@ -191,7 +216,7 @@ if [ "$mode" = "column" ]; then
 		\( -size ${bandsize}x1 xc:black xc:white +append \
 		-write mpr:check +delete \
 		-size $dim tile:mpr:check \) \
-		-composite $outfile
+		-composite "$outfile"
 
 elif [ "$mode" = "row" ]; then 
 
@@ -199,7 +224,7 @@ elif [ "$mode" = "row" ]; then
 		\( -size 1x${bandsize} xc:black xc:white -append \
 		-write mpr:check +delete \
 		-size $dim tile:mpr:check \) \
-		-composite $outfile
+		-composite "$outfile"
 
 elif [ "$mode" = "both" ]; then 
 
@@ -208,7 +233,7 @@ elif [ "$mode" = "both" ]; then
 		\( +clone -negate \) -append \
 		-write mpr:tile +delete  \
 		-size $dim tile:mpr:tile \) \
-		-composite $outfile
+		-composite "$outfile"
 
 fi
 

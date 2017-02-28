@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 12/8/2012 .......... revised  6/13/2013
+# Developed by Fred Weinhaus 12/8/2012 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: mosaictiles [-t tsize] [-w width ] [-b bright] [-c color] [-A] 
 # [-r ripples] [-g granular] [-n newseed] infile outfile
@@ -86,13 +110,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -231,8 +255,9 @@ tmpA2="$dir/mosaictiles_2_$$.mpc"
 tmpB2="$dir/mosaictiles_2_$$.cache"
 tmpA3="$dir/mosaictiles_3_$$.mpc"
 tmpB3="$dir/mosaictiles_3_$$.cache"
-trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3;" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3; exit 1" ERR
 
 # get im version
 im_version=`convert -list configure | \
@@ -260,7 +285,7 @@ fi
 
 
 # read the input image into the temporary cached image and test if valid
-convert -quiet -regard-warnings "$infile" +repage "$tmpA1" ||
+convert -quiet "$infile" +repage "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
 
 
@@ -318,11 +343,11 @@ fi
 # apply to image
 # pre-color ( also need to add -negate after thresholding above)
 #convert $tmpA1 \( $tmpA2 -fill white -colorize $bright \) \
-#	-compose multiply -composite $outfile
+#	-compose multiply -composite "$outfile"
 convert $tmpA1 \
 	\( -clone 0 -fill $color -colorize 100 \) \
 	\( $tmpA2 -fill black -colorize $bright \) \
-	-compose multiply -composite $outfile
+	-compose multiply -composite "$outfile"
 
 
 exit 0

@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 10/1/2009 .......... revised 6/3/2013
+# Developed by Fred Weinhaus 10/1/2009 .......... revised 8/18/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: colorconverter -c "color" [-d dimensions] [-s] [-v]
 # USAGE: colorconverter [-h or -help]
@@ -71,13 +95,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -105,7 +129,7 @@ function showSwatch()
 	{
 	convert -respect-parenthesis \( -size "$dimensions" xc:"$1" \) -colorspace $cspace \
 	-background white -fill black -font $font -pointsize 10 \
-	label:"$1" -gravity south -append -alpha off show:
+	label:"$1" -gravity south -append show:
 	}
 
 
@@ -174,9 +198,6 @@ sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | h
 # prior to IM 6.5.6.6 HSL/HSB colors were different
 the_version="06050606"
 
-# get IM version
-im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
 # though probably not resolved until the latter
@@ -211,17 +232,37 @@ echo ""
 echo "RGB:"
 # get rgb colors
 rgb=`convert xc:"$color" -colorspace $cspace txt:- | tail -n 1 | sed -n 's/ *//g; s/^.*[:][(]\(.*\)[)].*[\#].*$/\1/p'`
+# test if values are percent or raw
+test=$(echo "$rgb" | grep "%")
+[ "$test" = "" ] && rgb="$rgb" || rgb=`echo "$rgb" | sed 's/%//g'`
 RR=`echo "$rgb" | cut -d, -f1`
 GG=`echo "$rgb" | cut -d, -f2`
 BB=`echo "$rgb" | cut -d, -f3`
 AA=`echo "$rgb" | cut -d, -f4`
-RRV=`convert xc: -format "%[fx:255*$RR/quantumrange]" info:`
-GGV=`convert xc: -format "%[fx:255*$GG/quantumrange]" info:`
-BBV=`convert xc: -format "%[fx:255*$BB/quantumrange]" info:`
-RRP=`convert xc: -format "%[fx:100*$RR/quantumrange]" info:`
-GGP=`convert xc: -format "%[fx:100*$GG/quantumrange]" info:`
-BBP=`convert xc: -format "%[fx:100*$BB/quantumrange]" info:`
-[ "$AA" != "" ] && AAV=`convert xc: -format "%[fx:$AA/quantumrange]" info:`
+
+if [ "$test" = "" ]; then
+	RRV=`convert xc: -format "%[fx:round(255*$RR/quantumrange)]" info:`
+	GGV=`convert xc: -format "%[fx:round(255*$GG/quantumrange)]" info:`
+	BBV=`convert xc: -format "%[fx:round(255*$BB/quantumrange)]" info:`
+	RRP=`convert xc: -format "%[fx:100*$RR/quantumrange]" info:`
+	GGP=`convert xc: -format "%[fx:100*$GG/quantumrange]" info:`
+	BBP=`convert xc: -format "%[fx:100*$BB/quantumrange]" info:`
+else
+	RRV=`convert xc: -format "%[fx:round(255*$RR/100)]" info:`
+	GGV=`convert xc: -format "%[fx:round(255*$GG/100)]" info:`
+	BBV=`convert xc: -format "%[fx:round(255*$BB/100)]" info:`
+	RRP=$RR
+	GGP=$GG
+	BBP=$BB
+fi
+
+# raw alpha value change from range 0-quantumrange to 0-1 at same time % introduced for other channels (IM 6.8.6.10 started %) 
+# also at IM 6.9.2.1 all raw rgb values including alpha now back to range 0-quantumrange, unless hdri mode and then all percent
+if [ "$AA" != "" -a "$test" = "" ]; then
+	AAV=`convert xc: -format "%[fx:$AA/quantumrange]" info:`
+else
+	AAV=$AA
+fi
 #echo "$RR $GG $BB $AA; $RRV $GGV $BBV; $RRP $GGP $BBP; $AAV"
 if [ "$AA" = "" ]; then
 	echo "rgb($RRV,$GGV,$BBV)"
@@ -229,8 +270,8 @@ if [ "$AA" = "" ]; then
 	echo "rgb($RRP%,$GGP%,$BBP%)"
 	[ "$validate" = "yes" ] && showSwatch "rgb($RRP%,$GGP%,$BBP%)"
 else
-	echo "rgba($RR,$GG,$BB,$AAV)"
-	[ "$validate" = "yes" ] && showSwatch "rgba($RR,$GG,$BB,$AA)"
+	echo "rgba($RRV,$GGV,$BBV,$AAV)"
+	[ "$validate" = "yes" ] && showSwatch "rgba($RRV,$GGV,$BBV,$AAV)"
 	echo "rgba($RRP%,$GGP%,$BBP%,$AAV)"
 	[ "$validate" = "yes" ] && showSwatch "rgba($RRP%,$GGP%,$BBP%,$AAV)"
 fi
@@ -250,26 +291,54 @@ echo "HSL:"
 # due to change of channels to linear from non-linar, one needs to 
 # convert cmyk colors to sRGB, then make non-linear with -set colorspace RGB, 
 # then convert to HSL
+# 
+# note: starting at IM 6.9.2.1 HSL txt output is in format HSL(0-360,percent,percent) and raw values are all non-percent again
+# also at IM 6.9.2.1 all raw hsl values including alpha now back to range 0-quantumrange
+# 
 hsl=`convert xc:"$color" -colorspace $cspace $setcspace -colorspace HSL txt:- | tail -n 1 | sed -n 's/ *//g; s/^.*[:][(]\(.*\)[)].*[\#].*$/\1/p'`
+# test if values are percent or raw
+test=$(echo "$hsl" | grep "%")
+[ "$test" = "" ] && hsl="$hsl" || hsl=`echo "$hsl" | sed 's/%//g'`
 HH=`echo "$hsl" | cut -d, -f1`
 SS=`echo "$hsl" | cut -d, -f2`
 LL=`echo "$hsl" | cut -d, -f3`
 AA=`echo "$hsl" | cut -d, -f4`
-HHV=`convert xc: -format "%[fx:360*$HH/quantumrange]" info:`
-SSV=`convert xc: -format "%[fx:255*$SS/quantumrange]" info:`
-LLV=`convert xc: -format "%[fx:255*$LL/quantumrange]" info:`
-HHP=`convert xc: -format "%[fx:100*$HH/quantumrange]" info:`
-SSP=`convert xc: -format "%[fx:100*$SS/quantumrange]" info:`
-LLP=`convert xc: -format "%[fx:100*$LL/quantumrange]" info:`
-[ "$AA" != "" ] && AAV=`convert xc: -format "%[fx:$AA/quantumrange]" info:`
+
+if [ "$test" = "" ]; then
+	HHV=`convert xc: -format "%[fx:round(360*$HH/quantumrange)]" info:`
+	SSV=`convert xc: -format "%[fx:round(255*$SS/quantumrange)]" info:`
+	LLV=`convert xc: -format "%[fx:round(255*$LL/quantumrange)]" info:`
+	SSP=`convert xc: -format "%[fx:100*$SS/quantumrange]" info:`
+	LLP=`convert xc: -format "%[fx:100*$LL/quantumrange]" info:`
+else
+	HHV=`convert xc: -format "%[fx:round(360*$HH/100)]" info:`
+	SSV=`convert xc: -format "%[fx:round(255*$SS/100)]" info:`
+	LLV=`convert xc: -format "%[fx:round(255*$LL/100)]" info:`
+	HHP=$HH
+	SSP=$SS
+	LLP=$LL
+fi
+
+# raw alpha value change from range 0-quantumrange to 0-1 at same time % introduced for other channels (IM 6.8.6.10 started %) 
+# also at IM 6.9.2.1 all raw hsb values including alpha now back to range 0-quantumrange
+if [ "$AA" != "" -a "$test" = "" ]; then
+	AAV=`convert xc: -format "%[fx:$AA/quantumrange]" info:`
+else
+	AAV=$AA
+fi
 #echo "$HH $SS $LL $AA; $HHV $SSV $LLV; $HHP $SSP $LLP; $AAV"
 if [ "$AA" = "" ]; then
 	if [ "$im_version" -ge "$the_version" ]
 		then 
 		echo "hsl($HHV,$SSV,$LLV)"
 		[ "$validate" = "yes" ] && showSwatch "hsl($HHV,$SSV,$LLV)"
-		echo "hsl($HHP%,$SSP%,$LLP%)"
-		[ "$validate" = "yes" ] && showSwatch "hsl($HHP%,$SSP%,$LLP%)"
+		if [ "$im_version" -lt "06090201" ]; then
+			echo "hsl($HHP%,$SSP%,$LLP%)"
+			[ "$validate" = "yes" ] && showSwatch "hsl($HHP%,$SSP%,$LLP%)"
+		elif [ "$im_version" -ge "06090201" ]; then
+			echo "hsl($HHV,$SSP%,$LLP%)"
+			[ "$validate" = "yes" ] && showSwatch "hsl($HHV,$SSP%,$LLP%)"
+		fi
 	else
 		echo "hsl($HHV,$SSP%,$LLP%)"
 		[ "$validate" = "yes" ] && showSwatch "hsl($HHV,$SSP%,$LLP%)"
@@ -277,10 +346,15 @@ if [ "$AA" = "" ]; then
 else
 	if [ "$im_version" -ge "$the_version" ]
 		then 
-		echo "hsla($HH,$SS,$LL,$AAV)"
-		[ "$validate" = "yes" ] && showSwatch "hsla($HH,$SS,$LL,$AAV)"
-		echo "hsla($HHP%,$SSP%,$LLP%,$AAV)"
-		[ "$validate" = "yes" ] && showSwatch "hsla($HHP%,$SSP%,$LLP%,$AAV)"
+		echo "hsla($HHV,$SSV,$LLV,$AAV)"
+		[ "$validate" = "yes" ] && showSwatch "hsla($HHV,$SSV,$LLV,$AAV)"
+		if [ "$im_version" -lt "06090201" ]; then
+			echo "hsla($HHP%,$SSP%,$LLP%,$AAV)"
+			[ "$validate" = "yes" ] && showSwatch "hsla($HHP%,$SSP%,$LLP%,$AAV)"
+		elif [ "$im_version" -ge "06090201" ]; then
+			echo "hsla($HHV,$SSP%,$LLP%,$AAV)"
+			[ "$validate" = "yes" ] && showSwatch "hsla($HHV,$SSP%,$LLP%,$AAV)"
+		fi
 	else
 		echo "hsla($HHV,$SSP%,$LLP%,$AAV)"
 		[ "$validate" = "yes" ] && showSwatch "hsla($HHV,$SSP%,$LLP%,$AAV)"
@@ -295,25 +369,50 @@ echo "HSB:"
 # convert cmyk colors to sRGB, then make non-linear with -set colorspace RGB, 
 # then convert to HSL
 hsb=`convert xc:"$color" -colorspace $cspace $setcspace -colorspace HSB txt:- | tail -n 1 | sed -n 's/ *//g; s/^.*[:][(]\(.*\)[)].*[\#].*$/\1/p'`
+# test if values are percent or raw
+test=$(echo "$hsb" | grep "%")
+[ "$test" = "" ] && hsb="$hsb" || hsb=`echo "$hsb" | sed 's/%//g'`
 HH=`echo "$hsb" | cut -d, -f1`
 SS=`echo "$hsb" | cut -d, -f2`
 BB=`echo "$hsb" | cut -d, -f3`
 AA=`echo "$hsb" | cut -d, -f4`
-HHV=`convert xc: -format "%[fx:360*$HH/quantumrange]" info:`
-SSV=`convert xc: -format "%[fx:255*$SS/quantumrange]" info:`
-BBV=`convert xc: -format "%[fx:255*$BB/quantumrange]" info:`
-HHP=`convert xc: -format "%[fx:100*$HH/quantumrange]" info:`
-SSP=`convert xc: -format "%[fx:100*$SS/quantumrange]" info:`
-BBP=`convert xc: -format "%[fx:100*$BB/quantumrange]" info:`
-[ "$AA" != "" ] && AAV=`convert xc: -format "%[fx:$AA/quantumrange]" info:`
+
+if [ "$test" = "" ]; then
+	HHV=`convert xc: -format "%[fx:round(360*$HH/quantumrange)]" info:`
+	SSV=`convert xc: -format "%[fx:round(255*$SS/quantumrange)]" info:`
+	BBV=`convert xc: -format "%[fx:round(255*$BB/quantumrange)]" info:`
+	HHP=`convert xc: -format "%[fx:100*$HH/quantumrange]" info:`
+	SSP=`convert xc: -format "%[fx:100*$SS/quantumrange]" info:`
+	BBP=`convert xc: -format "%[fx:100*$BB/quantumrange]" info:`
+else
+	HHV=`convert xc: -format "%[fx:round(360*$HH/100)]" info:`
+	SSV=`convert xc: -format "%[fx:round(255*$SS/100)]" info:`
+	BBV=`convert xc: -format "%[fx:round(255*$BB/100)]" info:`
+	HHP=$HH
+	SSP=$SS
+	BBP=$BB
+fi
+
+# raw alpha value change from range 0-quantumrange to 0-1 at same time % introduced for other channels (IM 6.8.6.10 started %) 
+# also at IM 6.9.2.1 all raw values including alpha now back to range 0-quantumrange
+if [ "$AA" != "" -a "$test" = "" ]; then
+	AAV=`convert xc: -format "%[fx:$AA/quantumrange]" info:`
+else
+	AAV=$AA
+fi
 #echo "$HH $SS $BB $AA; $HHV $SSV $BBV; $HHP $SSP $BBP; $AAV"
 if [ "$AA" = "" ]; then
 	if [ "$im_version" -ge "$the_version" ]
 		then 
 		echo "hsb($HHV,$SSV,$BBV)"
 		[ "$validate" = "yes" ] && showSwatch "hsb($HHV,$SSV,$BBV)"
-		echo "hsb($HHP%,$SSP%,$BBP%)"
-		[ "$validate" = "yes" ] && showSwatch "hsb($HHP%,$SSP%,$BBP%)"
+		if [ "$im_version" -lt "06090201" ]; then
+			echo "hsb($HHP%,$SSP%,$BBP%)"
+			[ "$validate" = "yes" ] && showSwatch "hsb($HHP%,$SSP%,$BBP%)"
+		elif [ "$im_version" -ge "06090201" ]; then
+			echo "hsb($HHV,$SSP%,$BBP%)"
+			[ "$validate" = "yes" ] && showSwatch "hsb($HHV,$SSP%,$BBP%)"
+		fi
 	else
 		echo "hsb($HHV,$SSP%,$BBP%)"
 		[ "$validate" = "yes" ] && showSwatch "hsb($HHV,$SSP%,$BBP%)"
@@ -321,10 +420,15 @@ if [ "$AA" = "" ]; then
 else
 	if [ "$im_version" -ge "$the_version" ]
 		then 
-		echo "hsba($HH,$SS,$BB,$AAV)"
-		[ "$validate" = "yes" ] && showSwatch "hsba($HH,$SS,$BB,$AAV)"
-		echo "hsba($HHP%,$SSP%,$BBP%,$AAV)"
-		[ "$validate" = "yes" ] && showSwatch "hsba($HHP%,$SSP%,$BBP%,$AAV)"
+		echo "hsba($HHV,$SSV,$BBV,$AAV)"
+		[ "$validate" = "yes" ] && showSwatch "hsba($HHV,$SSV,$BBV,$AAV)"
+		if [ "$im_version" -lt "06090201" ]; then
+			echo "hsba($HHP%,$SSP%,$BBP%,$AAV)"
+			[ "$validate" = "yes" ] && showSwatch "hsba($HHP%,$SSP%,$BBP%,$AAV)"
+		elif [ "$im_version" -ge "06090201" ]; then
+			echo "hsba($HHV,$SSP%,$BBP%,$AAV)"
+			[ "$validate" = "yes" ] && showSwatch "hsba($HHV,$SSP%,$BBP%,$AAV)"
+		fi
 	else
 		echo "hsba($HHV,$SSP%,$BBP%,$AAV)"
 		[ "$validate" = "yes" ] && showSwatch "hsba($HHV,$SSP%,$BBP%,$AAV)"
@@ -335,20 +439,42 @@ echo ""
 echo "CMYK:"
 # get cmyk colors
 cmyk=`convert xc:"$color" -colorspace CMYK txt:- | tail -n 1 | sed -n 's/ *//g; s/^.*[:][(]\(.*\)[)].*[\#].*$/\1/p'`
+# test if values are percent or raw
+test=$(echo "$cmyk" | grep "%")
+[ "$test" = "" ] && cmyk="$cmyk" || cmyk=`echo "$cmyk" | sed 's/%//g'`
 CC=`echo "$cmyk" | cut -d, -f1`
 MM=`echo "$cmyk" | cut -d, -f2`
 YY=`echo "$cmyk" | cut -d, -f3`
 KK=`echo "$cmyk" | cut -d, -f4`
 AA=`echo "$cmyk" | cut -d, -f5`
-CCV=`convert xc: -format "%[fx:255*$CC/quantumrange]" info:`
-MMV=`convert xc: -format "%[fx:255*$MM/quantumrange]" info:`
-YYV=`convert xc: -format "%[fx:255*$YY/quantumrange]" info:`
-KKV=`convert xc: -format "%[fx:255*$KK/quantumrange]" info:`
-CCP=`convert xc: -format "%[fx:100*$CC/quantumrange]" info:`
-MMP=`convert xc: -format "%[fx:100*$MM/quantumrange]" info:`
-YYP=`convert xc: -format "%[fx:100*$YY/quantumrange]" info:`
-KKP=`convert xc: -format "%[fx:100*$KK/quantumrange]" info:`
-[ "$AA" != "" ] && AAV=`convert xc: -format "%[fx:$AA/quantumrange]" info:`
+
+if [ "$test" = "" ]; then
+	CCV=`convert xc: -format "%[fx:round(255*$CC/quantumrange)]" info:`
+	MMV=`convert xc: -format "%[fx:round(255*$MM/quantumrange)]" info:`
+	YYV=`convert xc: -format "%[fx:round(255*$YY/quantumrange)]" info:`
+	KKV=`convert xc: -format "%[fx:round(255*$KK/quantumrange)]" info:`
+	CCP=`convert xc: -format "%[fx:100*$CC/quantumrange]" info:`
+	MMP=`convert xc: -format "%[fx:100*$MM/quantumrange]" info:`
+	YYP=`convert xc: -format "%[fx:100*$YY/quantumrange]" info:`
+	KKP=`convert xc: -format "%[fx:100*$KK/quantumrange]" info:`
+else
+	CCV=`convert xc: -format "%[fx:round(255*$CC/100)]" info:`
+	MMV=`convert xc: -format "%[fx:round(255*$MM/100)]" info:`
+	YYV=`convert xc: -format "%[fx:round(255*$YY/100)]" info:`
+	KKV=`convert xc: -format "%[fx:round(255*$KK/100)]" info:`
+	CCP=$CC
+	MMP=$MM
+	YYP=$YY
+	KKP=$KK
+fi
+
+# raw alpha value change from range 0-quantumrange to 0-1 at same time % introduced for other channels (IM 6.8.6.10 started %) 
+# also at IM 6.9.2.1 all raw cmyk values including alpha now back to range 0-quantumrange, unless hdri mode and then all percent
+if [ "$AA" != "" -a "$test" = "" ]; then
+	AAV=`convert xc: -format "%[fx:$AA/quantumrange]" info:`
+else
+	AAV=$AA
+fi
 #echo "$CC $MM $YY $KK $AA; $CCV $YYV $YYV $KKV; $CCP $MMP $YYP $KKP; $AAV"
 if [ "$AA" = "" ]; then
 	echo "cmyk($CCV,$MMV,$YYV,$KKV)"
@@ -357,7 +483,7 @@ if [ "$AA" = "" ]; then
 		[ "$validate" = "yes" ] && showSwatch "cmyk($CCP%,$MMP%,$YYP%,$KKP%)"
 else
 	echo "cmyka($CCV,$MMV,$YYV,$KKV,$AAV)"
-		[ "$validate" = "yes" ] && showSwatch "cmyka($CCV,$MMV,$YYV,$KKV,$AA)"
+		[ "$validate" = "yes" ] && showSwatch "cmyka($CCV,$MMV,$YYV,$KKV,$AAV)"
 	echo "cmyka($CCP%,$MMP%,$YYP%,$KKP%,$AAV)"
 		[ "$validate" = "yes" ] && showSwatch "cmyka($CCP%,$MMP%,$YYP%,$KKP%,$AAV)"
 fi

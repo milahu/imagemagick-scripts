@@ -1,10 +1,34 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/29/2012 .......... revised 6/1/2013
+# Developed by Fred Weinhaus 8/29/2012 .......... revised 5/3/2016
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: autotone [-b] [-g] [-w] [-G] [-n] [-s] [-p] [-R resize] [-P percent] 
-# [-M midrange] [-N noise] [-S sharp] [-WN whitenorm] [-GN graynorm] 
-# infile outfile
+# [-M midrange] [-N noise] [-S sharp] [-F feedback] [-WN whitenorm] 
+# [-GN graynorm] infile outfile
 #
 # USAGE: autotone [-h or -help]
 #
@@ -29,6 +53,7 @@
 #                         automatically computed; range is about 1 to 4
 # -S      sharp           sharpening amount; float>=0; default is 
 #                         automatically computed; range is about 1 to 4
+# -F      feedback        sharpening feedback (gain); float>=1; default=1
 # -WN     whitenorm       white balance normalization method; choices are: 
 #                         none (n), ave (a), max (m); default=none
 # -GN     graynorm        gray balance normalization method; choices are: 
@@ -58,8 +83,6 @@
 # 
 # -s ... disable auto sharpening
 # 
-# -r ...  enable white and gray balance r,g,b ratio normalization
-# 
 # -p ... enable progress monitoring
 # 
 # -R resize ... RESIZE is the limit on the output image size. Values are 
@@ -73,14 +96,17 @@
 # -M midrange ... MIDRANGE value for auto gamma correction. Values are 
 # 0<floats<1. The default=0.425.
 # 
-# -N noise ... NOISE removal factor. Values are integers>0. The default is 
-# automatically computed. The nominal range is about 1 to 4 depending upon
-# image size. Larger values are used for larger images.
+# -N (noise) repeats ... NOISE REPEATS removal factor. Values are integers>0.  
+# The default is automatically computed. The nominal range is about 1 to 4 
+# depending upon image size. Larger values are used for larger images.
 # 
 # -S sharp ... SHARP is the sharpening amount. Values are floats>=0. The 
 # default is automatically computed. The nominal range is about 1 to 4. 
 # Larger values are used for larger images.
-# 
+#
+# -F feedback ... FEEDBACK is the sharpening feedback (gain). Values are 
+# floats>=1. The default=1.
+#  
 # -WN whitenorm ... WHITENORM is the white balance r,g,b ratio normalization 
 # method. The choices are: none (n), ave (a), max (m). The default=none
 # 
@@ -123,6 +149,7 @@ skyheight=25		# percent of height at top of image considered as sky
 maskthresh=0.125	# threshold on sky mask to continue processing for sky; process only if larger than threshold; avoids compensation for too little sky
 repeats=""			# denoise -enhance repeats; "" means autocompute the repeats; repeats>0
 gain=0.75			# sharpening gain/attenuation factor; >1 is gain; <1 is attenuate; applied towards the automatic amount
+feedback=1			# unsharp feedback/gain
 whitenorm="none"	# white balance rgb ratio normalization; none, ave, max.
 graynorm="none"		# gray balance rgb ratio normalization; none, ave, max.
 
@@ -137,13 +164,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -172,7 +199,7 @@ if [ $# -eq 0 ]
    echo ""
    usage2
    exit 0
-elif [ $# -gt 23 ]
+elif [ $# -gt 25 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -201,7 +228,7 @@ else
 					   noise="no"
 					   ;;
 				-s)    # disable auto sharpening
-					   sharp="no"
+					   sharpen="no"
 					   ;;
 				-p)    # enable progress monitoring
 					   progress="true"
@@ -238,15 +265,15 @@ else
 					   testB=`echo "$gammamid >= 1" | bc`
 					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- MIDRANGE=$gammamid MUST BE A FLOAT GREATER THAN 0 AND SMALLER THAN 1 ---"
 					   ;;
-				-N)    # get noise
+				-N)    # get noise repeats
 					   shift  # to get the next parameter
 					   # test if parameter starts with minus sign 
-					   errorMsg="--- INVALID NOISE SPECIFICATION ---"
+					   errorMsg="--- INVALID NOISE REPEATS SPECIFICATION ---"
 					   checkMinus "$1"
-					   noise=`expr "$1" : '\([0-9]*\)'`
-					   [ "$noise" = "" ] && errMsg "--- NOISE=$noise MUST BE A NON-NEGATIVE INTEGER ---"
-					   testA=`echo "$noise <= 0" | bc`
-					   [ $testA -eq 1 ] && errMsg "--- NOISE=$noise MUST BE AN INTEGER GREATER THAN 0 ---"
+					   repeats=`expr "$1" : '\([0-9]*\)'`
+					   [ "$repeats" = "" ] && errMsg "--- NOISE REPEATS=$repeats MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$repeats <= 0" | bc`
+					   [ $testA -eq 1 ] && errMsg "--- NOISE REPEATs=$repeats MUST BE AN INTEGER GREATER THAN 0 ---"
 					   ;;
 				-S)    # get sharp
 					   shift  # to get the next parameter
@@ -255,6 +282,16 @@ else
 					   checkMinus "$1"
 					   sharp=`expr "$1" : '\([.0-9]*\)'`
 					   [ "$sharp" = "" ] && errMsg "--- SHARP=$sharp MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				-F)    # get feedback
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FEEDBACK SPECIFICATION ---"
+					   checkMinus "$1"
+					   feedback=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$feedback" = "" ] && errMsg "--- FEEDBACK=$feedback MUST BE A NON-NEGATIVE FLOAT ---"
+					   test=`echo "$feedback < 1" | bc`
+					   [ $test -eq 1 ] && errMsg "--- FEEDBACK=$feedback MUST BE A FLOAT GREATER THAN OR EQUAL TO 1 ---"
 					   ;;
 			   -WN)    # get  whitenorm
 					   shift  # to get the next parameter
@@ -296,8 +333,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -309,13 +346,14 @@ fi
 
 
 # set directory for temporary files
-tmpdir="/$dir"
+tmpdir="$dir"
 
 dir="$tmpdir/AUTOTONE.$$"
 
 mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
-trap "rm -rf $dir; exit 0" 0
+trap "rm -rf $dir;" 0
 trap "rm -rf $dir; exit 1" 1 2 3 15
+trap "rm -rf $dir; exit 1" ERR
 
 # Process Resize
 if [ "$resize" != "" ]; then
@@ -325,8 +363,8 @@ else
 fi
 
 # read input image into temporary memory mapped (mpc) format image
-convert -quiet -regard-warnings "$infile" +repage $resizing $dir/tmpI.mpc ||
-	echo  "--- FILE $thefile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+convert -quiet "$infile" +repage $resizing $dir/tmpI.mpc ||
+	errMsg  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 # get max dimension
 dim=`convert $dir/tmpI.mpc -format "%[fx:max(w,h)]" info:`
@@ -464,9 +502,7 @@ if [ "$gray" = "yes" ]; then
 	
 	# use mask image to isolate user supplied percent of pixels closest to white
 	# then get ave graylevel for each channel of mask selected pixels
-	
-	convert $dir/tmpRGB.mpc $dir/tmpM.mpc -compose multiply -composite $dir/tmpT.mpc
-	
+		
 	convert $dir/tmpRGB.mpc[0] $dir/tmpM.mpc -compose multiply -composite $dir/tmpT.mpc
 	getRatio "$dir/tmpT.mpc[0]" "0.5"
 	redave=$ave
@@ -534,9 +570,7 @@ if [ "$white" = "yes" ]; then
 	
 	# use mask image to isolate user supplied percent of pixels closest to white
 	# then get ave graylevel for each channel of mask selected pixels
-	
-	convert $dir/tmpRGB.mpc $dir/tmpM.mpc -compose multiply -composite $dir/tmpT.mpc
-	
+		
 	convert $dir/tmpRGB.mpc[0] $dir/tmpM.mpc -compose multiply -composite $dir/tmpT.mpc
 	getRatio "$dir/tmpT.mpc[0]" "1"
 	redave=$ave
@@ -657,15 +691,17 @@ fi
 # Process Sharpening
 if [ "$sharpen" = "yes" ]; then
 	$progress && echo "sharpen"
-	# get sharpening amount
-	sharp=`convert $dir/tmpI.mpc -format "%[fx:max(0.5,$gain*$dim/1000)]" info:`
+	if [ "$sharp" = "" ]; then
+		# get sharpening amount
+		sharp=`convert $dir/tmpI.mpc -format "%[fx:max(0.5,$gain*$dim/1000)]" info:`
+	fi
 	#echo "sharp=$sharp"
-	convert $dir/tmpI.mpc -unsharp 0x$sharp $dir/tmpI.mpc
+	convert $dir/tmpI.mpc -unsharp 0x${sharp}+${feedback} $dir/tmpI.mpc
 fi
 
 
 # Save to Output
-convert $dir/tmpI.mpc $outfile
+convert $dir/tmpI.mpc "$outfile"
 
 exit 0
 

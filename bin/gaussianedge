@@ -1,7 +1,31 @@
 #!/bin/bash
 # 
-# Developed by Fred Weinhaus 3/13/2008 .......... revised 6/10/2013
+# Developed by Fred Weinhaus 3/13/2008 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
 # 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
 # USAGE: gaussianedge [-w width] [-k kind] [-m mix] [-e edge] [-t threshold] [-b blur] infile outfile
 # USAGE: gaussianedge [-h or -help]
 # 
@@ -122,13 +146,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -246,8 +270,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 
@@ -261,8 +285,9 @@ tmpA="$dir/gaussianedge_$$.mpc"
 tmpB="$dir/gaussianedge_$$.cache"
 tmp0="$dir/gaussianedge_0_$$.miff"
 tmp1="$dir/gaussianedge_1_$$.miff"
-trap "rm -f $tmpA $tmpB $tmp0 $tmp1; exit 0" 0
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1;" 0
 trap "rm -f $tmpA $tmpB $tmp0 $tmp1; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1; exit 1" ERR
 
 # get im version
 im_version=`convert -list configure | \
@@ -289,7 +314,7 @@ if [ "$im_version" -gt "06080504" ]; then
 fi
 
 
-if convert -quiet -regard-warnings "$infile" +repage $setcspace "$tmpA"
+if convert -quiet "$infile" +repage $setcspace "$tmpA"
 	then
 	: 'do nothing'
 	else
@@ -340,8 +365,8 @@ fi
 # composite input image and sharpened image using edge mask image
 if [ $edge != 2 ]
 	then
-	convert $tmpA $tmp1 $tmp0 -composite $outfile
+	convert $tmpA $tmp1 $tmp0 -composite "$outfile"
 else
-	convert $tmp1 $outfile
+	convert $tmp1 "$outfile"
 fi
 exit 0

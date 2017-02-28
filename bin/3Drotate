@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/18/2007 .......... revised 12/21/2012
+# Developed by Fred Weinhaus 8/18/2007 .......... revised 2/23/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: 3Drotate option=value infile outfile
 # USAGE: 3Drotate [-h or -help]
@@ -198,13 +222,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 # function to report error messages, usage and exit
@@ -527,23 +551,24 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # setup temporary images and auto delete upon exit
 # use mpc/cache to hold input image temporarily in memory
 tmpA="$dir/3Drotate_$$.mpc"
 tmpB="$dir/3Drotate_$$.cache"
-trap "rm -f $tmpA $tmpB; exit 0" 0
+trap "rm -f $tmpA $tmpB;" 0
 trap "rm -f $tmpA $tmpB; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB; exit 1" ERR
 
 # test that infile provided
 [ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
 # test that outfile provided
 [ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
 
-if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
+if convert -quiet "$infile" +repage "$tmpA"
 	then
 	[ "$pef" = "" ] && pef=1
 else
@@ -857,17 +882,27 @@ if [ "$auto" = "out" ]
 else
 	distort="-distort"
 fi
-	
+
 im_version=`convert -list configure | \
 	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# set up $matting
+if [ "$im_version" -ge "070000000" -a "$im_version" -le "07000409" ]
+	then
+	matting="-alpha-color"
+else
+	matting="-mattecolor"
+fi
+
+
 if [ "$im_version" -lt "06030600" ]
 	then
 	convert $tmpA -virtual-pixel $vp -background $bgcolor \
-	-mattecolor $skycolor $distort Perspective \
-	"0,0 $maxwidth,0 $maxwidth,$maxheight 0,$maxheight  $u1,$v1 $u2,$v2 $u3,$v3 $u4,$v4" $outfile
+	$matting $skycolor $distort Perspective \
+	"0,0 $maxwidth,0 $maxwidth,$maxheight 0,$maxheight  $u1,$v1 $u2,$v2 $u3,$v3 $u4,$v4" "$outfile"
 else
 	convert $tmpA -virtual-pixel $vp -background $bgcolor \
-	-mattecolor $skycolor $distort Perspective \
-	"0,0 $u1,$v1   $maxwidth,0 $u2,$v2   $maxwidth,$maxheight $u3,$v3   0,$maxheight $u4,$v4" $outfile
+	$matting $skycolor $distort Perspective \
+	"0,0 $u1,$v1   $maxwidth,0 $u2,$v2   $maxwidth,$maxheight $u3,$v3   0,$maxheight $u4,$v4" "$outfile"
 fi
 exit 0

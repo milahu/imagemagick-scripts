@@ -1,7 +1,31 @@
 #!/bin/bash
 # 
-# Developed by Fred Weinhaus 8/5/2008 .......... revised 3/8/2012
+# Developed by Fred Weinhaus 8/5/2008 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
 # 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
 # USAGE: fisheye2rect [widthxheight] [-i ifov] [-o ofov] [-t type] [-f format] [-m mode] [-c xc,yc] [-l xl,yl] [-r radius] [-v vpmethod] [-b bgcolor] infile outfile
 # USAGE: fisheye2rect -d [-c xc,yc] [-r radius] [-s strokecolor] infile outfile
 # USAGE: fisheye2rect [-h or -help]
@@ -168,13 +192,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -345,8 +369,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -357,10 +381,11 @@ fi
 
 tmpA="$dir/fisheye2rect_$$.mpc"
 tmpB="$dir/fisheye2rect_$$.cache"
-trap "rm -f $tmpA $tmpB; exit 0" 0
+trap "rm -f $tmpA $tmpB;" 0
 trap "rm -f $tmpA $tmpB; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB; exit 1" ERR
 
-if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
+if convert -quiet "$infile" +repage "$tmpA"
 	then
 	swidth=`identify -format %w $tmpA`
 	sheight=`identify -format %h $tmpA`
@@ -445,6 +470,8 @@ im_version=`convert -list configure | \
 
 # see Bourke diagram at http://local.wasp.uwa.edu.au/~pbourke/projection/fish2/
 
+# NOTE: phi added as a constant to -fx as of IM 6.7.3.4. So need to change its name if used in -fx
+
 # define transform terms"
 
 # get xd,yd in output perspective image
@@ -507,7 +534,11 @@ if false; then
 echo "swidth=$swidth; sheight=$sheight; sw2=$sw2; sh2=$sh2"
 echo "dwidth=$dwidth; dheight=$dheight; dw2=$dw2; dh2=$dh2"
 echo "xl=$xl; yl=$yl; xcs=$xcs; ycs=$ycs; thetal=$thetal; radl=$radl phil=$phil"
+echo "ofoc=$ofoc; ofocinv=$ofocinv; ifoc=$ifoc; ifoc2=$ifoc2;"
 echo "dwidth=$dwidth; dheight=$dheight; vpmethod=$vpmethod bgcolor=$bgcolor"
+echo "xd=$xd; yd=$yd;"
+echo "theta=$theta; phiang=$phiang; rr=$rr;"
+echo "xs=$xs; ys=$ys;"
 fi
 
 # process image
@@ -515,11 +546,11 @@ if [ "$draw" = "yes" ]
 	then
 	[ "$rad" = "" ] && rad=`convert xc: -format "%[fx:min($sw2,$sh2)]" info:`
 	xr=`convert xc: -format "%[fx:$xcs+$rad]" info:`
-	convert $tmpA -fill none -stroke "$sc" -draw "circle $xcs,$ycs $xr,$ycs" $outfile
+	convert $tmpA -fill none -stroke "$sc" -draw "circle $xcs,$ycs $xr,$ycs" "$outfile"
 else
 	convert \( -size ${dwidth}x${dheight} xc: \) $tmpA \
 		-virtual-pixel $vpmethod -background $bgcolor -monitor \
 		-fx "$xd $yd $theta $phiang $rr $xs $ys v.p{xs,ys}" \
-		$outfile
+		"$outfile"
 fi
 exit 0

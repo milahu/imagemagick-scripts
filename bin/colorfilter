@@ -1,7 +1,31 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 9/22/2012 .......... revised 1/14/2013
+# Developed by Fred Weinhaus 9/22/2012 .......... revised 9/12/2015
+#
+# ------------------------------------------------------------------------------
 # 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
 # USAGE: colorfilter [-m method] [-c color] [-d density] infile [maskfile] outfile
 # USAGE: colorfilter [-h or -help]
 # 
@@ -78,13 +102,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -191,12 +215,13 @@ tmpB1="$dir/colorfilter_B_$$.mpc"
 tmpB2="$dir/colorfilter_B_$$.cache"
 tmpM1="$dir/colorfilter_M_$$.mpc"
 tmpM2="$dir/colorfilter_M_$$.cache"
-trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2 $tmpM1 $tmpM2; exit 0" 0
+trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2 $tmpM1 $tmpM2;" 0
 trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2 $tmpM1 $tmpM2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2 $tmpM1 $tmpM2; exit 1" ERR
 
 
 # test input image
-convert -quiet -regard-warnings "$infile" +repage "$tmpA1" ||
+convert -quiet "$infile" +repage "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 
@@ -252,15 +277,22 @@ esac
 
 # test if alpha channel and not opaque
 # test if alpha channel enabled and completely opaque alpha channel
-is_alpha=`convert $tmpA1 -ping -format "%A" info:`
+is_alpha=`identify -ping -verbose $tmpA1 | grep "Alpha" | head -n 1`
 alpha_mean=""
-[ "$is_alpha" = "True" ] && alpha_mean=`convert $tmpA1 -alpha extract -format "%[fx:mean]" info:`
+ [ "$is_alpha" != "" ] && alpha_mean=`convert $tmpA1 -alpha extract -format "%[fx:mean]" info:`
 opaque_alpha="no"
-[ "$is_alpha" = "False" -o "$alpha_mean" = "1" ] && opaque_alpha="yes"
+[ "$is_alpha" = "" -o "$alpha_mean" = "1" ] && opaque_alpha="yes"
 
 # if non-opaque alpha, then copy alpha channel
 if [ "$opaque_alpha" = "no" ]; then
 	convert $tmpA1 -alpha extract $tmpB1
+fi
+
+# set up -recolor or -color-matrix
+if [ "$im_version" -lt "06060100" ]; then
+	process="-recolor"
+else
+	process="-color-matrix"
 fi
 
 # process image
@@ -298,13 +330,13 @@ elif [ $method -eq 2 ]; then
 	if [ "$maskfile" != "" ]; then
 		convert $tmpA1 \
 			\( -clone 0 -colorspace $cspace1 \) \
-			\( -clone 1 -color-matrix "$matrix" \) \
+			\( -clone 1 $process "$matrix" \) \
 			\( -clone 1 -clone 2 +swap -compose luminize -composite -colorspace $cspace2 \) \
 			-delete 1,2 $tmpM1 -compose over -composite \
 			$tmpA1
 	else
 		convert $tmpA1 -colorspace $cspace1 \
-			\( -clone 0 -color-matrix "$matrix" \) \
+			\( -clone 0 $process "$matrix" \) \
 			+swap -compose luminize -composite -colorspace $cspace2 \
 			$tmpA1
 	fi

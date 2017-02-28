@@ -1,7 +1,31 @@
 #!/bin/bash
 # 
-# Developed by Fred Weinhaus 9/18/2007 .......... revised 6/1/2013
+# Developed by Fred Weinhaus 9/18/2007 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
 # 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
 # USAGE: binomialedge [-w width] [-k kind] [-m mix] [-e edge] [-t threshold] [-b blur] infile outfile
 # USAGE: binomialedge [-h or -help]
 # 
@@ -273,8 +297,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 
@@ -288,8 +312,9 @@ tmpA="$dir/binomialedge_$$.mpc"
 tmpB="$dir/binomialedge_$$.cache"
 tmp0="$dir/binomialedge_0_$$.miff"
 tmp1="$dir/binomialedge_1_$$.miff"
-trap "rm -f $tmpA $tmpB $tmp0 $tmp1; exit 0" 0
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1;" 0
 trap "rm -f $tmpA $tmpB $tmp0 $tmp1; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1; exit 1" ERR
 
 # get im version
 im_version=`convert -list configure | \
@@ -315,7 +340,7 @@ if [ "$im_version" -gt "06080504" ]; then
 	setcspace=""
 fi
 
-if convert -quiet -regard-warnings "$infile" +repage $setcspace "$tmpA"
+if convert -quiet "$infile" +repage $setcspace "$tmpA"
 	then
 	: 'do nothing'
 	else
@@ -371,19 +396,19 @@ fi
 # get thresholded edge image
 if [ $edge != 2 ]
 	then
-	convert $tmpA \( $tmpA -define convolve:scale=\! -convolve "$kern1D" \) +swap -compose minus -composite \
+	convert $tmpA \( $tmpA -convolve "$kern1D" \) +swap -compose minus -composite \
 		-colorspace Gray $blurstr -contrast-stretch 0% $threshstr $tmp0
 fi
 
 #process the image
 if [ "$kind" = "low" ]
 	then
-	convert $tmpA -define convolve:scale=\! -convolve "$kern1D" $tmp1
+	convert $tmpA -convolve "$kern1D" $tmp1
 #	composite -blend $mix% $tmp1 $tmpA $tmp1
 	convert $tmpA $tmp1 -define compose:args=$mix% -compose blend -composite $tmp1
 elif [ "$kind" = "high" ]
 	then
-	convert $tmpA \( $tmpA -define convolve:scale=\! -convolve "$kern1D" \) +swap -compose minus -composite -normalize $tmp1
+	convert $tmpA \( $tmpA -convolve "$kern1D" \) +swap -compose minus -composite -normalize $tmp1
 #	composite -blend $mix%x100% $tmp1 $tmpA $tmp1
 	convert $tmpA $tmp1 -define compose:args=$mix%x100% -compose blend -composite $tmp1
 fi
@@ -391,8 +416,8 @@ fi
 # composite input image and sharpened image using edge mask image
 if [ $edge != 2 ]
 	then
-	convert $tmpA $tmp1 $tmp0 -composite $outfile
+	convert $tmpA $tmp1 $tmp0 -composite "$outfile"
 else
-	convert $tmp1 $outfile
+	convert $tmp1 "$outfile"
 fi
 exit 0

@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 2/12/2009 .......... revised 6/13/2013
+# Developed by Fred Weinhaus 2/12/2009 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: mottle [-t type ] [-a amount] [-g granularity] [-c color] [-r region] [-n newseed] [-s] infile outfile
 # USAGE: mottle [-h or -help]
@@ -83,13 +107,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -150,9 +174,9 @@ else
 					   errorMsg="--- INVALID AMOUNT SPECIFICATION ---"
 					   checkMinus "$1"
 					   amount=`expr "$1" : '\([0-9]*\)'`
-					   [ "$amount" = "" ] && errMsg "AMOUNT=$spread MUST BE AN INTEGER"
+					   [ "$amount" = "" ] && errMsg "AMOUNT=$amount MUST BE AN INTEGER"
 #		   			   amounttest=`echo "$amount < 1" | bc`
-#					   [ $amounttest -eq 1 ] && errMsg "--- AMOUNT=$amplitude MUST BE A POSITIVE INTEGER ---"
+#					   [ $amounttest -eq 1 ] && errMsg "--- AMOUNT=$amount MUST BE A POSITIVE INTEGER ---"
 					   ;;
 				-g)    # get granularity
 					   shift  # to get the next parameter
@@ -206,8 +230,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -221,8 +245,9 @@ tmpA="$dir/mottle_$$.mpc"
 tmpB="$dir/mottle_$$.cache"
 tmp0="$dir/mottle_0_$$.miff"
 tmp1="$dir/mottle_1_$$.miff"
-trap "rm -f $tmpA $tmpB $tmp0 $tmp1; exit 0" 0
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1;" 0
 trap "rm -f $tmpA $tmpB $tmp0 $tmp1; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1; exit 1" ERR
 
 
 # get im version
@@ -251,7 +276,7 @@ fi
 
 
 # test image
-if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
+if convert -quiet "$infile" +repage "$tmpA"
 	then
 	: ' Do Nothing '
 else
@@ -297,18 +322,18 @@ convert -size ${ww}x${hh} xc: $seed +noise Random \
 if [ "$type" = "displace" ]; then
 	# process image with noise image as displacement map
 	if [ "$im_version" -lt "06050304" ]; then
-		composite $tmp0 $tmpA -displace ${amount}x${amount} $outfile
+		composite $tmp0 $tmpA -displace ${amount}x${amount} "$outfile"
 	else
-		convert $tmpA $tmp0 -define compose:args=${amount}x${amount} -compose displace -composite $outfile
+		convert $tmpA $tmp0 -define compose:args=${amount}x${amount} -compose displace -composite "$outfile"
 	fi
 elif [ "$type" = "modulate" ]; then
 	# process image with background using noise image as mask
 	convert $tmpA $tmp0 $tmp0 \
-		$setcspace -compose multiply -composite $outfile
+		$setcspace -compose multiply -composite "$outfile"
 elif [ "$type" = "blend" ]; then
 	# process image with blend color using noise image as mask
 	convert $tmpA \( -size ${ww}x${hh} xc:$color \) $tmp0 \
-		$setcspace -compose $region -composite $outfile
+		$setcspace -compose $region -composite "$outfile"
 fi
 
 

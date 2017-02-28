@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 3/26/2011 .......... revised 3/26/2011
+# Developed by Fred Weinhaus 3/26/2011 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: colorbalance [-c color] [-a amount] [-r region] [-m mid] [-f factor] 
 # [-l low] [-h high] [-t taper] infile outfile
@@ -97,13 +121,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -251,8 +275,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -266,12 +290,13 @@ fi
 dir="$tmpdir/COLORBALANCE.$$"
 
 mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
-trap "rm -rf $dir; exit 0" 0
+trap "rm -rf $dir;" 0
 trap "rm -rf $dir; exit 1" 1 2 3 15
+trap "rm -rf $dir; exit 1" ERR
 
 
 # read input image
-convert -quiet -regard-warnings "$infile" $dir/tmpI.mpc ||
+convert -quiet "$infile" $dir/tmpI.mpc ||
 echo  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 
@@ -318,12 +343,16 @@ if [ "$region" = "all" ]; then
 	convert $dir/tmpI.mpc $process "$outfile"
 else
 	# get mean and std and mid, low, high
-	mean=`convert $dir/tmpI.mpc -format "%[fx:mean.$color3]" info:`
+	if [ "$mid" = "" ]; then
+		mid=`convert $dir/tmpI.mpc -format "%[fx:mean.$color3]" info:`
+	else
+		mid=`convert $dir/tmpI.mpc -format "%[fx:$mid/100]" info:`
+	fi
 	std=`convert $dir/tmpI.mpc -format "%[fx:standard_deviation.$color3]" info:`
-	[ "$mid" = "" ] && mid=`convert xc: -format "%[fx:100*$mean]" info:`
-	[ "$low" = "" ] && low=`convert xc: -format "%[fx:100*($mean-$factor*$std)]" info:`
-	[ "$high" = "" ] && high=`convert xc: -format "%[fx:100*($mean+$factor*$std)]" info:`
-	#echo "mean=$mean; std=$std; mid=$mid; low=$low; high=$high"
+	low=`convert xc: -format "%[fx:100*($mid-$factor*$std)]" info:`
+	high=`convert xc: -format "%[fx:100*($mid+$factor*$std)]" info:`
+	mid=`convert xc: -format "%[fx:100*$mid]" info:`
+	#echo "mid=$mid; std=$std; mid=$mid; low=$low; high=$high"
 
 	# create mask and blend original with processed
 	if [ "$region" = "midtones" ]; then

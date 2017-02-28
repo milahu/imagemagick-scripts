@@ -1,7 +1,31 @@
 #!/bin/bash
 # 
-# Developed by Fred Weinhaus 8/10/2008 .......... revised 8/2/2012
+# Developed by Fred Weinhaus 8/10/2008 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
 # 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
 # USAGE: fisheye2pano [-w width] [-e extend] [-h hcen,hran] [-f format] [-p pfov] [-c xc,yc] [-v vcen,vrad] [-r radius] [-vp vpmethod] [-b bgcolor] infile outfile
 # USAGE: fisheye2pano -d [-c xc,yc] [-r radius] [-s strokecolor] infile outfile
 # USAGE: fisheye2pano [-help]
@@ -177,13 +201,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -368,8 +392,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -380,10 +404,11 @@ fi
 
 tmpA="$dir/fisheye2pano_$$.mpc"
 tmpB="$dir/fisheye2pano_$$.cache"
-trap "rm -f $tmpA $tmpB; exit 0" 0
+trap "rm -f $tmpA $tmpB;" 0
 trap "rm -f $tmpA $tmpB; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB; exit 1" ERR
 
-if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
+if convert -quiet "$infile" +repage "$tmpA"
 	then
 	swidth=`identify -format %w $tmpA`
 	sheight=`identify -format %h $tmpA`
@@ -541,11 +566,12 @@ ys="ys=rr*sin(theta)+$ycs;"
 if false; then
 # debugging - show echo results if set to true
 echo "swidth=$swidth; sheight=$sheight; sdim=$sdim; sw2=$sw2; sh2=$sh2"
-echo "dwidth=$dwidth; dheight=$dheight; ddim=$ddim; h2=$h2"
-echo "xcs=$xcs; ycs=$ycs"
+echo "dwidth=$dwidth; dheight=$dheight; height=$height; ddim=$ddim; h2=$h2"
+echo "hratio=$hratio; xcs=$xcs; ycs=$ycs; ycd=$ycd;"
 echo "thetamin=$thetamin; theta0=$theta0; theta1=$theta1"
 echo "pfov=$pfov; pfoc=$pfoc; phioffset=$phioffset"
-echo "phiang=$phiang; rr=$rr"
+echo "phiang=$phiang; theta=$theta; rr=$rr"
+echo "yd=$yd; xs=$xs; ys=$ys;"
 echo "format=$format; mode=$mode; ifov=$ifov; aspect=$aspect; hratio=$hratio"
 fi
 
@@ -554,11 +580,11 @@ if [ "$draw" = "yes" ]
 	then
 	[ "$rad" = "" ] && rad=`convert xc: -format "%[fx:min($sw2,$sh2)]" info:`
 	xr=`convert xc: -format "%[fx:$xcs+$rad]" info:`
-	convert $tmpA -fill none -stroke "$sc" -draw "circle $xcs,$ycs $xr,$ycs" $outfile
+	convert $tmpA -fill none -stroke "$sc" -draw "circle $xcs,$ycs $xr,$ycs" "$outfile"
 else
 	convert \( -size ${dwidth}x${height} xc: \) $tmpA \
 		-virtual-pixel $vpmethod -background $bgcolor -monitor \
 		-fx "$yd $phiang $rr $theta $xs $ys v.p{xs,ys}" \
-		$outfile
+		"$outfile"
 fi
 exit 0

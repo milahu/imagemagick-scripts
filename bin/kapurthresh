@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 10/29/2008 .......... revised 6/11/2013
+# Developed by Fred Weinhaus 10/29/2008 .......... revised 11/3/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: kapurthresh [-g graph] infile outfile
 # USAGE: kapurthresh [-help]
@@ -69,13 +93,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -139,8 +163,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -185,7 +209,7 @@ if [ "$im_version" -gt "06080504" ]; then
 fi
 
 
-if convert -quiet -regard-warnings "$infile" $setcspace -colorspace gray +repage "$tmpA1"
+if convert -quiet "$infile" $setcspace -colorspace gray +repage "$tmpA1"
 	then
 	: ' do nothing '
 else
@@ -198,100 +222,77 @@ height=`convert $tmpA1 -format "%h" info:`
 totpix=`echo "scale=0; $width * $height / 1" | bc`
 
 
-# function to convert IM histogram into two arrays, value and count
-getHistog()
-	{
-	echo "Generate Histogram"
-	img="$1"
-	# get lists of values and counts from histogram
-	# note that IM histograms are not well sorted (and have multiple bins with counts for the same values)
-	value=`convert $img -format %c -depth 8 -define histogram:unique-colors=true histogram:info: | sort -k 2 -b | sed -n 's/^ *[0-9]*: [(]\([0-9 ]*\).*$/\1/ p'`
-	count=`convert $img -format %c -depth 8 -define histogram:unique-colors=true histogram:info: | sort -k 2 -b | sed -n 's/^ *\([0-9]*\): [(].*$/\1/ p'`
+	# get value array from IM histogram
+	valueArr=(`convert $tmpA1 -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- \
+	| tr -cs '0-9\012' ' ' | sed -n 's/[ ]*\([0-9]*\)[ ]*\([0-9]*\).*$/\1 \2/p' |\
+	awk '
+	# AWK 
+	{ vbin[$2] += $2;} 
+	END { for (i=0;i<256;i++) {print vbin[i]; } } '`)
+#	echo ${valueArr[*]}
+#	echo ${#valueArr[*]}
+	numvals=${#valueArr[*]}
 	
-	# put value and count into arrays
-	valueArr=($value)
-	countArr=($count)
+	# get count array from IM histogram
+	countArr=(`convert $tmpA1 -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- \
+	| tr -cs '0-9\012' ' ' | sed -n 's/[ ]*\([0-9]*\)[ ]*\([0-9]*\).*$/\1 \2/p' |\
+	awk '
+	# AWK 
+	{ cbin[$2] += $1; } 
+	END { for (i=0;i<256;i++) {print cbin[i]; } } '`)
+#	echo ${countArr[*]}
+#	echo ${#countArr[*]}
+	numcounts=${#countArr[*]}
 	
-	# check if both arrays are the same size
-	if [ ${#valueArr[*]} -ne ${#countArr[*]} ]
-		then
-			errMsg "--- ARRAY SIZES DO NOT MATCH ---"
-			exit 1
-		else
-		numbins=${#valueArr[*]}
-#echo "numbins=$numbins"
-	fi
-}
+	[ $numvals -ne $numcounts ] && errMsg "--- NUMBER OF COUNTS IS NOT THE SAME AS NUMBER OF VALUES ---"
+	
+	# compute normalized count array
+	ncountArr=( $(for ((i=0; i<$numcounts; i++)); do
+	echo "$i ${countArr[$i]}"
+	done |\
+	awk -v totpix="$totpix" -v numcounts="$numcounts" '
+	# AWK 
+	{ bin[$1] = $2; }
+	END { for (i=0;i<numcounts;i++) {print bin[i]/totpix; } } ') )
+#	echo ${ncountArr[*]}
+#	echo ${#ncountArr[*]}
+	
+	# compute elowArr
+	elowArr=( $(for ((i=0; i<$numcounts; i++)); do
+	echo "$i ${ncountArr[$i]}"
+	done |\
+	awk -v numcounts="$numcounts" '
+	# AWK to generate a cumulative histogram 1D image...
+	{ ncbin[$1] = $2; nlow += $2; nlowbin[$1] = nlow; qlow += $2*log($2); qlowbin[$1] = qlow;} 
+	END { for (i=0;i<numcounts;i++) {if (ncbin[i]!=0) {elowbin[i]=log(nlowbin[i]) - qlowbin[i]/nlowbin[i]} else {elowbin[i]=0}; print elowbin[i] } } ') )
+#	echo ${elowArr[*]}
+#	echo ${#elowArr[*]}
+	
+	# compute ehighArr
+	ehighArr=( $(for ((i=0; i<$numcounts; i++)); do
+	j=`expr $numcounts - 1 - $i`
+	echo "$j ${ncountArr[$j]}"
+	done |\
+	awk -v numcounts="$numcounts" '
+	# AWK to generate a cumulative histogram 1D image...
+	{ ncbin[$1] = $2; nhigh += $2; nhighbin[$1] = nhigh; qhigh += $2*log($2); qhighbin[$1] = qhigh;} 
+	END { for (i=0;i<numcounts;i++) {if (ncbin[i]!=0) {ehighbin[i]=log(nhighbin[i]) - qhighbin[i]/nhighbin[i]} else {ehighbin[i]=0}; print ehighbin[i] } } ') )
+#	echo ${ehighArr[*]}
+#	echo ${#ehighArr[*]}
+	
+	# compute threshold
+	threshbin=$(for ((i=0; i<$numcounts; i++)); do
+	echo "$i ${elowArr[$i]} ${ehighArr[$i]}"
+	done |\
+	awk -v numcounts="$numcounts" -v teold=0 -v threshbin=0 '
+	# AWK to compute entropy threshold...
+	{ tebin[$1] = ($2 + $3); } 
+	END { for (i=0;i<numcounts;i++) { if (tebin[i]>teold) {teold=tebin[i]; threshbin=i};  } print threshbin } ')
+#	echo "threshbin=$threshbin"
+	thresh=${valueArr[$threshbin]}
+#	echo "thresh=$thresh"
+	threshpct=`convert xc: -format "%[fx:100*$thresh/255]" info:`
 
-# function to normalize histog
-getNormlizedHistog()
-	{
-	echo "Normalize Histogram"
-	j=0
-	while [ $j -lt $numbins ]; do
-		countArr[$j]=`echo "scale=10; ${countArr[$j]}/$totpix" | bc`
-		j=`expr $j + 1`
-	done
-	}
-
-
-# process image using Kapur's approach
-
-echo ""
-getHistog "$tmpA1"
-getNormlizedHistog
-
-echo "Generate Cumulative Arrays"
-# p=c(i)/N (normalized count or probability, p, at bin i)
-# t=threshold bin
-# n=p0=sum(p)=sum(c(i)/N)=zeroth histogram moment => cumulative normalized count (from i=0 to t) = N(t)
-# q=sum(p*ln(p))
-# r=p/n
-# entropy=-sum(r*ln(r))=-sum((p/n)*ln(p/n)=-sum((p/n)*(ln(p)-ln(n)))
-# entropy=-(1/n)*sum(p*ln(p)) + ln(n)*sum(p)/n
-# entropy=ln(n)-q/n
-
-i=0
-nlow=0
-nhigh=0
-qlow=0
-qhigh=0
-while [ $i -lt $numbins ]; do
-	nlow=`echo "scale=10; $nlow + ${countArr[$i]}" | bc`
-	qlow=`echo "scale=10; $qlow + ${countArr[$i]}*l(${countArr[$i]})" | bc -l`
-	elowArr[$i]=`echo "scale=10; l($nlow) - $qlow/$nlow" | bc -l`
-	j=`expr $numbins - $i - 1`
-	nhigh=`echo "scale=6; $nhigh + ${countArr[$j]}" | bc`
-	qhigh=`echo "scale=10; $qhigh + ${countArr[$j]}*l(${countArr[$j]})" | bc -l`
-	ehighArr[$i]=`echo "scale=10; l($nhigh) - $qhigh/$nhigh" | bc -l`
-#echo "i=$i; j=$j; nlow=$nlow; nhigh=$nhigh; qlow=$qlow; qhigh=$qhigh; elow=${elowArr[$i]}; ehigh=${ehighArr[$i]}"
-	i=`expr $i + 1`
-done
-
-
-echo "Compute Threshold"
-# loop through histogram
-# compute threshold by maximizing total low and high class entropies
-# te=El+Eh
-
-i=0
-teold=0
-threshbin=0
-lastbin=`expr $numbins - 1`
-while [ $i -lt $lastbin ]; do
-	j=`expr $lastbin - $i - 1`
-	elow=${elowArr[$i]}
-	ehigh=${ehighArr[$j]}
-	te=`echo "scale=10; ($elow + $ehigh) / 1" | bc`
-	test=`echo "$te > $teold" | bc`
-	if [ $test -eq 1 ]; then
-		teold=$te
-		threshbin=$i
-	fi
-#echo "i=$i; elow=$elow; ehigh=$ehigh; te=$te; teold=$teold; test=$test; threshbin=$threshbin"
-	i=`expr $i + 1`
-done
-thresh=${valueArr[$threshbin]}
 
 
 # compute threshold graph x coord and threshold in percent
@@ -301,7 +302,7 @@ threshpct=`convert xc: -format "%[fx:100*$thresh/255]" info:`
 
 
 echo "Thresholding Image At $threshpct%"
-convert $tmpA1 -threshold $threshpct% $outfile
+convert $tmpA1 -threshold $threshpct% "$outfile"
 echo ""
 
 
@@ -314,12 +315,12 @@ if [ "$graph" != "" ]; then
 		-font ArialB -pointsize 24 \
 		-draw "text 4,22 'threshold=$threshpct%'" -resize 50% \
 		-bordercolor gray50 -border 5 \
-		$histfile
+		"$histfile"
 fi
 
 if [ "$graph" = "view" ]; then
-	convert $histfile x:
-	rm -f $histfile
+	convert "$histfile" x:
+	rm -f "$histfile"
 fi
 
 exit 0

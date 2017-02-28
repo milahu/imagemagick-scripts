@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/19/2009 .......... revised 10/25/2012
+# Developed by Fred Weinhaus 8/19/2009 .......... revised 7/19/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: cepstrum [-s size] [-o overlap] [-r rolloff] [-c constant] [-G] infile outfile
 # USAGE: cepstrum [-h or -help]
@@ -104,15 +128,14 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
-
 
 # function to report error messages
 errMsg()
@@ -232,8 +255,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -269,6 +292,10 @@ if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
 else
 	setcspace=""
 fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
 
 # set grayscale mode
 if [ "$grayscale" = "yes" ]; then
@@ -277,10 +304,10 @@ else
 	gray=""
 fi
 
-
 # read the input image and filter image into the temp files and test validity.
-convert -quiet -regard-warnings "$infile" $gray +repage -auto-level "$tmpA1" ||
+convert -quiet "$infile" $gray +repage -auto-level "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
 
 # test for valid version of IM
 im_version=`convert -list configure | \
@@ -288,7 +315,11 @@ im_version=`convert -list configure | \
 [ "$im_version" -lt "06050407" ] && errMsg "--- REQUIRES IM VERSION 6.5.4-7 OR HIGHER ---"
 
 # test for hdri enabled
-hdri_on=`convert -list configure | grep "enable-hdri"`
+if [ "$im_version" -ge "07000000" ]; then
+	hdri_on=`convert -version | grep "HDRI"`	
+else
+	hdri_on=`convert -list configure | grep "enable-hdri"`
+fi
 [ "$hdri_on" = "" ] && errMsg "--- REQUIRES HDRI ENABLED IN IM COMPILE ---"
 
 # get width and height of image
@@ -343,6 +374,7 @@ fi
 # currently limited to be square even dimensions for fft/ift
 convert $tmpA1 -gravity center -crop ${dmax}x${dmax}+0+0 +repage $tmpA1
 
+
 # setup autolevel
 if [ "$im_version" -lt "06050501" ]; then
 	getMinMax $dir/tmpA1.mpc
@@ -353,6 +385,7 @@ fi
 
 # apply autolevel
 convert $tmpA1 $proc $tmpA1
+
 
 # create cosine bell 2 mask - actually is a sine window function - see profile from white image
 convert  \
@@ -386,8 +419,8 @@ for ((i=0;i<=$eh;i+=$oh)); do
 echo "Region: $k out of $num"
 		# compute running average of magnitude of fft
 		pct=`convert xc: -format "%[fx:100/($k)]" info:`
-		convert $tmpA1[${sw}x${sh}+${dw}+${dh}] $tmp2 \
-			-compose multiply -composite -fft -delete 1 $tmp1 \
+		convert \( $tmpA1[${sw}x${sh}+${dw}+${dh}] $tmp2 \
+			-compose multiply -composite -fft -delete 1 \) $tmp1 \
 			+swap -compose blend -set option:compose:args $pct -composite $tmp1
 #echo "i=$i; j=$j; k=$k; pct=$pct"
 		dw=$(($dw+$ow))
@@ -403,11 +436,9 @@ echo ""
 # take IFT using average as real component and 
 # black image as imaginary component, then 
 # roll the image so that the center is moved to the upper left corner
-convert \( $tmp1 $mult1 \
-	-evaluate log $constant -negate \
-	$mult2 \) \
+convert \( $tmp1 $mult1 -evaluate log $constant -negate $mult2 \) \
 	\( -size ${sw}x${sh} xc:black \) +ift \
-	-roll -${swr}-${shr} $outfile
+	-roll -${swr}-${shr} "$outfile"
 
 exit 0
 

@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 7/5/2010 .......... 2/23/2013
+# Developed by Fred Weinhaus 7/5/2010 .......... 1/12/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: enrich [-r radii] [-t transparency] [-w weights] [-b bias] [-c compose] infile outfile
 # USAGE: enrich [-help or -h]
@@ -82,13 +106,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -187,8 +211,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -216,11 +240,12 @@ compose2=`echo $compose | cut -d, -f 2`
 # set up temp files
 tmpA1="$dir/enrich_A_$$.mpc"
 tmpA2="$dir/enrich_A_$$.cache"
-trap "rm -f $tmpA1 $tmpA2; exit 0" 0
+trap "rm -f $tmpA1 $tmpA2;" 0
 trap "rm -f $tmpA1 $tmpA2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2; exit 1" ERR
 
 # read the input image into the temp files and test validity.
-convert -quiet -regard-warnings "$infile" -alpha off +repage "$tmpA1" ||
+convert -quiet "$infile" -alpha off +repage "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 # change sign on wt2
@@ -248,19 +273,18 @@ rad1=`convert xc: -format "%[fx:$rad1/5]" info:`
 ww=`convert $tmpA1 -format "%w" info:`
 hh=`convert $tmpA1 -format "%h" info:`
 
-
 convert $tmpA1 \
 \( -clone 0 -resize 20% -blur 0x$rad1 -resize ${ww}x${hh}\! \) \
 \( -clone 0 -clone 1 +swap -compose mathematics \
 -set option:compose:args "0,$wt1,$wt2,$bias" -composite \
--matte -channel A $negating -evaluate set ${alpha1}% +channel \) \
+-alpha on -channel A $negating -evaluate set ${alpha1}% +channel \) \
 \( -clone 0 -blur 0x$rad2 \) \
 \( -clone 0 -clone 3 +swap -compose mathematics \
 -set option:compose:args "0,$wt1,$wt2,$bias" -composite \
--matte -channel A $negating -evaluate set ${alpha2}% +channel \) \
-\( -clone 0 -clone 2 -compose hardlight -composite \
--clone 4 -compose overlay -composite \) \
--delete 0-4 $outfile
+-alpha on -channel A $negating -evaluate set ${alpha2}% +channel \) \
+\( -clone 0 -clone 2 -compose $compose1 -composite \
+-clone 4 -compose $compose2 -composite \) \
+-delete 0-4 "$outfile"
 
 exit 0
 

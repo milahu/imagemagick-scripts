@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 11/2/2007 .......... revised 8/23/2012
+# Developed by Fred Weinhaus 11/2/2007 .......... revised 4/30/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: magicwand x,y [-t threshold] [-f format] [-r region] [-m mask] [-c color] [-o opacity] infile outfile
 # USAGE: magicwand [-h or -help]
@@ -108,13 +132,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -235,8 +259,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 
@@ -249,10 +273,11 @@ fi
 tmpA="$dir/magicwand_$$.mpc"
 tmpB="$dir/magicwand_$$.cache"
 tmp0="$dir/magicwand_0_$$.png"
-trap "rm -f $tmpA $tmpB $tmp0; exit 0" 0
+trap "rm -f $tmpA $tmpB $tmp0;" 0
 trap "rm -f $tmpA $tmpB $tmp0; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmp0; exit 1" ERR
 
-if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
+if convert -quiet "$infile" +repage "$tmpA"
 	then
 		width=`identify -format %w $tmpA`
 		height=`identify -format %h $tmpA`
@@ -261,9 +286,21 @@ if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
 		errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 fi
 
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# set up floodfill
+if [ "$im_version" -ge "07000000" ]; then
+	matte_alpha="alpha"
+else
+	matte_alpha="matte"
+fi
+
 # create transparent mask for region=inside
 	# make interior transparent and outside black
-	convert $tmpA -fuzz $threshold% -fill none -draw "matte $coords floodfill" \
+	convert $tmpA -fuzz $threshold% -fill none -draw "$matte_alpha $coords floodfill" \
 		-fill black +opaque none $tmp0
 		
 # create negative mask - for region=outside
@@ -325,5 +362,5 @@ elif [ "$format" = "image"  -a "$mask" = "layer" ]
 		convert $tmpA $tmp0 -define compose:args=$opacity% -compose dissolve -composite $tmp0
 	fi
 fi
-convert $tmp0 $outfile
+convert $tmp0 "$outfile"
 exit 0

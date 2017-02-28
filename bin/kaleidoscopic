@@ -1,7 +1,31 @@
 #!/bin/bash
 #
-# Revised by Fred Weinhaus ................... 6/11/2013
+# Revised by Fred Weinhaus ................... 4/25/2015
 # Developed by Fred Weinhaus & Anthony Thyssen 6/28/2011
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: kaleidoscopic [-m mode] [-o orient] [-i] [-s spread] [-d density] 
 # [-c curviness] [-D dimension] [-b blur] [-e emboss] [-S sharpen] 
@@ -141,13 +165,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -323,10 +347,10 @@ else
 	#
 	# get infile and outfile
 	if [ $# -eq 2 ]; then
-		infile=$1
-		outfile=$2
+		infile="$1"
+		outfile="$2"
 	elif [ $# -eq 1 ]; then
-		outfile=$1
+		outfile="$1"
 		infile=""
 	else
 		errMsg "--- INCONSISTENT NUMBER OF INPUT AND OUTPUT IMAGES SPECIFIED ---"
@@ -339,8 +363,9 @@ fi
 
 tmpA1="$dir/kaleidoscopic_1_$$.mpc"
 tmpB1="$dir/kaleidoscopic_1_$$.cache"
-trap "rm -f $tmpA1 $tmpB1; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1;" 0
 trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1; exit 1" ERR
 
 # get im_version
 im_version=`convert -list configure | \
@@ -360,25 +385,21 @@ im_version=`convert -list configure | \
 # but random does not match old examples, since don't know what seed was used
 # Also, for disperse, shapes are correct, but coloration is slightly off for 
 # all versions prior to 6.7.7.3
+# need to use colorspace sRGB for IM 7 grayscale images
 if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
 	setcspace="-set colorspace RGB"
+elif [ "$im_version" -ge "06070903" -a "$im_version" -le "06080309" ]; then
+	# needed to fix overly light results between 6.7.9.3 and 6.8.3.9; does not fix 6.8.3.5 - 6.8.3.9
+	setcspace="-set colorspace RGB"
+elif [ "$im_version" -gt "06080504" ]; then
+echo "got here 6"
+	setcspace=""
+elif [ "$im_version" -ge "70000000" ]; then
+echo "got here 7"
+	setcspace="-set colorspace sRGB"
 else
 	setcspace=""
 fi
-# no need for setcspace for grayscale or channels after 6.8.5.4
-if [ "$im_version" -gt "06080504" ]; then
-#if [ "$im_version" -gt "06080304" ]; then
-	setcspace=""
-fi
-# needed to fix overly light results between 6.7.9.3 and 6.8.3.9; does not fix 6.8.3.5 - 6.8.3.9
-if [ "$im_version" -ge "06070903" -a "$im_version" -le "06080309" ]; then
-	setcspace2="-set colorspace RGB"
-else
-	setcspace2=""
-	# note need the following also for versions between 6.8.4.0 and following
-	setcspace=""
-fi
-
 
 [ "$im_version" -lt "06040805" ] && errMsg "--- REQUIRES IM 6.4.8.5 OR HIGHER ---"
 
@@ -434,18 +455,18 @@ if [ "$infile" = "" ]; then
 	convert -size ${dim}x${dim} xc: $seeding +noise random $blurring $embossing $sharpening $tmpA1
 elif [ "$mode" = "image" ]; then
 	# test input image
-	convert -quiet -regard-warnings "$infile" $cropping +repage "$tmpA1" ||
+	convert -quiet "$infile" $cropping +repage "$tmpA1" ||
 		errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 elif [ "$mode" = "random" ]; then
 	# test input image
-	convert -quiet -regard-warnings "$infile" "$tmpA1" ||
+	convert -quiet "$infile" "$tmpA1" ||
 		errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 	convert $tmpA1 $setcspace $cropping +repage \( +clone $seeding +noise random \) \
 		-compose blend -define compose:args=$blend1,$blend2 -composite \
 		$blurring $embossing $sharpening $tmpA1
 elif [ "$mode" = "disperse" ]; then
 	# test input image
-	convert -quiet -regard-warnings "$infile" $cropping +repage "$tmpA1" ||
+	convert -quiet "$infile" $cropping +repage "$tmpA1" ||
 		errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 		# note removed -virtual-pixel tile as it did not work for older versions and left a quadrant border effect
 		if [ "$im_version" -lt "06050304" ]; then
@@ -455,7 +476,7 @@ elif [ "$mode" = "disperse" ]; then
 				-channel G -evaluate cosine $density \
 				-channel RG -separate $tmpA1 +swap miff:- | \
 					composite - -displace ${spread}x${spread} $tmpA1
-		else
+		elif [ "$im_version" -ge "06050304" -a "$im_version" -lt "07000000" ]; then
 			convert $tmpA1 $seeding +noise Random $smooth \
 				$setcspace -colorspace gray -auto-level \
 				-channel R -evaluate sine $density \
@@ -463,9 +484,16 @@ elif [ "$mode" = "disperse" ]; then
 				-channel RG -separate $tmpA1 -insert 0 \
 				-define compose:args=${spread}x${spread} \
 				-compose displace -composite $tmpA1
+		elif [ "$im_version" -ge "07000000" ]; then
+			convert $tmpA1 $seeding +noise Random $smooth \
+				$setcspace -colorspace gray -auto-level $setcspace  \
+				-channel R -evaluate sine $density \
+				-channel G -evaluate cosine $density \
+				-channel RG -separate $tmpA1 -insert 0 \
+				-define compose:args=${spread}x${spread} \
+				-compose displace -composite $tmpA1
 		fi
 fi
-
 
 # make kaleidoscopic effect
 case "$orient" in 
@@ -498,6 +526,6 @@ convert $tmpA1 \
 -composite $rotation \
 \( +clone -flop \) +append \
 \( +clone -flip \) -append \
-$resizing $outfile
+$resizing "$outfile"
 
 exit 0

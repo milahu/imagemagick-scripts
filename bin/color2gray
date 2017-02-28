@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 11/7/2009 .......... revised 6/3/2013
+# Developed by Fred Weinhaus 11/7/2009 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: color2gray [-r red] [-g green] [-b blue] [-f form] [-c clrspace] 
 # [-B bright] [-C contrast] infile outfile
@@ -13,10 +37,11 @@
 # -g     green        green mix percent; float; default=58.7
 # -b     blue         blue mix percent; float; default=11.4
 # -f     form         form of combining channels; add or rms 
-#                     (root mean squared channel combination) or desat 		   
-#                     (simple desaturation); default=add
-# -c     clrspace     colorspace in which to desaturate; hsl, hsb or hcl; 
-#                     default=hsl
+#                     (root mean squared channel combination) or colorspace 		   
+#                     intensity channel; default=add
+# -c     clrspace     colorspace in which to extract intensity channel; 
+#                     rec709luma, rec601luma (or HCL), OHTA (or HSI), sGray, 
+#                     LAB, HSL, BCH, HSB;  default=HSL
 # -B     bright       percent brightness change of grayscale image; 
 #                     -100<=float<=100; default=0 
 # -C     contrast     percent contrast change of grayscale image; 
@@ -32,7 +57,8 @@
 # DESCRIPTION: COLOR2GRAY mixes the color channels from an image into a 
 # single grayscale image using a weighted combination. The weighted channels 
 # can be combined by simple addition or by root mean squared combination. The 
-# image may also be converted to grayscale by simple desaturation.
+# image may also be converted to grayscale from the intensity-like channel of 
+# various colorspaces.
 # 
 # 
 # OPTIONS: 
@@ -40,32 +66,49 @@
 # -r red ... RED is the red mix percent (weight) in forming the grayscale 
 # image. Values are (pos. or neg.) floats. The default=29.9 (equivalent to 
 # IM non-linear grayscale. Nominally the r,g,b,o weights should total 100%. 
-# Weights are not relevant to form=desat.
+# Weights are not relevant to form=colorspace.
 #
 # -g green ... GREEN is the red mix percent (weight) in forming the grayscale 
 # image. Values are (pos. or neg.) floats. The default=58.7 (equivalent to 
 # IM non-linear grayscale. Nominally the r,g,b,o weights should total 100%. 
-# Weights are not relevant to form=desat.
+# Weights are not relevant to form=colorspace.
 #
 # -b blue ... BLUE is the red mix percent (weight) in forming the grayscale 
 # image. Values are (pos. or neg.) floats. The default=11.4 (equivalent to 
 # IM non-linear grayscale. Nominally the r,g,b,o weights should total 100%. 
-# Weights are not relevant to form=desat.
+# Weights are not relevant to form=colorspace.
 #
 # -f form ... FORM of combining channels. The choices are: add (a) for a 
 # simple channel addition or rms (r) for a root mean squared channel 
-# combination or desat (d) for simple desaturation. The default=normal
+# combination or colorspace (c) for intensity-like channel of specified 
+# colorspace. The default=add
 # 
-# -c clrspace ... CLRSPACE is the colorspace in which to desaturate the image. 
-# The choices are: hsl, hsb or hcl.
+# -c clrspace ... CLRSPACE is the colorspace in which to get the intensity-like 
+# channel. The choices are: rec709luma, rec601luma (or HCL), OHTA (or HSI),  
+# sGray, LAB, HSL, BCH, HSB. The default=HSL. Note that rec709luma is the 
+# current -colorspace gray, while rec601luma is the older -colorspace gray 
+# before about IM 6.7.6.7.  OHTA or HSI produce results the same as an equal 
+# weighted add. Also, sGray is a perceptual gray that tries to maintain the
+# overall brightness of the color image. The colorspaces have been listed  
+# approximately in order of darkest to lightest results, though ordering 
+# will vary from image to image. Colorspace is not relevant to form=add or 
+# to form=rms. Colorspace is not relevant to form=add or form=rms.
 # 
-# -B bright ... BRIGHT is the percent change in brightness of the grayscale. 
-# image. Values are floats in the range of -100 to 100. The default=0. 
+# -B bright ... BRIGHT is the post-processing percent change in brightness 
+# of the grayscale image. Values are floats in the range of -100 to 100. 
+# The default=0. 
 # 
-# -C contrast ... CONTRAST is the percent change in contrast of the grayscale. 
-# image. Values are floats in the range of -100 to 100. The default=0. 
+# -C contrast ... CONTRAST is the post-processing percent change in contrast 
+# of the grayscale image. Values are floats in the range of -100 to 100. 
+# The default=0. 
 # 
-# REQUIREMENTS: IM 6.7.9.0 or higher when using HCL colorspace.
+# REQUIREMENTS: IM 6.7.9.0 or higher when using HCL or HSI colorspaces. 
+# IM 6.6.0.4 for BCH due to the use of -evaluate-sequence. IM 6.8.3.10 for 
+# sGray due to the use of -intensity.
+# 
+# REFERENCES:
+# http://en.wikipedia.org/wiki/HSL_and_HSV#Hue_and_chroma
+# http://www.kweii.com/site/color_theory/2007_LV/BrightnessCalculation.pdf
 # 
 # CAVEAT: No guarantee that this script will work on all platforms, 
 # nor that trapping of inconsistent parameters is complete and 
@@ -95,13 +138,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -176,7 +219,7 @@ else
 					   case "$form" in 
 					   		add|a) form="add";;
 					   		rms|r) form="rms";;
-					   		desat|d) form="desat";;
+					   		colorspace|c) form="colorspace";;
 					   		*) errMsg "--- FORM=$form IS AN INVALID VALUE ---" 
 					   	esac
 					   ;;
@@ -187,9 +230,17 @@ else
 					   checkMinus "$1"
 					   clrspace=`echo "$1" | tr '[A-Z]' '[a-z]'`
 					   case "$clrspace" in 
-					   		hsl) ;;
-					   		hsb) ;;
+					   		rec709luma|rec709) clrspace=rec709luma ;;
+					   		rec601luma|rec601) clrspace=rec601luma ;;
 					   		hcl) ;;
+					   		ohta) ;;
+					   		hsi) ;;
+					   		sgray) ;;
+					   		hsl) ;;
+					   		lab) ;;
+					   		bch) ;;
+					   		hsb) ;;
+					   		gray) ;;
 					   		*) errMsg "--- CLRSPACE=$clrspace IS AN INVALID VALUE ---" 
 					   	esac
 					   ;;
@@ -229,8 +280,8 @@ else
 	done
 	#
 	# get infile, outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -245,11 +296,12 @@ tmpA1="$dir/color2gray_A_$$.mpc"
 tmpA2="$dir/color2gray_A_$$.cache"
 tmpB1="$dir/color2gray_B_$$.mpc"
 tmpB2="$dir/color2gray_B_$$.cache"
-trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2; exit 0" 0
+trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2;" 0
 trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2; exit 1" ERR
 
 # read and test input
-convert -quiet -regard-warnings "$infile" +repage "$tmpA1" ||
+convert -quiet "$infile" +repage "$tmpA1" ||
 	echo  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 # get im version
@@ -303,11 +355,20 @@ else
 	bcproc="-brightness-contrast ${bright},${contrast}"
 fi
 
+# set up -recolor or -color-matrix
+if [ "$im_version" -lt "06060100" ]; then
+	process="-recolor"
+else
+	process="-color-matrix"
+fi
+
 # convert channel ratios from percent to fraction
 rf=`convert xc: -format "%[fx:$red/100]" info:`
 gf=`convert xc: -format "%[fx:$green/100]" info:`
 bf=`convert xc: -format "%[fx:$blue/100]" info:`
 #echo "rf=$rf; gf=$gf; bf=$bf; of=$of"
+
+echo "form=$form; clrspace=$clrspace;"
 
 # process image
 if [ "$form" = "add" ]; then
@@ -323,17 +384,61 @@ elif [ "$form" = "rms" ]; then
 		\( -clone 1 -clone 1 -compose multiply -composite -evaluate multiply $gf \) \
 		\( -clone 2 -clone 2 -compose multiply -composite -evaluate multiply $bf \) \
 		-delete 0-2 -evaluate-sequence add -evaluate pow 0.5 $tmpA1
-elif [ "$form" = "desat" ]; then
-	convert $tmpA1 -define modulate:colorspace=$clrspace \
-		-modulate 100,0,100 $tmpA1
+
+elif [ "$form" = "colorspace" -a "$clrspace" = "rec709luma" -a "$im_version" -lt "07000000" ]; then
+	convert $tmpA1 -colorspace rec709luma $tmpA1
+
+elif [ "$form" = "colorspace" -a "$clrspace" = "rec709luma" -a "$im_version" -ge "07000000" ]; then
+	convert $tmpA1 -grayscale rec709luma $tmpA1
+
+elif [ "$form" = "colorspace" -a "$clrspace" = "rec601luma" -a "$im_version" -lt "07000000" ]; then
+	convert $tmpA1 -colorspace rec601luma $tmpA1
+
+elif [ "$form" = "colorspace" -a "$clrspace" = "rec601luma" -a "$im_version" -ge "07000000" ]; then
+	convert $tmpA1 -grayscale rec601luma $tmpA1
+
+elif [ "$form" = "colorspace" -a "$clrspace" = "hcl" ]; then
+	convert $tmpA1 $setcspace -colorspace HCL -channel b -separate +channel $tmpA1
+
+elif [ "$form" = "colorspace" -a "$clrspace" = "ohta" ]; then
+	convert $tmpA1 $setcspace -colorspace OHTA -channel r -separate +channel $tmpA1
+
+elif [ "$form" = "colorspace" -a "$clrspace" = "hsi" ]; then
+	convert $tmpA1 $setcspace -colorspace HSI -channel b -separate +channel $tmpA1
+
+elif [ "$form" = "colorspace" -a "$clrspace" = "sgray" ]; then
+	convert $tmpA1 -colorspace sRGB -intensity rec709luminance \
+		-colorspace gray -set colorspace RGB -colorspace sRGB $tmpA1
+
+elif [ "$form" = "colorspace" -a "$clrspace" = "hsl" ]; then
+echo "got here; setcspace=$setcspace;"
+	convert $tmpA1 $setcspace -colorspace HSL -channel b -separate +channel $tmpA1
+
+elif [ "$form" = "colorspace" -a "$clrspace" = "lab" ]; then
+	convert $tmpA1 $setcspace -colorspace LAB -channel r -separate +channel $tmpA1
+
+elif [ "$form" = "colorspace" -a "$clrspace" = "bch" ]; then
+	# versions of IM before IM 6.8.7.1 needed -set colorspace RGB, but it does not hurt to include for all
+	convert $tmpA1 -colorspace sRGB -colorspace XYZ \
+		$process "0.2053 0.7125 0.4670   1.8537 -1.2797 -0.4429   -0.3655 1.0120 -0.6104 " \
+		\( +clone \) -compose multiply -composite \
+		-separate -evaluate-sequence add -evaluate pow 0.5 \
+		-set colorspace RGB -colorspace sRGB $tmpA1
+
+elif [ "$form" = "colorspace" -a "$clrspace" = "hsb" ]; then
+	convert $tmpA1 $setcspace -colorspace HSB -channel b -separate +channel $tmpA1
+
+elif [ "$form" = "colorspace" -a "$clrspace" = "gray" ]; then
+	convert $tmpA1 -colorspace gray $tmpA1
+
 fi
 
 
 # put alpha channel back
 if [ "$test2" != "1" ]; then
-	convert \( $tmpA1 $bcproc \) $tmpB1 -alpha off -compose copy_opacity -composite $outfile
+	convert \( $tmpA1 $bcproc \) $tmpB1 -alpha off -compose copy_opacity -composite "$outfile"
 else
-	convert $tmpA1 $bcproc $outfile
+	convert $tmpA1 $bcproc "$outfile"
 fi
 
 

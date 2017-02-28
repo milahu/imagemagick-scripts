@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 10/29/2008 .......... revised 6/13/2013
+# Developed by Fred Weinhaus 10/29/2008 .......... revised 3/19/2016
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: kmeansthresh [-g graph] infile outfile
 # USAGE: kmeansthresh [-help]
@@ -78,13 +102,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -148,8 +172,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -192,7 +216,7 @@ if [ "$im_version" -gt "06080504" ]; then
 fi
 
 
-if convert -quiet -regard-warnings "$infile" $setcspace -colorspace gray +repage "$tmpA1"
+if convert -quiet "$infile" $setcspace -colorspace gray +repage "$tmpA1"
 	then
 	: ' do nothing '
 else
@@ -204,91 +228,56 @@ width=`convert $tmpA1 -format "%w" info:`
 height=`convert $tmpA1 -format "%h" info:`
 totpix=`echo "scale=0; $width * $height / 1" | bc`
 
-# get min and max in range 0 - 255 to correspond to 8-bit histogram
-getMinMax256()
-	{
-	img="$1"
-	if [ "$im_version" -ge "06030901" ]
-		then 
-		min=`convert $img -format "%[min]" info:`
-		max=`convert $img -format "%[max]" info:`
-		min=`convert xc: -format "%[fx:255*$min/quantumrange]" info:`
-		max=`convert xc: -format "%[fx:255*$max/quantumrange]" info:`
-	else
-		data=`convert $img -verbose info:`
-		min=`echo "$data" | sed -n 's/^.*[Mm]in:.*[(]\([0-9.]*\).*$/\1/p ' | head -1`
-		max=`echo "$data" | sed -n 's/^.*[Mm]ax:.*[(]\([0-9.]*\).*$/\1/p ' | head -1`
-		min=`convert xc: -format "%[fx:255*$min)]" info:`
-		max=`convert xc: -format "%[fx:255*$max)]" info:`
-	fi
-echo "min=$min; max=$max"
-	}
+# get min and max in range 0 - 255 to correspond to 8-bit histogram and later set average to initial thresh
+if [ "$im_version" -ge "06030901" ]
+	then 
+	min=`convert $tmpA1 -format "%[min]" info:`
+	max=`convert $tmpA1 -format "%[max]" info:`
+	min=`convert xc: -format "%[fx:255*$min/quantumrange]" info:`
+	max=`convert xc: -format "%[fx:255*$max/quantumrange]" info:`
+else
+	data=`convert $tmpA1 -verbose info:`
+	min=`echo "$data" | sed -n 's/^.*[Mm]in:.*[(]\([0-9.]*\).*$/\1/p ' | head -1`
+	max=`echo "$data" | sed -n 's/^.*[Mm]ax:.*[(]\([0-9.]*\).*$/\1/p ' | head -1`
+	min=`convert xc: -format "%[fx:255*$min)]" info:`
+	max=`convert xc: -format "%[fx:255*$max)]" info:`
+fi
+#echo "min=$min; max=$max;"
 
-# function to convert IM histogram into two arrays, value and count
-getHistog()
-	{
-	echo "Generate Histogram"
-	img="$1"
-	# get lists of values and counts from histogram
-	# note that IM histograms are not well sorted (and have multiple bins with counts for the same values)
-	value=`convert $img -format %c -depth 8 -define histogram:unique-colors=true histogram:info: | sort -k 2 -b | sed -n 's/^ *[0-9]*: [(]\([0-9 ]*\).*$/\1/ p'`
-	count=`convert $img -format %c -depth 8 -define histogram:unique-colors=true histogram:info: | sort -k 2 -b | sed -n 's/^ *\([0-9]*\): [(].*$/\1/ p'`
+
+# separate IM histogram into two arrays, value and count, and fill out for empty bins and normalize
+
+
+	# get filled value array from IM histogram
+	nvalueArr=(`convert $tmpA1 -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- \
+	| tr -cs '0-9\012' ' ' | sed -n 's/[ ]*\([0-9]*\)[ ]*\([0-9]*\).*$/\1 \2/p' |\
+	awk '
+	# AWK 
+	{ vbin[$2] += $2;} 
+	END { for (i=0;i<256;i++) {print vbin[i]+0; } } '`)
+#	echo ${nvalueArr[*]}
+#	echo ${#nvalueArr[*]}
+	numvals=${#nvalueArr[*]}
+
 	
-	# put value and count into arrays
-	valueArr=($value)
-	countArr=($count)
+	# get filled and normalized count array from IM histogram
+	ncountArr=(`convert $tmpA1 -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- \
+	| tr -cs '0-9\012' ' ' | sed -n 's/[ ]*\([0-9]*\)[ ]*\([0-9]*\).*$/\1 \2/p' |\
+	awk -v totpix="$totpix" '
+	# AWK 
+	{ cbin[$2] += $1; } 
+	END { for (i=0;i<256;i++) {printf ("%f\n", (cbin[i]+0)/totpix) } } '`)
+#	echo ${ncountArr[*]}
+#	echo ${#ncountArr[*]}
+	numcounts=${#ncountArr[*]}
 	
-	# check if both arrays are the same size
-	if [ ${#valueArr[*]} -ne ${#countArr[*]} ]
-		then
-			errMsg "--- ARRAY SIZES DO NOT MATCH ---"
-			exit 1
-		else
-		numbins=${#valueArr[*]}
-#echo "numbins=$numbins"
-	fi
-}
-
-
-# function to fill gaps and normalize histog
-getFilledNormlizedHistog()
-	{
-	echo "Fill & Normalize Histogram"
-	# fill in gaps in histogram and normalize counts by total pixels
-	# fill in bins with zero counts
-	i=0
-	while [ $i -lt 256 ]; do
-		if [ $numbins -lt 256 ]; then
-			nvalueArr[$i]=$i
-			ncountArr[$i]=0
-		else
-			nvalueArr[$i]=${valueArr[$i]}
-		fi
-		i=`expr $i + 1`
-	done
-
-	# normalize array
-	j=0
-	while [ $j -lt $numbins ]; do
-		k=${valueArr[$j]}
-		ncountArr[$k]=`echo "scale=10; ${countArr[$j]}/$totpix" | bc`
-		j=`expr $j + 1`
-	done
-
-	# reset numbins
-	orignumbins=$numbins
+	[ $numvals -ne $numcounts ] && errMsg "--- NUMBER OF COUNTS IS NOT THE SAME AS NUMBER OF VALUES ---"
+	
 	numbins=256
-	}
-
 
 # process image using k-means approach
 
-echo ""
-getMinMax256 "$tmpA1"
-getHistog "$tmpA1"
-getFilledNormlizedHistog
-
-echo "Generate Cumulative Arrays"
+# Generate Cumulative Arrays
 # p=c(i)/N (normalized count or probability, p, at bin i)
 # v=v(i) (graylevel at bin i)
 # note that as histogram has been filled that v=i
@@ -297,65 +286,94 @@ echo "Generate Cumulative Arrays"
 # g=p1=sum(c(i)*v(i))=first histogram momement => cumulative normalized graylevel (from i=0 to t) = G(t)
 # m=p1/p0=mean
 
-i=0
-nlow=0
-nhigh=0
-glow=0
-ghigh=0
-while [ $i -lt $numbins ]; do
-	# get low arrays accumulating upwards from first bin (0)
-	# array index i starts with zero at first bin of histogram
-	# increment from left to right
-	test1=`echo "${ncountArr[$i]} != 0" | bc`
-	if [ $test1 -eq 1 ]; then
-		nlow=`echo "scale=10; $nlow + ${ncountArr[$i]}" | bc`
-		nlowArr[$i]=$nlow
-		glow=`echo "scale=10; $glow + ${nvalueArr[$i]}*${ncountArr[$i]}" | bc`
-		mlowArr[$i]=`echo "scale=10; $glow/$nlow" | bc`
-	else
-		if [ $i -eq 0 ]; then
-			nlowArr[$i]=0
-			mlowArr[$i]=0
-		else
-			k=`expr $i - 1`
-			nlowArr[$i]=${nlowArr[$k]}
-			mlowArr[$i]=${mlowArr[$k]}
-		fi
-	fi
-	
-	# get high arrays accumulating downwards from last bin (256)
-	# array index i starts with zero at last bin of histogram
-	# increment from right to left
-	j=`expr $numbins - 1 - $i`
-	test2=`echo "${ncountArr[$j]} != 0" | bc`
-	if [ $test2 -eq 1 ]; then
-		nhigh=`echo "scale=10; $nhigh + ${ncountArr[$j]}" | bc`
-		nhighArr[$i]=$nhigh		
-		ghigh=`echo "scale=10; $ghigh + ${nvalueArr[$j]}*${ncountArr[$j]}" | bc`
-		mhighArr[$i]=`echo "scale=10; $ghigh/$nhigh" | bc`
-	else
-		if [ $i -eq 0 ]; then
-			nhighArr[$i]=0
-			mhighArr[$i]=0
-		else
-			k=`expr $i - 1`
-			nhighArr[$i]=${nhighArr[$k]}
-			mhighArr[$i]=${mhighArr[$k]}
-		fi
-	fi
+
+	# compute nlowArr
+	nlowArr=( $(for ((i=0; i<numbins; i++)); do
+	echo "$i ${ncountArr[$i]}"
+	done |\
+	awk -v numbins="$numbins" '
+	# AWK to generate a cumulative histogram 1D image...
+	{ nlowbin[$1] = $2; } 
+	END { for (i=0;i<numbins;i++) { nlow += nlowbin[i]; print nlow } } ') )
+#	echo ${nlowArr[*]}
+#	echo ${#nlowArr[*]}
+
+
+	# compute glowArr
+	glowArr=( $( for ((i=0; i<numbins; i++)); do
+	echo "$i ${nvalueArr[$i]} ${ncountArr[$i]}"
+	done |\
+	awk -v numbins="$numbins" '
+	# AWK to generate a cumulative histogram 1D image...
+	{ vlowbin[$1] = $2; nclowbin[$1] = $3; } 
+	END { for (i=0;i<numbins;i++) { glow += vlowbin[i]*nclowbin[i]; print glow } } ') )
+#	echo ${glowArr[*]}
+#	echo ${#glowArr[*]}
+
+
+	# compute mlowArr
+	[ `echo "${ncountArr[0]} == 0" | bc` -eq 1 ] && mlowold=0
+	mlowArr=( $( for ((i=0; i<numbins; i++)); do
+	echo "$i ${nlowArr[$i]} ${glowArr[$i]}"
+	done |\
+	awk -v numbins="$numbins" -v mlowold="$mlowold" '
+	# AWK to generate a cumulative histogram 1D image...
+	{ nlowbin[$1] = $2; glowbin[$1] = $3; } 
+	END { for (i=0;i<numbins;i++) 
+	{ if ( nlowbin[i] != 0 ) { mlow = glowbin[i]/nlowbin[i]; mlowold = mlow; } else { mlow = mlowold; } print mlow } }') )	
+#	echo ${mlowArr[*]}
+#	echo ${mlowArr[*]}
+
+
+	# compute nhighArr
+	nhighArr=( $(for ((i=0; i<numbins; i++)); do
+	echo "$i ${ncountArr[$i]}"
+	done |\
+	awk -v numbins="$numbins" '
+	# AWK to generate a cumulative histogram 1D image...
+	{ nhighbin[$1] = $2; } 
+	END { for (i=0;i<numbins;i++) { j = (numbins - 1 - i); nhigh += nhighbin[j]; print nhigh } } ') )
+#	echo ${nhighArr[*]}
+#	echo ${#nhighArr[*]}
+
+
+	# compute ghighArr
+	ghighArr=( $( for ((i=0; i<numbins; i++)); do
+	echo "$i ${nvalueArr[$i]} ${ncountArr[$i]}"
+	done |\
+	awk -v numbins="$numbins" '
+	# AWK to generate a cumulative histogram 1D image...
+	{ vhighbin[$1] = $2; nchighbin[$1] = $3; } 
+	END { for (i=0;i<numbins;i++) { j = (numbins - 1 - i); ghigh += vhighbin[j]*nchighbin[j]; print ghigh } } ') )
+#	echo ${glowArr[*]}
+#	echo ${#glowArr[*]}
+
+
+	# compute mhighArr
+	[ `echo "${ncountArr[0]} == 0" | bc` -eq 1 ] && mhighold=0
+	mhighArr=( $( for ((i=0; i<numbins; i++)); do
+	echo "$i ${nhighArr[$i]} ${ghighArr[$i]}"
+	done |\
+	awk -v numbins="$numbins" -v mhighold="$mhighold" '
+	# AWK to generate a cumulative histogram 1D image...
+	{ nhighbin[$1] = $2; ghighbin[$1] = $3; } 
+	END { for (i=0;i<numbins;i++) 
+	{ if ( nhighbin[i] != 0 ) { mhigh = ghighbin[i]/nhighbin[i]; mhighold = mhigh; } else { mhigh = mhighold; } print mhigh } }') )	
+#	echo ${mlowArr[*]}
+#	echo ${mlowArr[*]}
+
+
+#for ((i=0;i<numbins;i++)); do
 #echo "i=$i; j=$j; ncount=${ncountArr[$i]}; nlow=${nlowArr[$i]}; nhigh=${nhighArr[$i]}; mlow=${mlowArr[$i]}; mhigh=${mhighArr[$i]}"
-	i=`expr $i + 1`
-done
+#done
 
-
-echo "Compute Threshold"
+# Compute Threshold
 # iterate the following
 # start with initial threshold at average of image min and max values
 # get low and high means corresponding to below and above threshold
 # compute new threshold=(Ml+Mh)/2
 # repeat until difference between old and new thresholds is zero
 
-startbin=0
 lastbin=`expr $numbins - 1`
 thresh=`echo "scale=0; ($min + $max)/2" | bc`
 oldthresh=0
@@ -372,7 +390,7 @@ while [ $test != 1 ]; do
 	diff=`echo "scale=10; ($thresh - $oldthresh)" | bc`
 	diff=`echo "scale=10; sqrt($diff * $diff)" | bc`
 	test=`echo "$diff == 0" | bc`
-#echo "mlow=$mlow; mhigh=$mhigh; thresh=$thresh; diff=$diff; test=$test"
+#echo "i=$i; j=$j; mlow=$mlow; mhigh=$mhigh; oldthresh=$oldthresh; thresh=$thresh; diff=$diff; test=$test"
 done
 
 
@@ -383,7 +401,7 @@ threshpct=`convert xc: -format "%[fx:100*$thresh/255]" info:`
 
 
 echo "Thresholding Image At $threshpct%"
-convert $tmpA1 -threshold $threshpct% $outfile
+convert $tmpA1 -threshold $threshpct% "$outfile"
 echo ""
 
 
@@ -396,12 +414,12 @@ if [ "$graph" != "" ]; then
 		-font ArialB -pointsize 24 \
 		-draw "text 4,22 'threshold=$threshpct%'" -resize 50% \
 		-bordercolor gray50 -border 5 \
-		$histfile
+		"$histfile"
 fi
 
 if [ "$graph" = "view" ]; then
-	convert $histfile x:
-	rm -f $histfile
+	convert "$histfile" x:
+	rm -f "$histfile"
 fi
 
 exit 0

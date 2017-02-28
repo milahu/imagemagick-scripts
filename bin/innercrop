@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 3/31/2010 .......... revised 6/11/2013
+# Developed by Fred Weinhaus 3/31/2010 .......... revised 6/22/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: innercrop [-o ocolor] [-p prep] [-f fuzzval] [-t thresholds] [-b biases] [-u ucolor] [-m mode] [-g gcolor] [-s swidth] [-i is360] [-r rmse] infile outfile
 # USAGE: innercrop [-help]
@@ -138,13 +162,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -290,8 +314,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -308,8 +332,9 @@ tmpA2="$dir/innercrop_2_$$.mpc"
 tmpB2="$dir/innercrop_2_$$.cache"
 tmpA3="$dir/innercrop_3_$$.mpc"
 tmpB3="$dir/innercrop_3_$$.cache"
-trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3;" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3; exit 1" ERR
 
 # get im version
 im_version=`convert -list configure | \
@@ -343,11 +368,11 @@ fi
 
 # read and test input image
 if [ $prep -eq 1 ]; then
-	convert -quiet -regard-warnings "$infile" -fuzz ${fuzzval}% -trim "$tmpA1" || 
+	convert -quiet "$infile" -fuzz ${fuzzval}% -trim "$tmpA1" || 
 		errMsg  "--- FILE $imagefile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 elif [ $prep -eq 2 ]; then
 #echo "fuzzval=${fuzzval}%"
-	convert -quiet -regard-warnings "$infile" -bordercolor "$ocolor" -border 2 \
+	convert -quiet "$infile" -bordercolor "$ocolor" -border 2 \
 		-fuzz ${fuzzval}% -fill "$ocolor" -draw "color 0,0 floodfill" -trim "$tmpA1" || 
 		errMsg  "--- FILE $imagefile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 fi
@@ -396,11 +421,6 @@ elif [ $prep -eq 2 ]; then
 		-fill white +opaque "$ucolor" -fill black -opaque "$ucolor" -alpha off $tmpA2
 fi
 
-#idvs $tmpA2
-
-#convert $tmpA2 1tmp2_im6.miff
-
-#convert 1tmp2_im6.miff $tmpA2
 
 #function to process mask vertically or horizontally for y1,y2 or x1,x2
 procVertHoriz()
@@ -435,10 +455,6 @@ procVertHoriz()
 		len1=`convert xc: -format "%[fx:$width-1]" info:`
 	fi
 #echo "len=$len; len1=$len1;"
-
-#idvs $tmpA3
-
-#convert $tmpA3 1tmp3_im6.miff
 		
 	# convert row or column to text and find first and last white pixel for v1 and v2	
 	rcArr=(`convert $tmpA3 txt: | tail -n +2 | sed -n 's/^.*#[^ ]* \([a-z]*\)/\1/p'`)
@@ -518,10 +534,10 @@ echo "Width x Height: ${width}x${height}"
 
 # generate ouput image
 if [ "$mode" = "crop" ]; then
-convert $infile[${width}x${height}+${xa}+${ya}] $outfile
+	convert $infile[${width}x${height}+${xa}+${ya}] "$outfile"
 elif [ "$mode" = "box" ]; then
-convert $infile -fill none -stroke "$gcolor" -strokewidth "$swidth" \
-	-draw "rectangle $xa,$ya $xb,$yb" $outfile
+	convert $infile -fill none -stroke "$gcolor" -strokewidth "$swidth" \
+		-draw "rectangle $xa,$ya $xb,$yb" "$outfile"
 fi
 
 # test if is 360 pano

@@ -1,7 +1,31 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 4/23/2009 .......... revised 6/11/2013
+# Developed by Fred Weinhaus 4/23/2009 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
 # 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
 # USAGE: imageborder [-s size] [-b blurring] [-m mixcolor] [-p percent] [-r rimcolor] [-t thickness] [-e effect] [-f framebevel] [-c contrast] infile outfile
 # USAGE: imageborder [-h or -help]
 # 
@@ -115,13 +139,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -267,8 +291,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -280,8 +304,9 @@ fi
 
 tmpA="$dir/imageborder_$$.mpc"
 tmpB="$dir/imageborder_$$.cache"
-trap "rm -f $tmpA $tmpB; exit 0" 0
+trap "rm -f $tmpA $tmpB;" 0
 trap "rm -f $tmpA $tmpB; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB; exit 1" ERR
 
 # get im version
 im_version=`convert -list configure | \
@@ -309,7 +334,7 @@ fi
 
 
 # read the input image into the TMP cached image.
-convert -quiet -regard-warnings "$infile" +repage $setcspace "$tmpA" ||
+convert -quiet "$infile" +repage $setcspace "$tmpA" ||
   errMsg "--- FILE $infile NOT READABLE OR HAS ZERO SIZE ---"
 
 # set default size
@@ -369,7 +394,7 @@ if [ "$framebevel" != "inner" -a "$framebevel" != "outer" -a "$framebevel" != "s
 			-distort SRT "0,0 $xmag,$ymag 0" $blurring2 $colorization2 \) \
 		\( -clone 0 -bordercolor $rimcolor -border $thickness \) \
 		-delete 0 -gravity center -compose over -composite +repage \
-		$outfile
+		"$outfile"
 else
 	# convert contrast and transparency to fraction
 	contr1=`convert xc: -format "%[fx:$contrast-100]" info:`
@@ -397,7 +422,7 @@ else
 		-auto-level -black-threshold 25% -white-threshold 75% \
 		-brightness-contrast 0,${contr1}% -clone 1 -gravity center -composite \) \
 	-delete 1 -compose hardlight -composite +repage \
-	$outfile
+	"$outfile"
 fi
 
 exit 0

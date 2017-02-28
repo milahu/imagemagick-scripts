@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 3/13/2010 .......... 6/11/2013
+# Developed by Fred Weinhaus 3/13/2010 .......... 2/17/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: interleave [-t type] [-a alpha] [-c colorize] infile1 ... infileN outfile
 # USAGE: interleave [-h or -help]
@@ -70,13 +94,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -181,8 +205,9 @@ tmpdir="/tmp"
 dir="$tmpdir/$PROGNAME.$$"
 
 mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
-trap "rm -rf $dir; exit 0" 0
+trap "rm -rf $dir;" 0
 trap "rm -rf $dir; exit 1" 1 2 3 15
+trap "rm -rf $dir; exit 1" ERR
 
 # get im version
 im_version=`convert -list configure | \
@@ -207,11 +232,15 @@ fi
 if [ "$im_version" -gt "06080504" ]; then
 	setcspace=""
 fi
+# need setcspace for grayscale to color for IM 7
+if [ "$im_version" -ge "07000000" ]; then
+	setcspace="-set colorspace sRGB"
+fi
 
 # test that each infile is valid and read into tmp mpc format
 for ((i=1; i<=$numfiles; i++)); do
 	j=$(($i-1))
-	convert -quiet -regard-warnings "${fileArray[$j]}" +repage $dir/tmp$i.mpc ||
+	convert -quiet "${fileArray[$j]}" +repage $dir/tmp$i.mpc ||
 	echo  "--- FILE $thefile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 done
 
@@ -301,7 +330,7 @@ if [ $numfiles -eq 1 ]; then
 				+swap -alpha off -compose copy_opacity -composite -compose over \
 				$dir/tmp0.mpc -background none -flatten $dir/tmp0.mpc
 		done
-		convert $dir/tmp0.mpc -alpha off $outfile
+		convert $dir/tmp0.mpc -alpha off "$outfile"
 	elif [ "$type" = "col" ]; then
 		convert -size 1x1 $squares +append -write mpr:stripes \
 			+delete -size ${www}x${hh}! tile:mpr:stripes $dir/tmpM.mpc
@@ -314,7 +343,7 @@ if [ $numfiles -eq 1 ]; then
 				+swap -alpha off -compose copy_opacity -composite -compose over \
 				$dir/tmp0.mpc -background none -flatten $dir/tmp0.mpc
 		done
-		convert $dir/tmp0.mpc -alpha off $outfile
+		convert $dir/tmp0.mpc -alpha off "$outfile"
 	fi
 
 elif [ $numfiles -gt 1 ]; then
@@ -354,7 +383,7 @@ elif [ $numfiles -gt 1 ]; then
 				+swap -alpha off -compose copy_opacity -composite -compose over \
 				$dir/tmp0.mpc -background none -flatten $dir/tmp0.mpc
 		done
-		convert $dir/tmp0.mpc -alpha off $outfile
+		convert $dir/tmp0.mpc -alpha off "$outfile"
 	elif [ "$type" = "col" ]; then
 		convert -size 1x1 $squares +append -write mpr:stripes \
 			+delete -size ${www}x${hh}! tile:mpr:stripes $dir/tmpM.mpc
@@ -364,7 +393,7 @@ elif [ $numfiles -gt 1 ]; then
 				+swap -alpha off -compose copy_opacity -composite -compose over \
 				$dir/tmp0.mpc -background none -flatten $dir/tmp0.mpc
 		done
-		convert $dir/tmp0.mpc -alpha off $outfile
+		convert $dir/tmp0.mpc -alpha off "$outfile"
 	fi
 else
 	errMsg "--- TOO FEW INPUT IMAGES PROVIDED ---"

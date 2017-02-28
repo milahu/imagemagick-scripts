@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 3/19/2009 .......... revised 8/17/2012
+# Developed by Fred Weinhaus 3/19/2009 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: mapcolors [-f file] [-s safecolor] [-m] [-a] [-d depth] [-t type] infile outfile
 # USAGE: mapcolors [-help]
@@ -94,13 +118,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -203,8 +227,8 @@ else
 			shift   # next option
 	done
 	# get infile, outfile and lutfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -222,12 +246,13 @@ tmpB="$dir/mapcolors_$$.cache"
 tmp0="$dir/mapcolors_0_$$.miff"
 tmp1="$dir/mapcolors_1_$$.miff"
 tmp2="$dir/mapcolors_2_$$.miff"
-trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2; exit 0" 0
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2;" 0
 trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2; exit 1" ERR
 
 
 # test input image
-if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
+if convert -quiet "$infile" +repage "$tmpA"
 	then
 	: 'do nothing special'
 	else
@@ -297,11 +322,11 @@ for colorpair in ${colorArray[*]}; do
 	i=`expr $i + 1`
 done
 if [ "$safecolor" = "none" ]; then
-	convert $tmpA $tmp0 -composite $bitdepth $transparent $otype $outfile
+	convert $tmpA $tmp0 -composite $bitdepth $transparent $otype "$outfile"
 else
 	convert $tmp0 -fill black -opaque "$safecolor" \
 		-fill white +opaque "$safecolor" $tmp2
-	convert $tmpA $tmp0 $tmp2 -composite $bitdepth $transparent $otype $outfile
+	convert $tmpA $tmp0 $tmp2 -composite $bitdepth $transparent $otype "$outfile"
 fi
 echo ""
 exit 0

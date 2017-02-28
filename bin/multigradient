@@ -1,7 +1,31 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 5/14/2013 .......... revised 5/14/2013
+# Developed by Fred Weinhaus 5/14/2013 .......... revised 10/9/2015
+#
+# ------------------------------------------------------------------------------
 # 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
 # USAGE: multigradient [-w width] [-h height] [-s stops] [-t type] 
 # [-d direction] [-c center] [-r radii] outfile
 #
@@ -35,7 +59,7 @@
 # NAME: MULTIGRADIENT 
 # 
 # PURPOSE: To create either a linear or radial gradient image with two or more 
-# stops to specify colors and locations along the gradient direction
+# stops to specify colors and locations along the gradient direction.
 # 
 # DESCRIPTION: RADIALGRADIENT creates either a linear or radial gradient image 
 # with two or more stops to specify colors and locations along the gradient 
@@ -44,12 +68,12 @@
 # to a circle. Directions include: closest-side, furthest-side, closest-corner, 
 # or furthest corner. Colors may contain partial transparency and allow any 
 # valid IM color specification, including color names, rgb values or hex values. 
-# This script attempts to simulate CSS style gradients.
+# This script attempts to simulate many of the features of CSS style gradients.
 # 
 # 
 # ARGUMENTS: 
 # 
-# -w width ... WIDTh of desired output image. The default=256.
+# -w width ... WIDTH of desired output image. The default=256.
 # 
 # -h height ... HEIGHT of desired output image. The default=256.
 # 
@@ -81,6 +105,8 @@
 # 
 # -z zeroangle ... ZEROANGLE is direction where angle=0 for type=linear. The 
 # choices are: to-top or to-right. The default=to-top
+# 
+# REFERENCE: http://dev.w3.org/csswg/css-images-3/
 # 
 # CAVEAT: No guarantee that this script will work on all platforms, 
 # nor that trapping of inconsistent parameters is complete and 
@@ -114,13 +140,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -251,7 +277,7 @@ else
 	done
 	#
 	# get outfile
-	outfile=$1
+	outfile="$1"
 fi
 
 # test that outfile provided
@@ -263,8 +289,9 @@ tmpA1="$dir/multigradient_1_$$.mpc"
 tmpB1="$dir/multigradient_1_$$.cache"
 tmpA2="$dir/multigradient_2_$$.mpc"
 tmpB2="$dir/multigradient_2_$$.cache"
-trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2;" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" ERR
 
 
 function linearGradient
@@ -283,13 +310,15 @@ function linearGradient
 
 : <<COMMENT1
 	# slow pure fx approach
-	convert -size ${width}x${height} xc: -fx "$cos*(i-$cx)/$dist + $sin*(j-$cy)/$dist + 0.5" $tmpA1
+	convert -size ${width}x${height} xc: \
+		-fx "xx=((i-$cx)*$cos+(j-$cy)*$sin)/$rx; yy=((i-$cx)*$sin-(j-$cy)*$cos)/$ry; 1-hypot(xx,yy)" \
 COMMENT1
 
 	# faster hybrid approach (same speed if use gradient:)
 	a=`convert xc: -format "%[fx:$cos*($width-1)/$dist]" info:`
 	b=`convert xc: -format "%[fx:$sin*($height-1)/$dist]" info:`
 	c=`convert xc: -format "%[fx:0.5-($cos*$cx+$sin*$cy)/$dist]" info:`
+	# note: possible error --- the following should perhaps be before the c computation and the cos, sin computations
 	if [ "$angle" = "180" -o "$angle" = "360" ]; then
 		ang=0
 	else
@@ -617,9 +646,9 @@ done
 # requires IM 6.4.3-7 for -alpha
 alphamean=`convert $tmpA2 -alpha on -alpha extract -format "%[fx:mean]" info:`
 if [ "$alphamean" != 1 ]; then
-	convert \( $tmpA1 -alpha copy -channel A -negate +channel \) $tmpA2 -clut $outfile
+	convert \( $tmpA1 -alpha copy -channel A -negate +channel \) $tmpA2 -clut "$outfile"
 else
-	convert $tmpA1 $tmpA2 -clut $outfile
+	convert $tmpA1 $tmpA2 -clut "$outfile"
 fi
 
 exit 0

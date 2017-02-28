@@ -1,7 +1,31 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 4/7/2010 .......... revised 6/4/2013
+# Developed by Fred Weinhaus 4/7/2010 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
 # 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
 # USAGE: emboss [-m method] [-a azimuth] [-e elevation] [-d depth] [-i intensity] [-c compose] [-g gray] infile outfile
 # USAGE: emboss [-h or -help]
 # 
@@ -99,13 +123,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -247,8 +271,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -263,8 +287,9 @@ tmpA1="$dir/emboss_1_$$.mpc"
 tmpB1="$dir/emboss_1_$$.cache"
 tmpA2="$dir/emboss_2_$$.mpc"
 tmpB2="$dir/emboss_2_$$.cache"
-trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2;" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" ERR
 
 # get IM version
 im_version=`convert -list configure | \
@@ -294,7 +319,7 @@ fi
 
 
 # read the input image and filter image into the temp files and test validity.
-convert -quiet -regard-warnings "$infile" +repage $setcspace "$tmpA1" ||
+convert -quiet "$infile" +repage $setcspace "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 # set up for gray adjustment
@@ -334,9 +359,9 @@ elif [ $method -eq 2 ]; then
 fi
 
 if [ "$compose" = "" ]; then
-	convert $tmpA2 $outfile
+	convert $tmpA2 "$outfile"
 else
-	convert $tmpA1 $tmpA2 -compose $compose -composite $outfile
+	convert $tmpA1 $tmpA2 -compose $compose -composite "$outfile"
 fi
 exit 0
 

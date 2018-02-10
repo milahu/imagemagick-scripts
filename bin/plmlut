@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/18/2007 .......... revised 8/18/2012
+# Developed by Fred Weinhaus 8/18/2007 .......... revised 4/25/2015
+# 
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: plmlut [-s xscale,yscale] [-t thickness] [-g] "x1,y1 x2,y2 ..." lutfile
 # USAGE: plmlut [-s xscale,yscale] [-t thickness] [-g]  -f point_file lutfile
@@ -101,13 +125,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 # function to report error messages, usage and exit
@@ -200,7 +224,7 @@ fi
 if [ "$opt" = "-f" ]
 	then
 	# get lutfile as the last argument left
-    lutfile=$1
+    lutfile="$1"
     # test that lutfile provided and last point pair not used instead
     test=`expr "$lutfile" : '^[0-9]*,.*$'`
     [ $test -gt 0 ] && errMsg "NO LUT FILE SPECIFIED"
@@ -309,7 +333,7 @@ convert -size ${ww}x${hh} xc:black -fill white \
 	-draw "polygon $plistnew" \
 	-crop ${ww}x${yscale}+0+1 +repage \
 	-scale ${ww}x1! -scale ${ww}x${height}! \
-	$lutfile
+	"$lutfile"
 
 
 # display graph if option -g

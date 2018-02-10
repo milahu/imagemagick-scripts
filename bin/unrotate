@@ -1,8 +1,33 @@
 #!/bin/bash
 # 
-# Developed by Fred Weinhaus 12/12/2007 .......... revised 4/30/2013
+# Developed by Fred Weinhaus 12/12/2007 .......... revised 10/16/2017
+#
+# ------------------------------------------------------------------------------
 # 
-# USAGE: unrotate [-f fuzzval] [-c coords] [-a angle] [-l left] [-r right ] [-t top ] [-b bottom ] infile [outfile]
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: unrotate [-f fuzzval] [-c coords] [-C color] [-a angle] [-l left] [-r right ] 
+# [-t top ] [-b bottom ] infile [outfile]
 # USAGE: unrotate [-h or -help]
 # 
 # OPTIONS:
@@ -13,6 +38,8 @@
 # -c              coords         pixel coordinate to extract color; may be 
 #                                expressed as gravity value (NorthWest, etc)
 #                                or as "x,y" value; default is NorthWest=(0,0)
+# -C              color          border color; any valid IM color is allowed, 
+#                                default is to use coords to get color
 # -a              angle          angle of rotation of image; default indicates 
 #                                to autocalculate; -45<=angle<=45 degrees (float)
 # -l              left           pixel shift of left edge; +/- is right/left
@@ -66,6 +93,9 @@
 # SouthWest or West) or as a pixel coordinate "x,y". The default is the 
 # upper left corner = NorthWest = "0,0".
 # 
+# -C color ... COLOR of border or background. Any valid IM color is allowed.
+# The default is to use coords to get color.
+#
 # -a angle --- ANGLE is the rotation angle needed to unrotate the picture data 
 # within the image. The default (no argument) tells the algorithm to automatically 
 # estimate the rotation angle. One may override the automatic determination and 
@@ -102,6 +132,7 @@
 # set default values; 
 fuzzval=0				# fuzz threshold
 coords="NorthWest"		# coordinates to get color
+color=""
 pad=1					# border pad size
 rotang=""				# rotation angle -45 to 45 or "" for calc automatic
 lt=0					# left edge shift of trim (+/- is right/left)
@@ -120,13 +151,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 # function to report error messages
@@ -153,7 +184,7 @@ if [ $# -eq 0 ]
 	echo ""
 	usage2
 	exit 0
-elif [ $# -gt 16 ]
+elif [ $# -gt 18 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -182,6 +213,10 @@ else
 				   checkMinus "$1"
 				   coords=$1
 				   # further testing done later
+				   ;;
+			-C)    # color
+				   shift  # to get the next parameter - coords
+				   color="$1"
 				   ;;
 			-a)    # angle
 				   shift  # to get the next parameter - angle
@@ -228,8 +263,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -247,33 +282,54 @@ tmp2="$dir/unrotate_2_$$.mpc"
 tmp2a="$dir/unrotate_2_$$.cache"
 tmp3="$dir/unrotate_3_$$.mpc"
 tmp3a="$dir/unrotate_3_$$.cache"
-trap "rm -f $tmpA $tmpB $tmp0 $tmp0a $tmp1 $tmp1a $tmp2 $tmp2a $tmp3 $tmp3a; exit 0" 0
-trap "rm -f $tmpA $tmpB $tmp0 $tmp0a $tmp1 $tmp1a $tmp2 $tmp2a $tmp3 $tmp3a; exit 1" 1 2 3 15
+tmp4="$dir/unrotate_4_$$.miff"
+trap "rm -f $tmpA $tmpB $tmp0 $tmp0a $tmp1 $tmp1a $tmp2 $tmp2a $tmp3 $tmp3a $tmp4;" 0
+trap "rm -f $tmpA $tmpB $tmp0 $tmp0a $tmp1 $tmp1a $tmp2 $tmp2a $tmp3 $tmp3a $tmp4; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmp0 $tmp0a $tmp1 $tmp1a $tmp2 $tmp2a $tmp3 $tmp3a; exit 1" ERR
 
-
-if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
-	then
-	: ' do nothing '
-else
+# test input image
+convert -quiet "$infile" +repage $tmpA ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
+# though probably not resolved until the latter
+# then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
+# then -separate converted to linear gray channels between 6.7.6.7 and 6.7.8.2,
+# though probably not resolved until the latter
+# so -colorspace HSL/HSB -separate and -colorspace gray became linear
+# but we need to use -set colorspace RGB before using them at appropriate times
+# so that results stay as in original script
+# The following was determined from various version tests using autolevel.
+# with IM 6.7.4.10, 6.7.6.10, 6.7.8.6
+if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
+	setcspace1="-set colorspace RGB"
+	setcspace2="-set colorspace sRGB"
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace1=""
+	setcspace2=""
 fi
 
-# setup setcspace
-# since do not know exact versions (see below) use simple convert test
-test=`convert xc:black -set colorspace RGB txt:- | tail -n 1 | sed -n 's/^[0-9]*,[0-9]*: [(].*[)]  #.* \(.*\)$/\1/p'`
-if [ "$test" != "black" ]; then
-	setcspace="-set colorspace sRGB"
+# set up floodfill
+if [ "$im_version" -ge "07000000" ]; then
+	matte_alpha="alpha"
+	identifying="magick identify"
 else
-	setcspace=""
+	matte_alpha="matte"
+	identifying="identify"
 fi
-	
-	
 
 # function to get dimensions
 dimensions()
 	{
-	width=`identify -format %w $1`
-	height=`identify -format %h $1`
+	width=`$identifying -format "%w" $1`
+	height=`$identifying -format "%h" $1`
 	widthm1=`expr $width - 1`
 	heightm1=`expr $height - 1`
 	midwidth=`echo "scale=0; $width / 2" | bc`
@@ -308,7 +364,10 @@ getColor()
 									*)	errMsg "--- INVALID COORDS ---"
 										;;
 	esac
-	color=`convert $tmpA -format "%[pixel:u.p{$coords}]" info:`
+	tmpcolor=`convert $tmpA -format "%[pixel:u.p{$coords}]" info:`
+	if [ "$color" = "" ]; then
+		color=$tmpcolor
+	fi
 	}
 	
 # function to pad and extract binary image
@@ -319,19 +378,18 @@ paddedBinary()
 	coords="0,0"
 
 	# pad image with border of color found at original coords
-	convert $tmpA -bordercolor $color -border ${pad}x${pad} $tmpA
+	convert $tmpA -bordercolor "$color" -border ${pad}x${pad} $tmpA
 	
 	# get dimensions of padded image
 	dimensions $tmpA
 	
 	# make exterior transparent and inside white
 	convert $tmpA -fuzz $fuzzthresh% -fill none \
-		-draw "matte $coords floodfill" -fill white +opaque none $tmp0
+		-draw "$matte_alpha $coords floodfill" -fill white +opaque none $tmp0
 	
 	# make exterior black and inside white	
 	convert \( -size ${width}x${height} xc:black \) $tmp0 -compose over -composite $tmp1
 #	convert $tmp0 -background black -compose over -flatten $tmp1
-
 	}
 
 # function to get black to white transition location along row or column
@@ -400,8 +458,8 @@ cropImage()
 	# need to add -set colorspace RGB for versions after 6.7.7.7 to convert to nonlinear gray so thresholds correctly
 	# some versions after 6.6.9.10 and before 6.7.2.10 (tested at 6.7.2.0 and 6.7.2.1) produce srgb(...) values so must trap out -set colorspace sRGB before the output so they report black and white
 	# with the above scheme a few odd versions will show some white in the corners (e.g. tests show that in 6.7.7.8, 6.7.7.10, 6.7.8.2, 6.7.8.3, 6.8.4.0, 6.8.4.2, but not before 6.7.7.8 or 6.8.1.9, 6.8.3.9, 6.8.4.3 and after)
-	convert $tmp1 -scale 1x${height}! $normalize -set colorspace RGB -threshold $thresh $setcspace $tmp2
-	convert $tmp1 -scale ${width}x1! $normalize -set colorspace RGB -threshold $thresh $setcspace $tmp3
+	convert $tmp1 -scale 1x${height}! $normalize $setcspace1 -threshold $thresh $setcspace2 $tmp2
+	convert $tmp1 -scale ${width}x1! $normalize $setcspace1 -threshold $thresh $setcspace2 $tmp3
 
 	# get top and bottom by locating first occurence of value=white from top and bottom of column
 	getTransition $tmp2 $height "inc"
@@ -507,10 +565,17 @@ else
 	# unrotate
 	# fixed 8/20/2012 +repage issue (after rotate) that started between IM 6.7.2.10 and IM 6.7.3.10 and continued
 	# convert $tmpA +repage -background $color -rotate $rotang $tmpA
-	convert $tmpA +repage -background $color -rotate $rotang +repage $tmpA
+	convert $tmpA +repage -background "$color" -rotate $rotang +repage $tmpA
 	# process to trim (no rotation)
 	paddedBinary  $fuzzval
 	cropImage "trim" ""
-	convert $tmpA +repage $outfile
+	# due to bug in IM 6.9.9.12 - 6.9.9.19 in freeing memory for MPC, write to miff, then save to output
+	# no problems with IM 7 versions
+	if [ "$im_version" -ge "06090909" -o "$im_version" -le "06090919" ]; then
+		convert $tmpA $tmp4
+		convert $tmp4 +repage "$outfile"
+	else
+		convert $tmpA +repage "$outfile"
+	fi
 fi
 exit 0

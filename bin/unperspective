@@ -1,21 +1,66 @@
 #!/bin/bash
 # 
-# Developed by Fred Weinhaus 11/16/2011 .......... revised 8/22/2012
+# Developed by Fred Weinhaus 11/16/2011 .......... revised 9/18/2016
 # 
-# USAGE: unperspective [-c coords] [-b bgcolor] [-f fuzzval] [-a aspect] [-w width] [-h height] [-d default] [-m method] [-t thresh] [-s smooth] [-S sharpen] [-B blur] [-r rotate] [-M] [-i images] [-k kind] [-ma maxaspect] [-ml minlength] [-mp maxpeaks] [-mr maxratio] [-T traps] [-V] infile outfile
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: unperspective [-P prerotate] [-p procedure] [-C channel] [-c coords] 
+# [-b bgcolor] [-f fuzzval] [-F filter] [-A area] [-a aspect] [-w width] 
+# [-h height] [-d default] [-m method] [-t thresh] [-s smooth] [-S sharpen] 
+# [-B blur] [-r rotate] [-M] [-i images] [-k kind] [-ma maxaspect] 
+# [-ml minlength] [-mp maxpeaks] [-mr maxratio] [-T traps] [-V] infile outfile
+# 
 # USAGE: unperspective [-help]
 # 
 # OPTIONS:
 # 
+# -P     prerotate      prerotate image; choices are: autorotate (a), 90, 
+#                       180, 270; default is no prerotate; autorotate only 
+#                       works, if the image has auto-orient metadata
+# -p     procedure      background extraction procedure; choices are: 
+#                       floodfill (f), threshold (t), autothresh (a); 
+#                       autothresh requires my otsuthresh script; 
+#                       default=floodfill
+# -C     channel        image channel to use for non-floodfill background 
+#                       extraction; choices are: gray, red, green, blue, cyan, 
+#                       magenta, yellow, black; default is no specific channel
 # -c     coords         pixel coordinate to extract background color; 
 #                       may be expressed as gravity value 
 #                       (e.g. northwest) or as "x,y" value; 
-#                       default is 0,0
+#                       default is 0,0; used with -p floodfill
 # -b     bgcolor		background color outside the distorted 
 #                       quadrilateral; any valid IM color;
-#                       default determined by coords argument
-# -f     fuzzval        fuzz value for isolating quadrilateral from 
-#                       background; 0<=float<=100; default=10
+#                       default determined by coords argument; used with 
+#                       -p floodfill
+# -f     fuzzval        fuzz or threshold value expressed as percent for    
+#                       isolating quadrilateral from background; 
+#                       0<=float<=100; default=10
+# -F     filter         morphology filter to smooth gaps and bumps on the 
+#                       mask boundary; integer>=0; default=0
+# -A     area           area threshold for connected components filtering of 
+#                       mask image expressed as percent of image area; 
+#                       0<integer<100; default is no connected components 
+#                       filtering; requires IM 6.9.2-8 or higher 
 # -a     aspect			desired width/height aspect ratio; float>0; 
 #                       default will be computed automatically
 # -w     width          desired width of output; default determined 
@@ -132,17 +177,33 @@
 # Arguments: 
 # 
 # 
+# -P prerotate ... PREROTATE the input image. The choices are: autorotate (a), 
+# 90, 180, 270. The default is no prerotate. Autorotate only works, if 
+# the image has auto-orient metadata.
+# 
+# -p procedure ... background extraction PROCEDURE. The choices are: 
+# floodfill (f), threshold (t), autothresh (a). NOTE: -p autothresh requires 
+# my otsuthresh script. The default=floodfill.
+# 
+# -C channel ... the image CHANNEL to use for non-floodfill background 
+# extraction. The choices are: gray, red, green, blue, cyan, magenta, yellow. 
+# The default is no specific channel. This can be useful, if one can 
+# select a channel that will have the highest contrast between the foreground 
+# and background color. Typically that will be the complement of the 
+# background colors closest primary or secondary color. For example, if the 
+# background color is yellowish, then choose the blue channel.
+#
 # -c coords ... COORDS is any location within the input image for the 
 # algorithm to find the background color. It may be specified in terms of 
 # gravity parameters (NorthWest, North, NorthEast, East, SouthEast, South, 
 # SouthWest or West) or as a pixel coordinate "x,y". The default is the 
-# upper left corner = NorthWest = "0,0".
+# upper left corner = NorthWest = "0,0". Used only with -p floodfill.
 # 
 # -b bgcolor ... BGCOLOR is the	background color outside the distorted 
 # quadrilateral. Any valid IM color is allowed. The background color 
 # is used to do a fuzzy trim of the image to the bounding box around 
 # the quadrilateral. The default color is determined by the above 
-# "coords" argument.
+# "coords" argument. Used only with -p floodfill.
 #
 # -f fuzzval ... FUZZVAL is the fuzz amount specified as a float percent 
 #  0 to 100 (without the % sign). It is used 1) for trimming the image to 
@@ -153,6 +214,15 @@
 # Note that method=peak is fairly robust to minor imperfections in the mask, 
 # but method=derivative is not.
 # 
+# -F filter ... FILTER is a morphology filter to smooth gaps and bumps on the 
+# mask boundary. Values are integer2>=0. The default=0.
+#
+# -A area ... AREA threshold for connected components filtering of the 
+# internally generate mask image expressed as percent of image area. Values 
+# are in the range of 0<integers<100. The default is no connected components 
+# filtering. If a value is provided, then this option requires IM 6.9.2-8 or 
+# higher. 
+#
 # -a  aspect ... ASPECT is the desired output width/height aspect ratio
 # Values are floats>0. The default will be computed automatically.
 # 
@@ -200,7 +270,8 @@
 # is only useful for text images with no quadrilateral outline when the 
 # text is evenly distributed, especially to the four corners of the 
 # quadrilateral. The option only works if at all with method=peak due 
-# to its more robust nature.
+# to its more robust nature. It is also not compatible with the use of option 
+# -A (connected components processing)
 # 
 # -r rotate ... ROTATE is the desired rotation of output image. Choices  
 # are: 90, 180 or 270. The default is no rotation. The technique used  
@@ -281,7 +352,9 @@
 # 
 # REQUIREMENTS: Method=peak requires IM 6.4.2.6 or higher due to the  
 # use of -distort depolar. Method=derivative requires IM 6.5.9.2 due 
-# to the use of -morphology. NetPBM is needed for both methods.
+# to the use of -morphology. NetPBM is needed for both methods. IM 6.9.2-8 
+# or higher is needed for the connected components processing when using -A. 
+# The argument -p autothresh requires my otsuthresh script.
 # 
 # CAVEAT: No guarantee that this script will work on all platforms, 
 # nor that trapping of inconsistent parameters is complete and 
@@ -290,9 +363,14 @@
 ######
 #
 # set default values; 
+prerotate=""		# prerotate image: 90, 180, 270 or autorotate
+procedure=floodfill	# masking procedure: floodfill, threshold, auto
+channel=""          # convert to grayscale via channel
 coords="0,0"		# coords to get background color
 bgcolor=""			# background color overwrites coords
 fuzzval=10			# fuzz value for isolating quadrilateral from background
+filter=0			# morpholgy smoothing filter for mask boundary
+area=""				# connected components area as percent of image area
 aspect=""			# desired aspect ratio (width/height)
 width=""			# desired output width; only one of width or height
 height=""			# desired output height; only one of width or height 
@@ -325,13 +403,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 # function to report error messages
@@ -358,7 +436,7 @@ if [ $# -eq 0 ]
 	echo ""
 	usage2
 	exit 0
-elif [ $# -gt 44 ]
+elif [ $# -gt 54 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -370,6 +448,51 @@ else
 				   echo ""
 				   usage2
 				   ;;
+			-P)    # get  prerotate
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID PREROTATE SPECIFICATION ---"
+				   checkMinus "$1"
+				   prerotate="$1"
+				   case "$prerotate" in 
+						autorotate|a) prerotate=autorotate;;
+						90) prerotate=90;;
+						180) prerotate=180;;
+						270) prerotate=270;;
+						*) errMsg "--- PREROTATE=$prerotate IS AN INVALID VALUE ---" 
+					esac
+				   ;;
+			-p)    # get  procedure
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID PROCEDURE SPECIFICATION ---"
+				   checkMinus "$1"
+				   procedure="$1"
+				   case "$procedure" in 
+						floodfill|f) procedure=floodfill;;
+						threshold|t) procedure=threshold;;
+						autothresh|a) procedure=autothresh;;
+						*) errMsg "--- PROCEDURE=$procedure IS AN INVALID VALUE ---" 
+					esac
+				   ;;
+			-C)    # get  channel
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID CHANNEL SPECIFICATION ---"
+				   checkMinus "$1"
+				   channel="$1"
+				   case "$channel" in 
+						gray) channel=gray;;
+						red) channel=red;;
+						green) channel=green;;
+						blue) channel=blue;;
+						cyan) channel=cyan;;
+						magenta) channel=magenta;;
+						yellow) channel=yellow;;
+						black) channel=black;;
+						*) errMsg "--- CHANNEL=$channel IS AN INVALID VALUE ---" 
+					esac
+				   ;;
 			-c)    # coords
 				   shift  # to get the next parameter - coords
 				   # test if parameter starts with minus sign 
@@ -379,6 +502,7 @@ else
 				   # further testing done later
 				   ;;
 			-b)    # bgcolor
+				   shift  # to get the next parameter - coords
 				   bgcolor=$1
 				   ;;
 			-f)    # fuzzval
@@ -391,6 +515,25 @@ else
 				   test1=`echo "$fuzzval < 0" | bc`
 				   test2=`echo "$fuzzval > 100" | bc`
 				   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- FUZZVAL=$fuzzval MUST BE A NON-NEGATIVE FLOATING POINT VALUE BETWEEN 0 AND 100 ---"
+				   ;;
+			-F)    # filter
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID FILTER SPECIFICATION ---"
+				   checkMinus "$1"
+				   filter=`expr "$1" : '\([0-9]*\)'`
+				   [ "$filter" = "" ] && errMsg "--- FILTER=$filter MUST BE A NON-NEGATIVE INTEGER (with no sign) ---"
+				   ;;
+			-A)    # area
+				   shift  # to get the next parameter - fuzzval
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID AREA SPECIFICATION ---"
+				   checkMinus "$1"
+				   area=`expr "$1" : '\([0-9]*\)'`
+				   [ "$area" = "" ] && errMsg "--- AREA=$area MUST BE A NON-NEGATIVE INTEGER (with no sign) ---"
+				   test1=`echo "$area <= 0" | bc`
+				   test2=`echo "$area >= 100" | bc`
+				   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- AREA=$area MUST BE A NON-NEGATIVE INTEGER GREATER THAN 0 AND LESS THAN 100 ---"
 				   ;;
 			-a)    # aspect
 				   shift  # to get the next parameter
@@ -580,7 +723,7 @@ else
 					esac
 				   ;;
 			-V)    # viewport
-				   viewport="no"
+				   viewport="off"
 				   ;;
 			 -)    # STDIN and end of arguments
 				   break
@@ -596,8 +739,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -625,6 +768,7 @@ dir="$tmpdir/UNPERSPECTIVE.$$"
 mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
 trap "rm -rf $dir; exit 0" 0
 trap "rm -rf $dir; exit 1" 1 2 3 15
+#trap "rm -rf $dir; exit 1" ERR
 
 
 #function to send prompt to terminal for displaying images to continue or quit
@@ -741,11 +885,28 @@ getXY()
 	}
 
 
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# setup prerotate
+if [ "$prerotate" = "autorotate" ]; then
+	rproc="-auto-orient"
+elif [ "$prerotate" = "90" ]; then
+	rproc="-rotate 90"
+elif [ "$prerotate" = "270" ]; then
+	rproc="-rotate 270"
+elif [ "$prerotate" = "270" ]; then
+	rproc="-rotate 270"
+else
+	rproc=""
+fi
+
 # get infile name
 inname=`convert -ping "$infile" -format "%t" info:`
 
 # test input image
-convert -quiet -regard-warnings "$infile" +repage "$dir/tmpI.mpc" ||
+convert -quiet "$infile" +repage $rproc "$dir/tmpI.mpc" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 
 # get original image width and height
@@ -788,7 +949,6 @@ convert $dir/tmpI.mpc \
 www=`convert $dir/tmpA.mpc -format "%w" info:`
 hhh=`convert $dir/tmpA.mpc -format "%h" info:`
 
-
 # pad trimmed image
 convert $dir/tmpA.mpc -bordercolor "$color" -border $bordersize $dir/tmpA.mpc
 
@@ -799,21 +959,85 @@ hh=`convert $dir/tmpA.mpc -format "%h" info:`
 ww2=`convert xc: -format "%[fx:$ww/2]" info:`
 hh2=`convert xc: -format "%[fx:$hh/2]" info:`
 maxrad=`convert xc: -format "%[fx:0.5*hypot($ww,$hh)]" info:`
+totpix=$((ww*hh))
 
-
-# convert to binary mask by floodfilling
-convert $dir/tmpA.mpc -alpha off \
-	-alpha set -fuzz ${fuzzval}% -fill none -draw \
-	"matte 0,0 floodfill" \
-	-fill "rgba(255,255,255,1)" +opaque none \
-	-fill "rgba(0,0,0,1)" -opaque none \
-	-alpha off $dir/tmpB.mpc
-
-
-# process text blurring and threshold
-if [ "$blur" != "0" ]; then
-	convert $dir/tmpB.mpc -blur 0x$blur -threshold 0 $dir/tmpB.mpc
+# set up floodfill
+if [ "$im_version" -ge "07000000" ]; then
+	matte_alpha="alpha"
+else
+	matte_alpha="matte"
 fi
+
+# set up channel
+if [ "$channel" = "gray" ]; then
+	cproc="-colorspace gray"
+elif [ "$channel" = "red" ]; then
+	cproc="-channel red -separate +channel"
+elif [ "$channel" = "green" ]; then
+	cproc="-channel green -separate +channel"
+elif [ "$channel" = "blue" ]; then
+	cproc="-channel blue -separate +channel"
+elif [ "$channel" = "cyan" ]; then
+	cproc="-colorspace CMYK -channel cyan -separate +channel -negate"
+elif [ "$channel" = "magenta" ]; then
+	cproc="-colorspace CMYK -channel magenta -separate +channel -negate"
+elif [ "$channel" = "yellow" ]; then
+	cproc="-colorspace CMYK -channel yellow -separate +channel -negate"
+elif [ "$channel" = "black" ]; then
+	cproc="-colorspace CMYK -channel black -separate +channel -negate"
+else
+	cproc=""
+fi
+
+# setup for morhphology smoothing filter
+if [ $filter -gt 0 ]; then
+	morphfiltering="-morphology smooth octagon:$filter"
+else
+	morphfiltering=""
+fi
+
+# test if otsuthresh available
+# redirect output from otsuthresh to &>/dev/null to avoid seeing the threshold value
+convert -size 1x10 gradient: $dir/tmpG.mpc 
+otsuthresh $dir/tmpG.mpc null: &>/dev/null
+[ "$procedure" = "autothresh" -a $? -ne 0 ] && errMsg "--- OTSUTHRESH IS NOT AVAILABLE ---"
+
+# create binary mask
+if [ "$procedure" = "floodfill" ]; then
+	convert $dir/tmpA.mpc -alpha off \
+		-alpha set -fuzz ${fuzzval}% -fill none \
+		-draw "$matte_alpha 0,0 floodfill" \
+		-fill "rgba(255,255,255,1)" +opaque none \
+		-fill "rgba(0,0,0,1)" -opaque none \
+		-alpha off $morphfiltering $dir/tmpB.mpc
+elif [ "$procedure" = "threshold" ]; then
+	convert $dir/tmpA.mpc -alpha off \
+		$cproc -threshold -fuzz ${fuzzval}% \
+		$morphfiltering $dir/tmpB.mpc
+elif [ "$procedure" = "autothresh" ]; then
+	convert $dir/tmpA.mpc -alpha off $cproc $dir/tmp.miff
+		otsuthresh $dir/tmp.miff $dir/tmpB.mpc
+	if [ $filter -gt 0 ]; then
+		convert $dir/tmpB.mpc -morphology smooth octagon:$filter $dir/tmpB.mpc
+	fi
+fi
+
+
+# process CLL
+if [ "$procedure" = "autothresh" -a "$im_version" -ge "06090208" ]; then
+	cclarea=`convert xc: -format "%[fx:floor($totpix*$area/100)]" info:`
+	convert $dir/tmpB.mpc \
+		-define connected-components:area-threshold=$cclarea \
+		-define connected-components:mean-color=true \
+		-connected-components 4 \
+		$dir/tmpB.mpc
+else
+	# process text blurring and threshold
+	if [ "$blur" != "0" ]; then
+		convert $dir/tmpB.mpc -blur 0x$blur -threshold 0 $dir/tmpB.mpc
+	fi
+fi
+
 
 
 # save or view mask image
@@ -878,6 +1102,14 @@ else
 	sharpening=""
 fi
 
+# set up for biasing
+if [ "$im_version" -ge "07000000" ]; then
+	biasing1="-define convolve:bias=50%"
+	biasing2="-define convolve:bias=0"
+else
+	biasing1="-bias 50%"
+	biasing2="-bias 0"
+fi
 
 # append two copies and blur and/or sharpen (and convert to second derivative)
 if [ "$method" = "peak" ]; then
@@ -888,8 +1120,8 @@ elif [ "$method" = "derivative" ]; then
 	# note: cropping center section done here
 	convert $dir/tmpE.mpc \( -clone 0 \) \( -clone 0 \) \
 		+append $smoothing $sharpening \
-		-virtual-pixel tile -define convolve:scale=50%\! -bias 50% -morphology Convolve '3x1: -1,0,1' -auto-level \
-		-virtual-pixel tile -define convolve:scale=50%\! -bias 0 -morphology Convolve '3x1: 1,0,-1' -auto-level \
+		-virtual-pixel tile -define convolve:scale=50%\! $biasing1 -morphology Convolve '3x1: -1,0,1' -auto-level \
+		-virtual-pixel tile -define convolve:scale=50%\! $biasing2 -morphology Convolve '3x1: 1,0,-1' -auto-level \
 		-gravity center -crop ${nww}x1+0+0 +repage \
 		$dir/tmpF.mpc
 fi
@@ -916,8 +1148,17 @@ if [ "$monitor" = "yes" ]; then
 fi
 
 # convert row image to array
-htArr=(`convert $dir/tmpF.mpc txt:- | tail -n +2 | tr -cs "0-9\n" " " | cut -d\  -f 3`)
-num="${#htArr[*]}"
+if [ "$im_version" -le "06080609" -o "$im_version" -ge "06090201" ]; then
+	htArr=(`convert $dir/tmpF.mpc txt:- | tail -n +2 | tr -cs "0-9\n" " " | cut -d\  -f 3`)
+	num="${#htArr[*]}"
+else
+	# txt: format changed from raw values in qrange to percent at 6.8.6.10
+	htArr=(`convert $dir/tmpF.mpc txt:- | tail -n +2 | tr -cs ".0-9\n" " " | cut -d\  -f 3`)
+	num="${#htArr[*]}"
+	for ((i=0; i<num; i++)); do
+		htArr[$i]=`echo "scale=0; ${htArr[$i]}*$range/100" | bc`
+	done
+fi
 if $debug; then
 	echo "${htArr[*]}"
 	echo "num=$num"
@@ -1110,8 +1351,17 @@ fi
 
 # reset maxArr to values from original 1D polar image hts
 if [ "$sharpen" != "0" -o "$method" = "derivative" ]; then
-	htArr=(`convert $dir/tmpE.mpc txt:- | tail -n +2 | tr -cs "0-9\n" " " | cut -d\  -f 3`)
-	num="${#htArr[*]}"
+	if [ "$im_version" -le "06080609" -o "$im_version" -ge "06090201" ]; then
+		htArr=(`convert $dir/tmpE.mpc txt:- | tail -n +2 | tr -cs "0-9\n" " " | cut -d\  -f 3`)
+		num="${#htArr[*]}"
+	else
+		# txt: format changed from raw values in qrange to percent at 6.8.6.10
+		htArr=(`convert $dir/tmpE.mpc txt:- | tail -n +2 | tr -cs ".0-9\n" " " | cut -d\  -f 3`)
+		num="${#htArr[*]}"
+		for ((i=0; i<num; i++)); do
+			htArr[$i]=`echo "scale=0; ${htArr[$i]}*$range/100" | bc`
+		done
+	fi
 	if $debug; then
 		echo "${htArr[*]}"
 		echo "num=$num"
@@ -1153,9 +1403,10 @@ fi
 
 # get c coefs array from verbose -distort depolar 
 # note use -define viewport with 1 pixel to avoid processing the whole image
+# note - added >/dev/null to fix script to run under Cygwin per feedback from Dirk Lemstra
 data=`convert $dir/tmpC.mpc -verbose \
 	-define distort:viewport=1x1+0+0 \
-	-distort depolar $maxrad null: 2>&1`
+	-distort depolar $maxrad null: 2>&1 >/dev/null`
 data=`echo "$data" | tail -n +2 | head -n 8 | tr -cs "\-\+.0-9\012" " " | sed -n 's/^ *\(.*\)$/\1/p'`
 clist=`echo "$data" | cut -d\  -f 2`
 cArr=($clist)
@@ -1517,7 +1768,7 @@ convert $dir/tmpA.mpc  \
 	-bordercolor $color -border 2 \
 	-fuzz ${fuzzval}% -trim +repage \
 	$rotation \
-	$outfile
+	"$outfile"
 
 
 

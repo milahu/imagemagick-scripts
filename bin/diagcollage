@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/16/2014 .......... 1/10/2015
+# Developed by Fred Weinhaus 8/16/2014 .......... 6/22/2017
 #
 # ------------------------------------------------------------------------------
 # 
@@ -100,12 +100,12 @@ size=400			# square output size; must be even
 bcolor="white"		# border color
 thick=10			# border thickness; must be even
 direction="p"		# direction of 5 deg rotation; p (positive) or n (negative)
-g1="center"			# gravity for image 1
-g2="center"			# gravity for image 2
-g3="center"			# gravity for image 3
-c1="+0+0"			# crop offsets for image 1
-c2="+0+0"			# crop offsets for image 2
-c3="+0+0"			# crop offsets for image 3
+gravity1="center"			# gravity for image 1
+gravity2="center"			# gravity for image 2
+gravity3="center"			# gravity for image 3
+crop1="+0+0"			# crop offsets for image 1
+crop2="+0+0"			# crop offsets for image 2
+crop3="+0+0"			# crop offsets for image 3
 
 # set directory for temporary files
 tmpdir="/tmp"

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 6/25/2014 .......... revised 07/19/2016
+# Developed by Fred Weinhaus 6/25/2014 .......... revised 8/5/17
 #
 # ------------------------------------------------------------------------------
 # 
@@ -327,9 +327,15 @@ im_version=`convert -list configure | \
 	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 
+if [ "$im_version" -ge "07000000" ]; then
+	identifying="magick identify"
+else
+	identifying="identify"
+fi
+
 # get image dimensions
-ww=`identify -ping -format "%w" $dir/tmpI.miff`
-hh=`identify -ping -format "%h" $dir/tmpI.miff`
+ww=`$identifying -ping -format "%w" $dir/tmpI.miff`
+hh=`$identifying -ping -format "%h" $dir/tmpI.miff`
 #echo "ww=$ww; hh=$hh;"
 
 
@@ -359,7 +365,10 @@ fi
 
 # process kmeans code
 # create white image
-convert -size ${ww}x${hh} xc:white $dir/tmpW.miff
+# note must add -colorspace gray for IM 7; 
+# otherwise it will be doing -evaluate-sequence later between 3 channel white image and grayscale images,
+# which will produce a cyan result.
+convert -size ${ww}x${hh} xc:white -colorspace gray $dir/tmpW.miff
 
 # loop over iterations
 for ((k=0; k<maxiters; k++)); do

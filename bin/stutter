@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 5/8/2008 .......... revised 5/8/2008
+# Developed by Fred Weinhaus 5/8/2008 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: stutter [-s size] [-d direction] infile outfile
 # USAGE: stutter [-h or -help]
@@ -9,7 +33,7 @@
 #
 # -s      size           stutter offset size; size>0; default=16
 # 
-# -d      direction      x or h (horizontal), y or v (vertical) offset;
+# -d      direction      x,h,horizontal or y,v,vertical or xy,vh,both;
 #                        default=x
 #
 ###
@@ -18,15 +42,16 @@
 # 
 # PURPOSE: To create a "stuttered" offset-like effect in an image.
 # 
-# DESCRIPTION: STUTTER creates a a "stuttered" offset-like effect in an image.
+# DESCRIPTION: STUTTER creates a "stuttered" offset-like effect in an image.
 # 
 # OPTIONS: 
 # 
-# -s size ... SIZE is the pixelization (block) size. Values are greater 
-# than 0. The default is 3.
+# -s size ... SIZE is the stutter offset size. Values are greater 
+# than 0. The default is 16.
 # 
-# -d direction ... DIRECTION is the offset direction. Values may be x or h 
-# for horizontal offset and y or v for vertical offset. The default=x.
+# -d direction ... DIRECTION is the stutter offset direction. Values may  
+# be horizontal specified as either x, h or horizontal; vertical specified 
+# as y, v or vertical or both specified as xy, hv or both. The default=x.
 # 
 # CAVEAT: No guarantee that this script will work on all platforms, 
 # nor that trapping of inconsistent parameters is complete and 
@@ -50,13 +75,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -125,6 +150,11 @@ else
 					   		V) ;;
 					   		horizontal) ;;
 					   		vertical) ;;
+					   		xy) ;;
+					   		XY) ;;
+					   		vh) ;;
+					   		VH) ;;
+					   		both) ;;
 					   		*) errMsg "--- DIRECTION=$direction IS AN INVALID VALUE ---" 
 					   	esac
 					   ;;
@@ -142,8 +172,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -167,12 +197,12 @@ size2=`expr $size \* 2`
 # process image
 if [ "$direction" = "x" -o "$direction" = "X" -o "$direction" = "h" -o "$direction" = "H" -o "$direction" = "horizontal" ]
 	then
-	convert $infile -monitor -fx "u.p{i+mod(i,$size2)-$size,j}" $outfile
+	convert $infile -monitor -fx "u.p{i+mod(i,$size2)-$size,j}" "$outfile"
 elif [ "$direction" = "y" -o "$direction" = "Y" -o "$direction" = "v" -o "$direction" = "V" -o "$direction" = "vertical" ]
 	then
-	convert $infile -monitor -fx "u.p{i,j+mod(j,$size2)-$size}" $outfile
+	convert $infile -monitor -fx "u.p{i,j+mod(j,$size2)-$size}" "$outfile"
 else
-	errMsg "--- INVALID DIRECTION ---"
+	convert $infile -monitor -fx "u.p{i+mod(i,$size2)-$size,j+mod(j,$size2)-$size}" "$outfile"
 fi
 
 exit 0

@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 10/3/2011 .......... 8/21/2012
+# Developed by Fred Weinhaus 10/3/2011 .......... 4/18/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: spectrumhist [-t type] [-s sort] [-w width] [-h height] [-m magnify] [-c colors] infile outfile
 # USAGE: spectrumhist [-help]
@@ -15,6 +39,7 @@
 # -h     height      height of output image; integer>0; default=100
 # -m     magnify     magnification for count scaling; integer>0; default=1
 # -c     colors      color reduction for input; 0<integer<=256; default=256
+# -b     bgcolor     background color; any valid IM color allowed; default=black
 #
 ###
 #
@@ -51,6 +76,10 @@
 # in the input image. Values are 0<integer<=256. The default=256. If the 
 # image has fewer colors than selected, the actual number of colors will 
 # be used.
+#
+# -b bgcolor ... BGCOLOR is the background color. Any valid IM color is 
+# allowed. The default=black
+#
 # 
 # CAVEAT: No guarantee that this script will work on all platforms, 
 # nor that trapping of inconsistent parameters is complete and 
@@ -66,6 +95,7 @@ width=1					# bar width
 height=100				# image height
 magnify=1				# height scaling
 colors=256				# number of colors to use; limited to 256
+bgcolor=black           # background color
 
 # set directory for temporary files
 dir="."    # suggestions are dir="." or dir="/tmp"
@@ -78,13 +108,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -113,7 +143,7 @@ if [ $# -eq 0 ]
    echo ""
    usage2
    exit 0
-elif [ $# -gt 14 ]
+elif [ $# -gt 16 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -193,6 +223,13 @@ else
 					   test2=`echo "$colors > 256" | bc`
 					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- COLORS=$colors MUST BE AN INTEGER BETWEEN 1 AND 256 ---"
 					   ;;
+				-b)    # get  bgcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID BACKGROUND COLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   bgcolor="$1"
+					   ;;
 				 -)    # STDIN and end of arguments
 					   break
 					   ;;
@@ -207,8 +244,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -219,11 +256,12 @@ fi
 
 tmpA1="$dir/spectrumhist_1_$$.mpc"
 tmpB1="$dir/spectrumhist_1_$$.cache"
-trap "rm -f $tmpA1 $tmpB1; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1;" 0
 trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1; exit 1" ERR
 
 # test input image
-convert -quiet -regard-warnings "$infile" -alpha off +dither -colors $colors -depth 8 +repage "$tmpA1" ||
+convert -quiet "$infile" -alpha off +repage "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 
 ww=$width
@@ -241,14 +279,31 @@ im_version=`convert -list configure | \
 # so -colorspace HSL/HSB -separate and -colorspace gray became linear
 # but we need to use -set colorspace RGB before using them at appropriate times
 # so that results stay as in original script
-# The following was determined from various version tests using redist.
-# Note: bug in 6.7.6.6 HSL/HSB bad, 6.7.7.0 HSL/HSB/RGB bad, 6.7.7.8 & 6.7.7.9 HSL/HSB bad, 6.7.8.1 HSB very bad
-# Note: for notch and other auto thresholding scripts, some (small?) differences between 6.7.5.10 and 6.7.7.0 inclusive
+# The following was determined from various version tests using spectrumhist
+# with IM 6.7.4.10, 6.7.6.10, 6.7.9.0
 if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
 	setcspace="-set colorspace RGB"
 else
 	setcspace=""
 fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
+# get colorspace and type for each image
+cspace=`identify -ping -verbose $tmpA1 | sed -n 's/^[ ]*Colorspace: \(.*\)$/\1/p'`
+ctype=`identify -ping -verbose $tmpA1 | sed -n 's/^[ ]*Type: \(.*\)$/\1/p'`
+
+# set up for type of color reduction
+if [ "$ctype" = "Grayscale" -o "$cspace" = "Gray" ]; then
+	colorreduce="-posterize $colors"
+else
+	colorreduce="-colors $colors"
+fi
+
+# reduce colors
+convert $tmpA1 +dither $colorreduce -depth 8 +repage $tmpA1
 
 if [ "$type" = "spectrum" -a "$sort" = "count" ]; then
 	# sort by count
@@ -261,7 +316,7 @@ if [ "$type" = "spectrum" -a "$sort" = "count" ]; then
 	for color in $colors; do
 		string="$string xc:$color"
 	done
-	convert -size ${ww}x${hh} $string +append $outfile
+	convert -size ${ww}x${hh} $string +append "$outfile"
 	
 	
 elif [ "$type" = "histogram" -a "$sort" = "count" ]; then
@@ -270,12 +325,12 @@ elif [ "$type" = "histogram" -a "$sort" = "count" ]; then
 	string=`convert $tmpA1 $setcspace -colorspace HSL -format %c -define histogram:unique-colors=true histogram:info:- | \
 		sed -n 's/^ *\(.*\):.*hsl(\(.*\))$/\1 \2/p' | \
 		sort -n -k 1,1 | \
-		awk -v wd="$width" -v mag="$magnify" ' 
+		awk -v wd="$width" -v mag="$magnify"  -v hh=$hh ' 
 			{ list=""; i=NR; count[i]=$1; color[i]=$2; }
 			END { for (i=1; i<=NR; i++) 
-				{ ht[i]=int(mag*100*count[i]/count[NR]+0.5); list=(list "\ " "-size\ " wd"x"ht[i] "\ " "xc:hsl("color[i])")" } 
+				{ ht[i]=int(mag*hh*count[i]/count[NR]+0.5); list=(list "\ " "-size\ " wd"x"ht[i] "\ " "xc:hsl("color[i])")" } 
 				{print list; } } '`
-	convert $string -background black +append -flip -gravity south -crop x${hh}+0+0 +repage $outfile
+	convert $string -background $bgcolor +append -flip -gravity south -crop x${hh}+0+0 +repage "$outfile"
 
 
 elif [ "$type" = "spectrum" -a "$sort" = "hue" ]; then
@@ -295,7 +350,7 @@ elif [ "$type" = "spectrum" -a "$sort" = "hue" ]; then
 			END { for (i=1; i<=NR; i++) 
 			{ list=(list "\ " "-size\ " wd"x"ht "\ " "xc:hsl("hue[i]"%,"sat[i]"%,"light[i]"%)"); } 
 			{ print list; } } '`
-	convert $string +append $outfile
+	convert $string +append "$outfile"
 
 
 elif [ "$type" = "histogram" -a "$sort" = "hue" ]; then
@@ -310,12 +365,12 @@ elif [ "$type" = "histogram" -a "$sort" = "hue" ]; then
 		sed -n 's/^ *//p' | \
 		sed -n 's/ *$//p' | \
 		sort -n -k 2,2 | \
-		awk -v wd="$width" -v mag="$magnify" '
+		awk -v wd="$width" -v mag="$magnify" -v hh=$hh  '
 			{ list=""; i=NR; count[i]=$1; hue[i]=$2; sat[i]=$3; light[i]=$4; if (count[i]>maxcount) maxcount=count[i]; }
 			END { for (i=1; i<=NR; i++) 
-			{ ht[i]=int(mag*100*count[i]/maxcount+0.5); list=(list "\ " "-size\ " wd"x"ht[i] "\ " "xc:hsl("hue[i]"%,"sat[i]"%,"light[i]"%)"); } 
+			{ ht[i]=int(mag*hh*count[i]/maxcount+0.5); list=(list "\ " "-size\ " wd"x"ht[i] "\ " "xc:hsl("hue[i]"%,"sat[i]"%,"light[i]"%)"); } 
 			{ print list; } } '`
-	convert $string -background black +append -flip -gravity south -crop x${hh}+0+0 +repage $outfile
+	convert $string -background $bgcolor +append -flip -gravity south -crop x${hh}+0+0 +repage "$outfile"
 
 
 
@@ -339,7 +394,7 @@ elif [ "$type" = "spectrum" -a "$sort" = "lum" ]; then
 				END { for (i=1; i<=NR; i++) 
 				{ list=(list "\ " "-size\ " wd"x"ht "\ " "xc:rgb("red[i]","grn[i]","blu[i]")"); } 
 				{ print list; } } '`
-	convert $string +append $outfile
+	convert $string +append "$outfile"
 
 
 elif [ "$type" = "histogram" -a "$sort" = "lum" ]; then
@@ -347,7 +402,7 @@ elif [ "$type" = "histogram" -a "$sort" = "lum" ]; then
 	# tr replace all non numeric char with single space
 	# sed remove leading space
 	# sed remove trailing space
-	string=`convert $tmpA1 -format %c histogram:info:- | \
+	string=`convert $tmpA1 -format "%c" histogram:info:- | \
 		sed -n 's/^\(.*\) #.*$/\1/p' | \
 		tr -cs "0-9\n" " " | \
 		sed -n 's/^ *//p' | \
@@ -357,12 +412,12 @@ elif [ "$type" = "histogram" -a "$sort" = "lum" ]; then
 			END { for (i=1; i<=NR; i++) 
 			{ lum[i]=int(0.29900*red[i]+0.58700*grn[i]+0.11400*blu[i]); 
 			print count[i], red[i], grn[i], blu[i], lum[i]; } } ' | sort -n -k 5,5 | \
-			awk -v wd="$width" -v mag="$magnify" '
+			awk -v wd="$width" -v mag="$magnify" -v hh=$hh '
 				{ list=""; i=NR; count[i]=$1; red[i]=$2; grn[i]=$3; blu[i]=$4; if (count[i]>maxcount) maxcount=count[i]; }
 				END { for (i=1; i<=NR; i++) 
-				{ ht[i]=int(mag*100*count[i]/maxcount+0.5); list=(list "\ " "-size\ " wd"x"ht[i] "\ " "xc:rgb("red[i]","grn[i]","blu[i]")"); } 
+				{ ht[i]=int(mag*hh*count[i]/maxcount+0.5); list=(list "\ " "-size\ " wd"x"ht[i] "\ " "xc:rgb("red[i]","grn[i]","blu[i]")"); } 
 				{ print list; } } '`
-	convert $string -background black +append -flip -gravity south -crop x${hh}+0+0 +repage $outfile
+	convert $string -background $bgcolor +append -flip -gravity south -crop x${hh}+0+0 +repage "$outfile"
 
 
 elif [ "$type" = "spectrum" -a "$sort" = "sat" ]; then
@@ -382,7 +437,7 @@ elif [ "$type" = "spectrum" -a "$sort" = "sat" ]; then
 			END { for (i=1; i<=NR; i++) 
 			{ list=(list "\ " "-size\ " wd"x"ht "\ " "xc:hsl("hue[i]"%,"sat[i]"%,"light[i]"%)"); } 
 			{ print list; } } '`
-	convert $string +append $outfile
+	convert $string +append "$outfile"
 
 
 elif [ "$type" = "histogram" -a "$sort" = "sat" ]; then
@@ -397,12 +452,12 @@ elif [ "$type" = "histogram" -a "$sort" = "sat" ]; then
 		sed -n 's/^ *//p' | \
 		sed -n 's/ *$//p' | \
 		sort -n -k 3,3 | \
-		awk -v wd="$width" -v mag="$magnify" '
+		awk -v wd="$width" -v mag="$magnify" -v hh=$hh  '
 			{ list=""; i=NR; count[i]=$1; hue[i]=$2; sat[i]=$3; light[i]=$4; if (count[i]>maxcount) maxcount=count[i]; }
 			END { for (i=1; i<=NR; i++) 
-			{ ht[i]=int(mag*100*count[i]/maxcount+0.5); list=(list "\ " "-size\ " wd"x"ht[i] "\ " "xc:hsl("hue[i]"%,"sat[i]"%,"light[i]"%)"); } 
+			{ ht[i]=int(mag*hh*count[i]/maxcount+0.5); list=(list "\ " "-size\ " wd"x"ht[i] "\ " "xc:hsl("hue[i]"%,"sat[i]"%,"light[i]"%)"); } 
 			{ print list; } } '`
-	convert $string -background black +append -flip -gravity south -crop x${hh}+0+0 +repage $outfile
+	convert $string -background $bgcolor +append -flip -gravity south -crop x${hh}+0+0 +repage "$outfile"
 
 
 elif [ "$type" = "spectrum" -a "$sort" = "rgb" -o "$sort" = "bgr" ]; then
@@ -427,7 +482,7 @@ elif [ "$type" = "spectrum" -a "$sort" = "rgb" -o "$sort" = "bgr" ]; then
 			END { for (i=1; i<=NR; i++) 
 			{ list=(list "\ " "-size\ " wd"x"ht "\ " "xc:rgb("red[i]","grn[i]","blu[i]")"); } 
 			{ print list; } } '`
-	convert $string +append $outfile
+	convert $string +append "$outfile"
 
 
 elif [ "$type" = "histogram" -a "$sort" = "rgb" -o "$sort" = "bgr" ]; then
@@ -447,12 +502,12 @@ elif [ "$type" = "histogram" -a "$sort" = "rgb" -o "$sort" = "bgr" ]; then
 		sed -n 's/^ *//p' | \
 		sed -n 's/ *$//p' | \
 		sort -n $order | \
-		awk -v wd="$width" -v mag="$magnify" '
+		awk -v wd="$width" -v mag="$magnify" -v hh=$hh  '
 			{ list=""; i=NR; count[i]=$1; red[i]=$2; grn[i]=$3; blu[i]=$4; if (count[i]>maxcount) maxcount=count[i]; }
 			END { for (i=1; i<=NR; i++) 
-			{ ht[i]=int(mag*100*count[i]/maxcount+0.5); list=(list "\ " "-size\ " wd"x"ht[i] "\ " "xc:rgb("red[i]","grn[i]","blu[i]")"); }
+			{ ht[i]=int(mag*hh*count[i]/maxcount+0.5); list=(list "\ " "-size\ " wd"x"ht[i] "\ " "xc:rgb("red[i]","grn[i]","blu[i]")"); }
 			{ print list; } } '`
-	convert $string -background black +append -flip -gravity south -crop x${hh}+0+0 +repage $outfile
+	convert $string -background $bgcolor +append -flip -gravity south -crop x${hh}+0+0 +repage "$outfile"
 
 fi
 

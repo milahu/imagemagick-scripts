@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 7/28/2012 .......... revised 4/25/2015
+# Developed by Fred Weinhaus 7/28/2012 .......... revised 10/31/2017
 #
 # ------------------------------------------------------------------------------
 # 
@@ -249,7 +249,6 @@ else
 	sign="-"
 fi
 
-echo "sign=$sign"
 
 # allow sigmoidal contrast of zero to be close to zero but not exactly equal where it degenerates
 

@@ -1,7 +1,31 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 9/23/2012 .......... revised 9/23/2012
+# Developed by Fred Weinhaus 9/23/2012 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
 # 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
 # USAGE: radialgradient WidthxHeight [-d diameters] [-c center] [-C colors] outfile
 # USAGE: radialgradient [-h or -help]
 # 
@@ -69,13 +93,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -158,7 +182,7 @@ else
 	done
 	#
 	# get outfile
-	outfile=$1
+	outfile="$1"
 fi
 
 # test that outfile provided
@@ -170,8 +194,9 @@ fi
 # set temporary file
 tmpA1="$dir/radialgradient_A_$$.mpc"
 tmpA2="$dir/radialgradient_A_$$.cache"
-trap "rm -f $tmpA1 $tmpA2; exit 0" 0
+trap "rm -f $tmpA1 $tmpA2;" 0
 trap "rm -f $tmpA1 $tmpA2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2; exit 1" ERR
 
 
 # extract individual arguments
@@ -208,7 +233,7 @@ if [ "$colors" != "black-white" ]; then
 	is_opaque2=`convert xc:"$color2" -format "%[fx:u.a]" info:` 
 	if [ $is_opaque1 -eq 1 -a $is_opaque2 -eq 1 ]; then
 		#fully opaque colors
-		convert $tmpA1 +level-colors "$colors" $outfile
+		convert $tmpA1 +level-colors "$colors" "$outfile"
 	else
 		#some transparency in colors
 		convert $tmpA1 \( -clone 0 -negate \) \( -clone 0 +level-colors $colors \) \
@@ -216,7 +241,7 @@ if [ "$colors" != "black-white" ]; then
 			$outfile
 	fi		
 else
-	convert $tmpA1 $outfile
+	convert $tmpA1 "$outfile"
 fi
 
 exit 0

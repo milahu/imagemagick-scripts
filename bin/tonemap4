@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 9/11/2011 .......... 7/16/2012
+# Developed by Fred Weinhaus 9/11/2011 .......... 7/14/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: tonemap4 [-m method] [-k kind] [-t threshold] [-b bri] [-c con] 
 # [-s sat] [-e edge] [-r ramp] [-b blur] [-s shadows] [-h highlights] 
@@ -38,7 +62,6 @@
 #                       for autogamma processing; also can be used to 
 #                       increase/decrease brightness in highlights; 
 #                       default=70
-#                       positive or negative integer; default=0
 # -w     window         window size as percent of image dimensions for 
 #                       kind=space; float>0; default=12.5
 # -g     gvals          gaussian redistribution mean,lo,hi values for 
@@ -195,13 +218,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -386,7 +409,7 @@ else
 					   [ "$log" = "" ] && errMsg "--- LOG=$log MUST BE A NON-NEGATIVE FLOAT ---"
  					   ;;
 				-A)    # get  aproc
-					   autolevel="yes"
+					   alevel="yes"
 					   ;;
 				-C)    # get  colorproc
 					   shift  # to get the next parameter
@@ -415,8 +438,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -442,8 +465,9 @@ tmpV1="$dir/tonemap4_VS_$$.mpc"
 tmpV2="$dir/tonemap4_VS_$$.cache"
 tmpV3="$dir/tonemap4_VH_$$.mpc"
 tmpV4="$dir/tonemap4_VH_$$.cache"
-trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4 $tmpM1 $tmpM2 $tmpM3 $tmpM4 $tmpV1 $tmpV2 $tmpV3 $tmpV4; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4 $tmpM1 $tmpM2 $tmpM3 $tmpM4 $tmpV1 $tmpV2 $tmpV3 $tmpV4;" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4 $tmpM1 $tmpM2 $tmpM3 $tmpM4 $tmpV1 $tmpV2 $tmpV3 $tmpV4; exit 1" 1 2 3 15
+#trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4 $tmpM1 $tmpM2 $tmpM3 $tmpM4 $tmpV1 $tmpV2 $tmpV3 $tmpV4; exit 1" ERR
 
 # get im_version
 im_version=`convert -list configure | \
@@ -471,6 +495,11 @@ if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
 else
 	setcspace=""
 fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace="-set colorspace sRGB"
+	cspace="sRGB"
+fi
 #echo "setcspace=$setcspace"
 
 : <<COMMENT
@@ -482,29 +511,41 @@ else
 fi
 #echo "cproc=$cproc"
 COMMENT
+
 # set up cproc processing -- new method
 if [ "$colorproc" = "none" ]; then
 	cproc=""
 else
 	cproc="-set colorspace $colorproc"
-	# from trial and error using 6.7.2.0/6.7.4.10, 6.7.6.10 and 6.7.8.2/6.7.8.3
-	# the following is needed for tonemap2 and tonemap3 when using -C colorproc != none, i.e. for .hdr images after 6.7.7.7
-	if [ "$im_version" -lt "06070607" ]; then
-		setcspace=""
-	fi
+fi
+# from trial and error using 6.7.2.0/6.7.4.10, 6.7.6.10 and 6.7.8.2/6.7.8.3
+# the following is needed for tonemap2 and tonemap3 when using -C colorproc != none, i.e. for .hdr images after 6.7.7.7
+if [ "$im_version" -lt "06070607" ]; then
 	if [ "$colorproc" = "sRGB" ]; then
+		setcspace="-set colorspace RGB"
 		cspace="RGB"
 	elif [ "$colorproc" = "RGB" ]; then
+		setcspace="-set colorspace sRGB"
 		cspace="sRGB"
+	fi
+else
+	if [ "$colorproc" = "sRGB" ]; then
+		setcspace="-set colorspace sRGB"
+		cspace="sRGB"
+	elif [ "$colorproc" = "RGB" ]; then
+		setcspace="-set colorspace RGB"
+		cspace="RGB"
 	fi
 fi
 #echo "cproc=$cproc"
 
-if [ "$autolevel" = "yes" ]; then
-	alevel="-auto-level"
+# set up autolevel processing
+if [ "$alevel" = "yes" ]; then
+	aproc="-auto-level"
 else
-	alevel=""
+	aproc=""
 fi
+#echo "aproc=$aproc"
 
 if [ "$log" != "0" ]; then
 	log=`convert xc: -format "%[fx:pow(10,$log)]" info:`
@@ -514,57 +555,40 @@ else
 fi
 #echo "proc0=$proc0"
 
-# set up clamp due its removal for HDRI somewhere after IM 6.6.0.10, 
-# so that neg values do not cause problems with -evaluate log.
-# clamping added to log in IM 6.7.7.6
-if [ "$im_version" -lt "06070706" -a "$im_version" -gt "06060010" -a "$log" != "0" ]; then
-	clamp="-evaluate max 0"
-else
-	clamp=""
-fi
 
 
 computeGammas()
 	{
 	img=$1
 	mask=$2
-	if [ "$sgamma" = "" -o "$hgamma" = "" ]; then
 		# get mean of mask
 		meanm=`convert $mask -format "%[fx:mean]" info:`
 		
-		if [ "$sgamma" = "" -a "kind" != "highlights" ]; then	
-			# get mean of shadows
-			means=`convert $img \( $mask -negate \) \
-				-compose multiply -composite -format "%[fx:mean/(1-$meanm)]" info:`
-		fi
-	
-		if [ "$hgamma" = "" -a "$kind" != "shadows" ]; then		
-			# get mean of highlights
-			meanh=`convert $img $mask \
-				-compose multiply -composite -format "%[fx:mean/$meanm]" info:`
-		fi
+		# get mean of shadows
+		means=`convert $img \( $mask -negate \) \
+			-compose multiply -composite -format "%[fx:mean/(1-$meanm)]" info:`
+			
+		# get mean of highlights
+		meanh=`convert $img $mask \
+			-compose multiply -composite -format "%[fx:mean/$meanm]" info:`
+
+		sgamma=`convert xc: -format "%[fx:log($means)/log($shadows/100)]" info:`
+		tests=`convert xc: -format "%[fx:$sgamma<=0?1:0]" info:`
+		[ $tests -eq 1 ] && sgamma=`convert xc: -format "%[fx:log(255*$meanh)/log(255*$shadows/100)]" info:`
+
+		hgamma=`convert xc: -format "%[fx:log($meanh)/log($highlights/100)]" info:`
+		testh=`convert xc: -format "%[fx:$hgamma<=0?1:0]" info:`
+		[ $testh -eq 1 ] && hgamma=`convert xc: -format "%[fx:log(255*$meanh)/log(255*$highlights/100)]" info:`
 		
-		# get gamma of shadows and hightlights
-		if [ "$sgamma" = "" -a "$kind" != "highlights" ]; then
-			sgamma=`convert xc: -format "%[fx:log($means)/log($shadows/100)]" info:`
-			tests=`convert xc: -format "%[fx:$sgamma<=0?1:0]" info:`
-			[ $tests -eq 1 ] && sgamma=`convert xc: -format "%[fx:log(255*$meanh)/log(255*$shadows/100)]" info:`
-		fi
-		
-		if [ "$hgamma" = "" -a "$kind" != "shadows" ]; then	
-			hgamma=`convert xc: -format "%[fx:log($meanh)/log($highlights/100)]" info:`
-			testh=`convert xc: -format "%[fx:$hgamma<=0?1:0]" info:`
-			[ $testh -eq 1 ] && hgamma=`convert xc: -format "%[fx:log(255*$meanh)/log(255*$highlights/100)]" info:`
-		fi
 		echo "sgamma=$sgamma"
 		echo "hgamma=$hgamma"
 		echo ""
 #echo "meanm=$meanm; means=$means; meanh=$meanh; sgamma=$sgamma; hgamma=$hgamma; tests=$tests; testh=$testh"
-	fi
 	}
 
 # test input image
-convert -quiet -regard-warnings "$infile" -alpha off $setcspace $cproc $alevel $clamp $proc0 +repage "$tmpA1" ||
+# clamp after autolevel(aproc) to avoid black patches
+convert -quiet "$infile" -alpha off $setcspace $cproc $aproc -evaluate max 0 $proc0 +repage "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 
 
@@ -655,7 +679,7 @@ convert $tmpA1[0] \
 \( $tmpA1[1] -evaluate multiply $sat \) \
 \( $tmpA2 -brightness-contrast $bri,$con -sharpen 0x$edge \) \
 -set colorspace HSB -combine -colorspace $cspace \
-$outfile
+"$outfile"
 
 
 exit 0

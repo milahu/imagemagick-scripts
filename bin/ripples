@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 1/19/2009 .......... revised 8/20/2012
+# Developed by Fred Weinhaus 1/19/2009 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: ripples [-t type ] [-a amplitude] [-w width] [-o offset] [-r rmin] [-c center] [-p power ] [-s shadeval] infile outfile
 # USAGE: ripples [-h or -help]
@@ -89,13 +113,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -238,8 +262,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -252,8 +276,9 @@ fi
 tmpA1="$dir/ripples_1_$$.mpc"
 tmpA2="$dir/ripples_1_$$.cache"
 tmp1="$dir/ripples_1_$$.miff"
-trap "rm -f $tmpA1 $tmpA2 $tmp1; exit 0" 0
+trap "rm -f $tmpA1 $tmpA2 $tmp1;" 0
 trap "rm -f $tmpA1 $tmpA2 $tmp1; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2 $tmp1; exit 1" ERR
 
 # get im_version
 im_version=`convert -list configure | \
@@ -274,10 +299,14 @@ if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
 else
 	setcspace=""
 fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
 
 
 # read input and make sure OK
-if convert -quiet -regard-warnings "$infile" +repage "$tmpA1"
+if convert -quiet "$infile" +repage "$tmpA1"
 	then
 	: ' do nothing '
 else
@@ -336,21 +365,21 @@ if [ "$im_version" -lt "06050304" ]; then
 else
 	convert $tmpA1 $tmp1 -define compose:args=0x${amplitude} -compose displace -composite $tmpA1
 fi
-convert $tmpA1 -distort polar -1,0,$cx,$cy $outfile
+convert $tmpA1 -distort polar -1,0,$cx,$cy "$outfile"
 
 elif [ "$type" = "modulate" ]; then
 # convert ripple image from polar to rectangular coords
 # composite with multiply
 convert $tmp1 -distort polar -1,0,$cx,$cy $shade $tmp1
 convert $tmpA1 $tmp1 \
-	-compose multiply -composite $outfile
+	-compose multiply -composite "$outfile"
 
 elif [ "$type" = "blend" ]; then
 # convert ripple image from polar to rectangular coords
 # special fx blend
 convert $tmp1 -distort polar -1,0,$cx,$cy $shade $tmp1
 convert $tmpA1 $tmp1 \
-	-fx "(v-0.5)+(0.5*u)" $outfile
+	-fx "(v-0.5)+(0.5*u)" "$outfile"
 fi
 
 exit 0

@@ -1,7 +1,31 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 9/25/2012 .......... revised 6/15/2013
+# Developed by Fred Weinhaus 9/25/2012 .......... revised 6/2/2015
+#
+# ------------------------------------------------------------------------------
 # 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
 # USAGE: woodcut [-k king] [-p presharp] [-e edge] [-d dither] [-P postsharp] 
 # [-a azimuth] [-i intensity] [-m mix] [-c colors] [-S sat] [-H hue] 
 # infile woodfile outfile
@@ -116,13 +140,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -278,9 +302,9 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	woodfile=$2
-	outfile=$3
+	infile="$1"
+	woodfile="$2"
+	outfile="$3"
 fi
 
 # test that infile provided
@@ -298,8 +322,9 @@ tmpA1="$dir/woodcut_A_$$.mpc"
 tmpA2="$dir/woodcut_A_$$.cache"
 tmpB1="$dir/woodcut_B_$$.mpc"
 tmpB2="$dir/woodcut_B_$$.cache"
-trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2; exit 0" 0
+trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2;" 0
 trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2; exit 1" ERR
 
 
 # get im_version
@@ -328,11 +353,11 @@ fi
 
 
 # test input image
-convert -quiet -regard-warnings "$infile" +repage  "$tmpA1" ||
+convert -quiet "$infile" +repage  "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 # test wood image
-convert -quiet -regard-warnings "$woodfile" +repage  "$tmpB1" ||
+convert -quiet "$woodfile" +repage  "$tmpB1" ||
 	errMsg "--- FILE $woodfile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 # get IM version
@@ -348,7 +373,7 @@ dim=`convert $tmpA1 -format "%wx%h" info:`
 if [ "$presharp" != "0" ]; then
 # use faster unsharp equivalent
 #	presharpening="-sharpen 0x$presharp"
-	presharpening="-unsharp 0x${presharp}+1+0"
+	presharpening="-unsharp 0x${presharp}+1+0 -clamp"
 else
 	presharpening=""
 fi
@@ -356,7 +381,7 @@ fi
 if [ "$postsharp" != "0" ]; then
 # use faster unsharp equivalent
 #	postsharpening="-sharpen 0x$postsharp"
-	postsharpening="-unsharp 0x${postsharp}+1+0"
+	postsharpening="-unsharp 0x${postsharp}+1+0 -clamp"
 else
 	postsharpening=""
 fi
@@ -402,7 +427,7 @@ if [ "$kind" = "carve" ]; then
 		mean=`convert $tmpA1 -format "%[fx:mean]" info:`
 		aa=$intensity
 		bb=`convert xc: -format "%[fx:$mean*(1-$intensity)]" info:`
-		convert $tmpA1 -function polynomial "$aa,$bb" \
+		convert $tmpA1 -function polynomial "$aa,$bb" -clamp \
 		$tmpA1
 	fi
 fi	
@@ -412,7 +437,7 @@ fi
 # put transparent image over woodfile
 convert \( $tmpA1 $colorizing -alpha set -channel A -evaluate set $mix% -channel RGBA \) \
 	\( $tmpB1 -gravity center -crop ${dim}+0+0 +repage $modulating \) \
-	+swap -compose over -composite $outfile
+	+swap -compose over -composite "$outfile"
 
 
 exit 0

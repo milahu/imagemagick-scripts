@@ -1,6 +1,28 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/23/2011 .......... 7/16/2012
+# Developed by Fred Weinhaus 8/23/2011 .......... 7/14/2015
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: tonemap1 [-k kind] [-a amount] [-c colormode] [-m mode] [-s shadows] [-h highlights] [-e edge] [-b blur] [-S saturation] [-C colorspace] [-A] infile outfile
 # USAGE: tonemap1 [-help]
@@ -150,13 +172,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -326,8 +348,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -362,7 +384,12 @@ fi
 if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
 	setcspace="-set colorspace RGB"
 else
-	setcspace=""
+	setcspace="-set colorspace sRGB"
+fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace="-set colorspace sRGB"
+	cspace="sRGB"
 fi
 #echo "setcspace=$setcspace"
 
@@ -375,23 +402,37 @@ else
 fi
 #echo "cproc=$cproc"
 COMMENT
+
 # set up cproc processing -- new method
 if [ "$colorproc" = "none" ]; then
 	cproc=""
 else
 	cproc="-set colorspace $colorproc"
-	# from trial and error using 6.7.2.0/6.7.4.10, 6.7.6.10 and 6.7.8.2/6.7.8.3
-	# the following is needed for tonemap2 and tonemap3 when using -C colorproc != none, i.e. for .hdr images after 6.7.7.7
-	if [ "$im_version" -lt "06070607" ]; then
-		setcspace=""
-	fi
+fi
+# from trial and error using 6.7.2.0/6.7.4.10, 6.7.6.10 and 6.7.8.2/6.7.8.3
+# the following is needed for tonemap2 and tonemap3 when using -C colorproc != none, i.e. for .hdr images after 6.7.7.7
+if [ "$im_version" -lt "06070607" ]; then
 	if [ "$colorproc" = "sRGB" ]; then
+		setcspace="-set colorspace RGB"
 		cspace="RGB"
 	elif [ "$colorproc" = "RGB" ]; then
+		setcspace="-set colorspace sRGB"
 		cspace="sRGB"
 	fi
+else
+	if [ "$colorproc" = "sRGB" ]; then
+		setcspace="-set colorspace sRGB"
+		cspace="sRGB"
+	elif [ "$colorproc" = "RGB" ]; then
+		setcspace="-set colorspace RGB"
+		cspace="RGB"
+	fi
 fi
+
+
 #echo "cproc=$cproc"
+#echo "cspace=$cspace"
+#echo "setcspace=$setcspace"
 
 # set up autolevel processing
 if [ "$alevel" = "yes" ]; then
@@ -404,11 +445,12 @@ fi
 # setup temp files
 tmpA1="$dir/tonemap1_1_$$.mpc"
 tmpB1="$dir/tonemap1_1_$$.cache"
-trap "rm -f $tmpA1 $tmpB1; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1;" 0
 trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1; exit 1" ERR
 
 # test input image
-convert -quiet -regard-warnings "$infile" -alpha off $cproc $aproc +repage "$tmpA1" ||
+convert -quiet "$infile" -alpha off $cproc $aproc +repage "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 
 
@@ -482,25 +524,25 @@ fi
 # process image
 if [ "$mode" = "all" ]; then
 #echo "got here"
-	convert $tmpA1 $clamp $proc0 $setcspace -colorspace $colormode -separate \
+	convert $tmpA1 $clamp $proc0 $setcspace -colorspace $colormode -separate +channel \
 		\( -clone 1 $saturation \) \
 		\( -clone 2 -blur 0x$blur \) \
 		\( -clone 2 -clone 4 +swap $setcspace -compose minus -composite $eproc \) \
-		\( -clone 4 $proc1 $proc2 \) \
+		\( -clone 2 $proc1 $proc2 \) \
 		\( -clone 5 -clone 6 $setcspace -compose plus -composite \) \
 		-delete 1,2,4,5,6 -set colorspace $colormode -combine -colorspace $cspace \
-		$outfile
+		"$outfile"
 
 elif [ "$mode" = "intensity" ]; then
-	convert $tmpA1 $setcspace -colorspace $colormode -separate  \
+	convert $tmpA1 $setcspace -colorspace $colormode -separate +channel \
 		\( -clone 1 $saturation \) \
 		\( -clone 2 $clamp $proc0 \) \
 		\( -clone 4 -blur 0x$blur \) \
 		\( -clone 4 -clone 5 +swap $setcspace -compose minus -composite $eproc \) \
-		\( -clone 5 $proc1 $proc2 \) \
+		\( -clone 4 $proc1 $proc2 \) \
 		\( -clone 6 -clone 7 $setcspace -compose plus -composite \) \
 		-delete 1,2,4,5,6,7 -set colorspace $colormode -combine -colorspace $cspace \
-		$outfile
+		"$outfile"
 fi
 
 exit 0

@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 5/23/2010 .......... 6/13/2013
+# Developed by Fred Weinhaus 5/23/2010 .......... 4/4/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: pagecurl [-a amount] [-m mode] [-c color] [-b bgcolor] [-e ellipticity] [-x xcoord] [-y ycoord] [-g gcontrast] [-d dcontrast] infile [bgfile] outfile 
 # USAGE: pagecurl [-help]
@@ -108,13 +132,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -255,12 +279,12 @@ else
 	#
 	# get infile and outfile and bgfile
 	if [ $# -eq 3 ]; then
-		infile=$1
-		bgfile=$2
-		outfile=$3
+		infile="$1"
+		bgfile="$2"
+		outfile="$3"
 	elif [ $# -eq 2 ]; then
-		infile=$1
-		outfile=$2
+		infile="$1"
+		outfile="$2"
 	else
 		errMsg "--- INCONSISTENT NUMBER OF IMAGES PROVIDED ---"
 	fi
@@ -282,8 +306,9 @@ tmpA3="$dir/pagecurl_3_$$.mpc"
 tmpB3="$dir/pagecurl_3_$$.cache"
 tmpA4="$dir/pagecurl_4_$$.mpc"
 tmpB4="$dir/pagecurl_4_$$.cache"
-trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4;" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4; exit 1" ERR
 
 # get im_version
 im_version=`convert -list configure | \
@@ -312,7 +337,7 @@ fi
 
 
 # test input image
-convert -quiet -regard-warnings "$infile" +repage $setcspace "$tmpA1" ||
+convert -quiet "$infile" +repage $setcspace "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 
 # trap on amount of 0 and set input to output
@@ -390,9 +415,14 @@ elif [ $testx -eq 1 -a $testy -eq -1 ]; then
 elif [ $testx -eq -1 -a $testy -eq -1 ]; then
 	offsets="${x0}${y0}"
 fi
-convert -size ${ww}x${hh} xc:white -page ${eww}x${ehh}${offsets} $tmpA2  \
-	-flatten $tmpA2
 
+if [ "$im_version" -ge "07000000" ]; then
+	convert \( -page +0+0 -size ${ww}x${hh} xc:white \) \( -page ${eww}x${ehh}${offsets} $tmpA2 \)  \
+		-flatten $tmpA2
+else
+	convert -page +0+0 -size ${ww}x${hh} xc:white -page ${eww}x${ehh}${offsets} $tmpA2  \
+		-flatten $tmpA2
+fi
 
 # get length from apex p1 to center of ellipse p2
 len=`convert xc: -format "%[fx:hypot(($x2-$x1),($y2-$y1))]" info:`
@@ -473,6 +503,6 @@ convert $tmpA4 \( -size ${ww}x${hh} xc:white \
 	-fill red -draw "translate $x2,$y2 rotate $angle ellipse 0,0 $a,$b 0,360" \
 	-fill black -draw "color $wm1,$hm1 floodfill" -fill white +opaque black -blur 2x65000 -level 50x100% \) \
 	-alpha off -compose copy_opacity -composite \
-	-compose over $back -flatten $outfile
+	-compose over $back -flatten "$outfile"
 
 exit 0

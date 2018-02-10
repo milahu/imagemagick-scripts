@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 1/20/2012 .......... 6/21/2013
+# Developed by Fred Weinhaus 1/20/2012 .......... 6/2/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: vignette3 [-d diameter] [-x xycenter] [-c] [-o outramp] [-i inramp] 
 # [-g gamma] [-v vcolor] [-b bright] [-s sat] infile outfile
@@ -25,8 +49,8 @@
 # -g     gammma        gamma adjustment of shape of ramps; gamma>=0; values less 
 #                      than 1 lengthen the ramps and values larger than 1 
 #                      shorten the ramp; default=1
-# -v     vcolor        vignette color; any opaque IM color allowed; 
-#                      default=black
+# -v     vcolor        vignette color; any opaque IM color allowed or "none" 
+#                      for a transparency vignette; default=black
 # -b     bright        brightness change of image under the vignette; 
 #                      -100<=integer<=100; default=0 (no change)
 # -s     sat           saturation change of image under the vignette; 
@@ -67,8 +91,8 @@
 # floats>=0. Values less than 1 lengthen the ramps and values larger than 1 
 # shorten the the ramp. The default=1.
 # 
-# -v vcolor ... VCOLOR is the vignette color. Any opaque IM color is allowed. 
-# The default=black.
+# -v vcolor ... VCOLOR is the vignette color. Any opaque IM color is allowed 
+# or "none" for a transparency vignette effect, The default=black.
 # 
 # -b bright ... BRIGHT is the brightness change of the image under the vignette. 
 # Values are -100<=integer<=100. The default=0 (no change).
@@ -105,13 +129,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -242,8 +266,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -256,8 +280,9 @@ fi
 # setup temp files
 tmpA1="$dir/vignette3_1_$$.mpc"
 tmpB1="$dir/vignette3_1_$$.cache"
-trap "rm -f $tmpA1 $tmpB1; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1;" 0
 trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1; exit 1" ERR
 
 # get im_version
 im_version=`convert -list configure | \
@@ -285,7 +310,7 @@ fi
 
 
 # test input image
-convert -quiet -regard-warnings "$infile" +repage "$tmpA1" ||
+convert -quiet "$infile" +repage "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 
 
@@ -344,25 +369,35 @@ else
 	leveling="+level 0x$rampval%"
 fi
 
-# read input
-# brighten input
-# create black ellipse on white background as mask and blur and adjust gamma
-# create black image
-# create composite of brightened and original using mask
-# delete tmps and reverse the images
-# create composite of previous composite with vignette color using mask
-convert $tmpA1 \
-	\( -clone 0 -modulate ${bright},${sat},100 \) \
-	\( -clone 0 -fill white -colorize 100% -fill black \
-		-draw "translate $xc,$yc ellipse $args" -alpha off -morphology Distance Euclidean:4 \
-		-auto-level $leveling $inramping -gamma $gamma \) \
-	\( -clone 0 -fill $vcolor -colorize 100% \) \
-	\( -clone 1 -clone 0 -clone 2 -compose over -composite \) \
-	-delete 0,1 -reverse $setcspace -compose over -composite $outfile
+
+
+
+
+if [ "$vcolor" = "none" -o "$vcolor" = "transparent" ]; then 
+	convert $tmpA1 \
+		\( -clone 0 -modulate ${bright},${sat},100 \) \
+		\( -clone 0 -fill white -colorize 100% -fill black \
+			-draw "translate $xc,$yc ellipse $args" -alpha off -morphology Distance Euclidean:4 \
+			-auto-level $leveling $inramping -gamma $gamma -negate \) \
+		-delete 0 -alpha off -compose copy_opacity -composite "$outfile"
+
+else
+	# read input
+	# brighten input
+	# create black ellipse on white background as mask and blur and adjust gamma
+	# create black image
+	# create composite of brightened and original using mask
+	# delete tmps and reverse the images
+	# create composite of previous composite with vignette color using mask
+	convert $tmpA1 \
+		\( -clone 0 -modulate ${bright},${sat},100 \) \
+		\( -clone 0 -fill white -colorize 100% -fill black \
+			-draw "translate $xc,$yc ellipse $args" -alpha off -morphology Distance Euclidean:4 \
+			-auto-level $leveling $inramping -gamma $gamma \) \
+		\( -clone 0 -fill $vcolor -colorize 100% \) \
+		\( -clone 1 -clone 0 -clone 2 -compose over -composite \) \
+		-delete 0,1 -reverse $setcspace -compose over -composite "$outfile"
+fi
 
 exit 0
-
-
-
-
 

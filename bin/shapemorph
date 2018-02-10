@@ -1,9 +1,33 @@
 #!/bin/sh
 # 
-# Fred Weinhaus ................................ revised 11/28/2011 
+# Fred Weinhaus ................................ revised 4/25/2015 
 # Code Improvements by Anthony Thyssen  ................ 7/7/2008
-# Developed by Fred Weinhaus 7/6/2008 .......... revised 7/6/2008
+# Developed by Fred Weinhaus 7/6/2008 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
 # 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
 # USAGE: shapemorph [-f frames] [-d delay] [-p pause] [-r] [-m] "x1,y1 x2,y2" infile1 infile2 outfile
 #        shapemorph [-h|-help]
 # 
@@ -81,16 +105,18 @@ tmpdir="/tmp"
 PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
 PROGDIR=`dirname $PROGNAME`            # extract directory of program
 PROGNAME=`basename $PROGNAME`          # base name of program
-usage() {
-  echo >&2 "$PROGNAME:" "$@"
-  sed >&2 -n '/^###/q; /^#/!q; s/^#//; s/^ //; 4,$p' "$PROGDIR/$PROGNAME"
-  exit 10
-}
-usage_verbose() {
-  echo >&2 "$PROGNAME:" "$@"
-  sed >&2 -n '/^######/q; /^#/!q; s/^#*//; s/^ //; 4,$p' "$PROGDIR/$PROGNAME"
-  exit 10
-}
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
 
 
 # function to test for minus at start of value of second part of option 1 or 2
@@ -176,17 +202,18 @@ fi
 # Setup directory for temporary files
 # On exit remove ALL the whole directory of temporary images
 dir="$tmpdir/$PROGNAME.$$"
-trap "rm -rf $dir; exit 0" 0
+trap "rm -rf $dir;" 0
 trap "rm -rf $dir; exit 1" 1 2 3 15
+trap "rm -rf $dir; exit 1" ERR
 mkdir "$dir" || {
   echo >&2 "$PROGNAME: Unable to create working dir \"$dir\" -- ABORTING"
   exit 10
 }
 
-convert -quiet -regard-warnings -delay $delay "$infile1" +repage "$dir/A.mpc" ||
+convert -quiet -delay $delay "$infile1" +repage "$dir/A.mpc" ||
   usage "--- FAILED TO READ \"$infile1\" ---"
 
-convert -quiet -regard-warnings -delay $delay "$infile2" +repage "$dir/B.mpc" ||
+convert -quiet -delay $delay "$infile2" +repage "$dir/B.mpc" ||
   usage "--- FAILED TO READ \"$infile2\" ---"
 
 # get image sizes and test if same size
@@ -293,9 +320,9 @@ if [ "$im_version" -ge "06040304" ]; then
 	
 	# reverse and append if desired
 	if [ "$reverse" = "yes" ]; then
-	  convert $dir/result.miff \( -clone -2-1 \) -loop 0 $outfile
+	  convert $dir/result.miff \( -clone -2-1 \) -loop 0 "$outfile"
 	else
-	  convert $dir/result.miff -loop 0 $outfile
+	  convert $dir/result.miff -loop 0 "$outfile"
 	fi
 
 else
@@ -394,9 +421,9 @@ else
 	
 	# reverse and append if desired
 	if [ "$reverse" = "yes" ]; then
-	  convert $dir/result.miff \( -clone -2-1 \) -loop 0 $outfile
+	  convert $dir/result.miff \( -clone -2-1 \) -loop 0 "$outfile"
 	else
-	  convert $dir/result.miff -loop 0 $outfile
+	  convert $dir/result.miff -loop 0 "$outfile"
 	fi
 fi
 

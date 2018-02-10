@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 2/26/2009 .......... revised 8/22/2012
+# Developed by Fred Weinhaus 2/26/2009 .......... revised 5/3/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: tintilize [-m mcolor] [-c contrast] [-o offset] [-t type] infile outfile [lutfile]
 # USAGE: tintilize [-m mcolor] [-c contrast] [-o offset] [-t type] lutfile
@@ -83,13 +107,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -187,14 +211,14 @@ else
 	#
 	# get infile, outfile and lutfile
 	if [ $# -eq 3 ]; then
-		infile=$1
-		outfile=$2
-		lutfile=$3
+		infile="$1"
+		outfile="$2"
+		lutfile="$3"
 	elif [ $# -eq 2 ]; then
-		infile=$1
-		outfile=$2
+		infile="$1"
+		outfile="$2"
 	elif [ $# -eq 1 ]; then
-		lutfile=$1
+		lutfile="$1"
 	else
 		errMsg "--- INCONSISTENT NUMBER OF INPUT AND OUTPUT IMAGES SPECIFIED ---"
 	fi
@@ -211,8 +235,9 @@ fi
 tmpA="$dir/tintilize_$$.mpc"
 tmpB="$dir/tintilize_$$.cache"
 tmp0="$dir/tintilize_0_$$.miff"
-trap "rm -f $tmpA $tmpB $tmp0; exit 0" 0
+trap "rm -f $tmpA $tmpB $tmp0;" 0
 trap "rm -f $tmpA $tmpB $tmp0; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmp0; exit 1" ERR
 
 # get im_version
 im_version=`convert -list configure | \
@@ -233,9 +258,14 @@ if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
 else
 	setcspace=""
 fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
+
 
 # test $infile and convert to grayscale 
-if convert -quiet -regard-warnings "$infile" $setcspace -colorspace gray +repage "$tmpA"
+if convert -quiet "$infile" $setcspace -colorspace gray +repage "$tmpA"
 	then
 	: ' Do Nothing '
 else
@@ -257,12 +287,12 @@ convert -size 1x1 xc:$lcolor xc:$mcolor xc:$hcolor +append \
 
 # save lut
 if [ "$lutfile" != "" ]; then
-	convert $tmp0 -scale 256x20! $lutfile
+	convert $tmp0 -scale 256x20! "$lutfile"
 fi
 
 # apply lut
 if [ "$outfile" != "" ]; then
-	convert $tmpA $tmp0 -clut $outfile
+	convert $tmpA $tmp0 -clut "$outfile"
 fi
 
 exit 0

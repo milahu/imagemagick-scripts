@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 9/22/2008 .......... revised 6/14/2013
+# Developed by Fred Weinhaus 9/22/2008 .......... revised 9/12/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: slice blackpt,whitept [-m mode] [-i icolor] [-e ecolor] infile outfile
 # USAGE: slice [-h or -help]
@@ -90,13 +114,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -187,8 +211,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -205,8 +229,9 @@ tmpA2="$dir/slice_2_$$.mpc"
 tmpB2="$dir/slice_2_$$.cache"
 tmpA3="$dir/slice_3_$$.mpc"
 tmpB3="$dir/slice_3_$$.cache"
-trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3;" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3; exit 1" ERR
 
 # get im_version
 im_version=`convert -list configure | \
@@ -234,7 +259,7 @@ fi
 
 
 # test input image
-convert -quiet -regard-warnings "$infile" +repage "$tmpA1" ||
+convert -quiet "$infile" +repage "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 # test if two different thresholds provided
@@ -287,8 +312,8 @@ fi
 
 
 # test if image has alpha and set up copy to output
-is_alpha=`convert $tmpA1 -format "%A" info:`
-if [ "$is_alpha" = "True" ]; then
+is_alpha=`identify -ping -verbose $tmpA1 | grep "Alpha" | head -n 1`
+if [ "$is_alpha" != "" ]; then
 	convert $tmpA1 -alpha extract $tmpA3
 	convert $tmpA1 -alpha off $tmpA1
 	addalpha="$tmpA3 -compose copy_opacity -composite"
@@ -391,15 +416,15 @@ convert $tmpA2 \
 # process the grayscale image with the lut, use as mask when "image" and colorize as appropriate
 if [ "$icolor" != "image" -a "$ecolor" != "image" ]; then
 	convert \( $tmpA1 $setcspace -colorspace gray \) $tmpA2 \
-		-interpolate nearest-neighbor -clut $negatize $ecolorize $icolorize $addalpha $outfile
+		-interpolate nearest-neighbor -clut $negatize $ecolorize $icolorize $addalpha "$outfile"
 elif [ "$icolor" = "image" ]; then
 	convert \( $tmpA1 $setcspace -colorspace gray \) $tmpA2 \
 		-interpolate nearest-neighbor -clut $tmpA1 +swap -compose copy_opacity -composite \
-		$ecolorize -alpha off $addalpha $outfile
+		$ecolorize -alpha off $addalpha "$outfile"
 elif [ "$ecolor" = "image" ]; then
 	convert \( $tmpA1 $setcspace -colorspace gray \) \( $tmpA2 -negate \) \
 		-interpolate nearest-neighbor -clut $tmpA1 +swap -compose copy_opacity -composite \
-		$icolorize -alpha off $addalpha $outfile
+		$icolorize -alpha off $addalpha "$outfile"
 fi
 
 exit 0

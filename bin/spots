@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/4/2011 .......... 1/25/2013
+# Developed by Fred Weinhaus 8/4/2011 .......... 5/28/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: spots [-s size] [-t type] [-p pad] [-b bgcolor] [-e edge] [-E ecolor] [-B brightness] [-C Contrast] infile [spotfile] outfile 
 # USAGE: spots [-help]
@@ -101,13 +125,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -233,12 +257,12 @@ else
 	#
 	# get infile and outfile and spotfile
 	if [ $# -eq 3 ]; then
-		infile=$1
-		spotfile=$2
-		outfile=$3
+		infile="$1"
+		spotfile="$2"
+		outfile="$3"
 	elif [ $# -eq 2 ]; then
-		infile=$1
-		outfile=$2
+		infile="$1"
+		outfile="$2"
 	else
 		errMsg "--- INCONSISTENT NUMBER OF IMAGES PROVIDED ---"
 	fi
@@ -255,8 +279,9 @@ tmpA1="$dir/spots_1_$$.mpc"
 tmpB1="$dir/spots_1_$$.cache"
 tmpA2="$dir/spots_2_$$.mpc"
 tmpB2="$dir/spots_2_$$.cache"
-trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2;" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" ERR
 
 # setup brightness contrast
 if [ "$bri" = "0" -a "$con" = "0" ]; then
@@ -266,12 +291,12 @@ else
 fi
 
 # test input image
-convert -quiet -regard-warnings "$infile" $bricon +repage "$tmpA1" ||
+convert -quiet "$infile" $bricon -clamp +repage "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 
 # test spot file if exists
 if [ "$spotfile" != "" ]; then
-	convert -quiet -regard-warnings "$spotfile" -alpha off +repage "$tmpA2" ||
+	convert -quiet "$spotfile" -alpha off +repage "$tmpA2" ||
 		errMsg "--- FILE $spotfile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 fi
 
@@ -335,21 +360,21 @@ hhh=`convert xc: -format "%[fx:$ymin*$ph]" info:`
 
 # process image
 if [ "$edge" = "0" ]; then
-	convert \( $tmpA1 -define distort:viewport=${www}x${hhh}+0 -virtual-pixel mirror -distort SRT 0 \
+	convert \( $tmpA1 -define distort:viewport=${www}x${hhh}+0+0 -virtual-pixel mirror -distort SRT 0 \
 		-scale ${xmin}x${ymin}! -scale ${www}x${hhh}! -crop ${ww}x${hh}+0+0 +repage \) \
 		\( $tmpA2 -write mpr:tile +delete -size ${ww}x${hh}! tile:mpr:tile \) \
 		-alpha off -compose copy_opacity -composite -compose over \
 		-background $bgcolor -flatten  \
-		$outfile
+		"$outfile"
 else
 	convert \( $tmpA1 -define distort:viewport=${www}x${hhh}+0 -virtual-pixel mirror -distort SRT 0 \
 		-scale ${xmin}x${ymin}! -scale ${www}x${hhh}! -crop ${ww}x${hh}+0+0 +repage \) \
 		\( $tmpA2 -write mpr:tile +delete -size ${ww}x${hh}! tile:mpr:tile \) \
-		\( -clone 1 -threshold 0 -edge $edge -fill $ecolor -opaque white -transparent black \) \
+		\( -clone 1 -threshold 0 -edge $edge -clamp -fill $ecolor -opaque white -transparent black \) \
 		\( -clone 0 -clone 1 -alpha off -compose copy_opacity -composite -compose over \
 		-background $bgcolor -flatten \) \
 		-delete 0,1 +swap -compose over -composite \
-		$outfile
+		"$outfile"
 fi
 
 exit 0

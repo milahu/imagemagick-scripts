@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 7/23/2012 .......... 6/14/2013
+# Developed by Fred Weinhaus 7/23/2012 .......... 4/15/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: sketch [-k kind] [-e edge] [-c con] [-s sat] [-g] infile outfile
 # USAGE: sketch [-h or -help]
@@ -70,13 +94,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -181,8 +205,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -191,14 +215,13 @@ fi
 # test that outfile provided
 [ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
 
-# set directory for temporary files
-dir="."    # suggestions are dir="." or dir="/tmp"
 
 # set up temporaries
 tmp1A="$dir/sketch_1_$$.mpc"
 tmp1B="$dir/sketch_1_$$.cache"
-trap "rm -f $tmp1A $tmp1B; exit 0" 0
+trap "rm -f $tmp1A $tmp1B;" 0
 trap "rm -f $tmp1A $tmp1B; exit 1" 1 2 3 15
+trap "rm -f $tmp1A $tmp1B; exit 1" ERR
 
 # test for minimum IM version
 im_version=`convert -list configure | \
@@ -232,7 +255,7 @@ fi
 
 
 # test input image
-convert -quiet -regard-warnings "$infile" +repage "$tmp1A" ||
+convert -quiet "$infile" +repage "$tmp1A" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 if [ "$kind" = "gray" ]; then
@@ -265,7 +288,7 @@ if [ "$gray" = "no" ]; then
 	\( -clone 3 -alpha set -channel a -evaluate set ${con1}% +channel \) \
 	\( -clone 3 -clone 4 -compose multiply -composite \) \
 	\( -clone 0 -modulate 100,$sat,100 \) \
-	-delete 0-4 $setcspace -compose screen -composite $outfile
+	-delete 0-4 $setcspace -compose screen -composite "$outfile"
 else
 	convert $tmp1A \
 	\( -clone 0 $grayscaling \) \
@@ -273,7 +296,7 @@ else
 	\( -clone 1 -clone 2 $setcspace -compose color_dodge -composite -level ${con2}x100% \) \
 	\( -clone 3 -alpha set -channel a -evaluate set ${con1}% +channel \) \
 	\( -clone 3 -clone 4 $setcspace -compose multiply -composite \) \
-	-delete 0-4 $outfile
+	-delete 0-4 "$outfile"
 fi
 
 exit 0

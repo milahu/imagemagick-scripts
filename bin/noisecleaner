@@ -1,7 +1,31 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 10/2/2012 .......... revised 12/1/2012
+# Developed by Fred Weinhaus 10/2/2012 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
 # 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
 # USAGE: noisecleaner [-m method] [-n numiter] [-s stopdiff] [-f format] 
 # [-p] infile outfile
 # 
@@ -76,13 +100,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -182,8 +206,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -200,12 +224,13 @@ tmpdir="."
 dir="$tmpdir/NOISECLEANER.$$"
 
 mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
-trap "rm -rf $dir; exit 0" 0
+trap "rm -rf $dir;" 0
 trap "rm -rf $dir; exit 1" 1 2 3 15
+trap "rm -rf $dir; exit 1" ERR
 
 
 # test input image
-convert -quiet -regard-warnings "$infile" +repage  "$dir/tmpI.mpc" ||
+convert -quiet "$infile" +repage  "$dir/tmpI.mpc" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 # get output file name and suffix
@@ -244,7 +269,7 @@ if [ "$format" = "last" ]; then
 	done
 	k=$((i-1))
 #	echo "i=$i; k=$k"
-	convert $dir/tmpR_$k.mpc ${outname}.${suffix}
+	convert $dir/tmpR_$k.mpc "${outname}.${suffix}"
 
 elif [ "$format" = "all" ]; then
 	convert $dir/tmpI.mpc $dir/tmpR_0.mpc
@@ -269,7 +294,7 @@ elif [ "$format" = "all" ]; then
 			fi
 		fi
 	done
-	) | convert - ${outname}.tif
+	) | convert - "${outname}.tif"
 fi
 
 if [ "$progress" = "yes" ]; then

@@ -1,6 +1,6 @@
 #!/bin/bash
 # 
-# Developed by Fred Weinhaus 5/1/2009 .......... revised 11/28/2016
+# Developed by Fred Weinhaus 5/1/2009 .......... revised 4/24/2017
 #
 # ------------------------------------------------------------------------------
 # 
@@ -516,8 +516,8 @@ im_version=`convert -list configure | \
 	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # get image dimensions
-width=`identify -ping -format %w $infile`
-height=`identify -ping -format %h $infile`
+width=`convert -ping "$infile" -format "%w" info:`
+height=`convert -ping "$infile" -format "%h" info:`
 
 # get default radius and length
 if [ "$mode" = "vertical" -a "$radius" = "" ]; then

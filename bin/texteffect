@@ -1,11 +1,35 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 3/31/2008 .......... revised 6/12/2013
+# Developed by Fred Weinhaus 3/31/2008 .......... revised 11/9/2017
 # Added wedge-top and wedge-bottom effects ...... revised 6/24/2010
 # Revised InnerBevel and Round styles ............revised 6/24/2010
 # Added Size Argument ........................... revised 6/18/2010
 # Added InnerBevel and Round styles ..............revised 6/17/2010
 # Enhancement provided by Aditya Naik  .......... revised 5/16/2010
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: texteffect -t "some text" [-f font] [-p pointsize] [-S size] [-s style] [-e effect] [-l lineweight] [-d distortion] [-r rotation] [-x excess-area] [-c text-color(s)] [-o outline-color] [-b background-color] [-u under-color] [-g glow-shadow-color] [-m smudge] [-w wavecycles] [-a arc-angle] [-A gradient-angle] [-D distance] [-R rounding] [infile] outfile
 # USAGE: texteffect [-h or -help]
@@ -245,13 +269,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -548,8 +572,8 @@ else
 	done
 	#
 	# get outfile and optionally infile
-	file1=$1
-	file2=$2
+	file1="$1"
+	file2="$2"
 	if [ "$file2" = "" ]
 		then
 		infile=""
@@ -572,13 +596,14 @@ tmpA0="$dir/texteffect_00_$$.mpc"
 tmpB0="$dir/texteffect_00_$$.cache"
 tmpA1="$dir/texteffect_11_$$.mpc"
 tmpB1="$dir/texteffect_11_$$.cache"
-trap "rm -f $tmpA $tmpB $tmpA $tmpB $tmpA0 $tmpB0 $tmpA1 $tmpB1 text_label.txt; exit 0" 0
+trap "rm -f $tmpA $tmpB $tmpA $tmpB $tmpA0 $tmpB0 $tmpA1 $tmpB1 text_label.txt;" 0
 trap "rm -f $tmpA $tmpB $tmpA $tmpB $tmpA0 $tmpB0 $tmpA1 $tmpB1 text_label.txt; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmpA $tmpB $tmpA0 $tmpB0 $tmpA1 $tmpB1 text_label.txt; exit 1" ERR
 
 if [ "$infile" != "" ]
 	then
 	#test to be sure infile is valid
-	if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
+	if convert -quiet "$infile" +repage "$tmpA"
 		then
 		: ' do nothing '
 		else
@@ -605,15 +630,15 @@ im_version=`convert -list configure | \
 # set trim of initial text image before distorting according to effect 
 if [ "$effect" = "bulge" -o "$effect" = "bulge-top" -o "$effect" = "bulge-bottom" -o "$effect" = "pinch" -o "$effect" = "pinch-top" -o "$effect" = "pinch-bottom" -o "$effect" = "concave" -o "$effect" = "concave-top" -o "$effect" = "concave-bottom" -o "$effect" = "convex" -o "$effect" = "convex-top" -o "$effect" = "convex-bottom" ]
 	then
-	trimpad="-trim -bordercolor $bc -border $pad"
+	trimpad="-fuzz 0.1 -trim +repage -bordercolor $bc -border $pad"
 elif [ "$style" = "outline" -o "$style" = "gradient" -o "$style" = "plain" ]
 	then
-	trimpad="-trim -bordercolor $bc -border $linewt"
+	trimpad="-fuzz 0.1 -trim +repage -bordercolor $bc -border $linewt"
 elif [ "$style" = "glow" -o "$style" = "hardshadow" -o "$style" = "softshadow" -o "$style" = "bevel" -o "$style" = "antibevel" -o "$style" = "stamp" ]
 	then
-	trimpad="-trim -bordercolor $bc -border 5"
+	trimpad="-fuzz 0.1 -trim +repage -bordercolor $bc -border 5"
 else
-	trimpad="-trim"
+	trimpad="-fuzz 0.1 -trim +repage"
 fi
 
 # set stroke depending upon linewt
@@ -656,7 +681,7 @@ if [ "$size" = "" ]; then
 	dim=`convert -background "$bc" \
 			-fill "$tc1" $stroke -font $font -pointsize $point \
 			-gravity center label:"$text" \
-			-trim -bordercolor "$bc" -border 10 +repage \
+			-trim -bordercolor "$bc" -border $pad +repage \
 			-format "%wx%h" info:`
 	wd=`echo $dim | cut -dx -f 1`
 	ht=`echo $dim | cut -dx -f 2`
@@ -672,19 +697,19 @@ elif [ "$size" != "" ]; then
 	width=`echo "$size" | cut -dx -f 1`
 	height=`echo "$size" | cut -dx -f 2`
 	if [ "$width" = "" ]; then
-		size=$(($height-10))
-		[ $size -lt 1 ] && errMsg "--- SIZE MUST BE GREATER THAN 10 ---"
+		size=$(($height-$pad))
+		[ $size -lt 1 ] && errMsg "--- SIZE MUST BE GREATER THAN $pad ---"
 		size="x${size}"
 	elif [ "$height" = "" ]; then
-		size=$(($width-10))
-		[ $size -lt 1 ] && errMsg "--- SIZE MUST BE GREATER THAN 10 ---"
+		size=$(($width-$pad))
+		[ $size -lt 1 ] && errMsg "--- SIZE MUST BE GREATER THAN $pad ---"
 		size="${size}x"
 	fi
 	if [ "$im_version" -lt "06060207" ]; then	
 		str=`convert -size "$size" -background "$bc" \
 				-fill "$tc1" $stroke -font $font \
 				-gravity center -debug annotate label:"$text" \
-				-trim -bordercolor "$bc" -border 10 +repage \
+				-trim -bordercolor "$bc" -border $pad +repage \
 				-verbose null: 2> text_label.txt`
 		dim=`echo "$str" | sed -n 's/^.*LABEL.*=>\([0-9]*x[0-9]*\).*$/\1/p' | tail -n 1`
 		wd=`echo "$dim" | cut -dx -f 1`
@@ -695,7 +720,7 @@ elif [ "$size" != "" ]; then
 		data=`convert -size "$size" -background "$bc" \
 			-fill "$tc1" $stroke -font $font \
 			-gravity center label:"$text" \
-			-trim -bordercolor "$bc" -border 10 +repage \
+			-trim -bordercolor "$bc" -border $pad +repage \
 			-format "%wx%hx%[label:pointsize]" info:`
 		wd=`echo "$data" | cut -dx -f 1`
 		ht=`echo "$data" | cut -dx -f 2`
@@ -703,6 +728,7 @@ elif [ "$size" != "" ]; then
 		point=`echo "$data" | cut -dx -f 3`
 	fi
 fi
+#echo "size=$size; dim=$dim; point=$point"
 
 # function to make directional gradient using -distort SRT
 # note: results are not same as makeGradient2
@@ -881,7 +907,7 @@ elif [ "$style" = "glow" ]
 	convert -size $dim xc:"$bc" \
 		-fill "$gc" -stroke none \
 		-font $font -pointsize $point \
-		-gravity center -annotate 0x${italic}+0+0 "$text" $channels -blur 0x$blur -write texteffect_tmp1.png \
+		-gravity center -annotate 0x${italic}+0+0 "$text" $channels -blur 0x$blur \
 		$fill -strokewidth $linewt -stroke $oc \
 		-gravity center -annotate 0x${italic}+0+0 "$text" \
 		$trimpad +repage $tmpA0
@@ -897,7 +923,7 @@ elif [ "$style" = "softshadow" ]
 		-font $font -pointsize $point \
 		-gravity center -annotate 0x${italic}+0+0 "$text" $channels -blur 0x$blur \
 		$fill -strokewidth $linewt -stroke $oc \
-		-gravity center -annotate 0x${italic}-${blur1}-${blur1} "$text" \
+		-gravity center -annotate 0x${italic}-${blur}-${blur} "$text" \
 		$trimpad +repage $tmpA0
 
 elif [ "$style" = "hardshadow" ]
@@ -1003,7 +1029,6 @@ else
 fi
 xc=$w2
 yc=$h2
-
 
 if [ "$effect" = "wedge-right" ]
 	then
@@ -1155,9 +1180,10 @@ else
 fi
 
 # process image depending upon effect
+# add -fuzz 0.3% to deal with precision differences on trim in HDRI
 if [ "$effect" = "normal" ]
 	then
-	convert $tmpA0 -background "$bc" -trim -bordercolor "$bc" -border $pad \
+	convert $tmpA0 -background "$bc" -fuzz 0.3% -trim +repage -bordercolor "$bc" -border $pad \
 		$tmpA0
 		
 elif [ "$effect" = "wedge-right" -o "$effect" = "wedge-left" -o "$effect" = "wedge-top-left" -o "$effect" = "wedge-top-right" -o "$effect" = "wedge-bottom-left" -o "$effect" = "wedge-bottom-right" -o "$effect" = "wedge-top" -o "$effect" = "wedge-bottom" ]
@@ -1171,20 +1197,20 @@ elif [ "$effect" = "wedge-right" -o "$effect" = "wedge-left" -o "$effect" = "wed
 	fi
 	convert $tmpA0 $vp -background $bc \
 		-distort $distort "$coords" \
-		-background $bc -trim -bordercolor $bc -border $pad \
+		-background $bc -fuzz 0.3% -trim +repage -bordercolor $bc -border $pad \
 		$tmpA0
 
 elif [ "$effect" = "arc-top" -o "$effect" = "arc-bottom" ]
 	then
 	convert $tmpA0 $orient $vp -background $bc \
 		-distort arc "$params" \
-		-background $bc -trim -bordercolor $bc -border $pad \
+		-background $bc -fuzz 0.3% -trim +repage -bordercolor $bc -border $pad \
 		$tmpA0
 
 elif [ "$effect" = "arch-top" -o "$effect" = "arch-bottom" -o "$effect" = "wave-top" -o "$effect" = "wave-bottom" ]
 	then
 	convert $tmpA0 -background $bc -wave ${amp}x${wav} \
-		-background $bc -trim -bordercolor $bc -border $pad \
+		-background $bc -fuzz 0.3% -trim +repage -bordercolor $bc -border $pad \
 		$tmpA0
 
 elif [ "$effect" = "bulge" -o "$effect" = "pinch" -o "$effect" = "bulge-top" -o "$effect" = "bulge-bottom" -o "$effect" = "pinch-top" -o "$effect" = "pinch-bottom" ]
@@ -1195,7 +1221,7 @@ elif [ "$effect" = "bulge" -o "$effect" = "pinch" -o "$effect" = "bulge-top" -o 
 		# trim if the effect is concave or convex for top or bottom 
 		if [ "$effect" = "bulge-top" -o "$effect" = "bulge-bottom" -o "$effect" = "pinch-top" -o "$effect" = "pinch-bottom" ]
 		  then
-		  convert $tmpA0 $vp -trim +repage $tmpA0
+		  convert $tmpA0 $vp -fuzz 0.3% -trim +repage $tmpA0
 		fi
 		ww=`convert $tmpA0 -format "%w" info:`
 		hh=`convert $tmpA0 -format "%h" info:`
@@ -1232,7 +1258,7 @@ elif [ "$effect" = "bulge" -o "$effect" = "pinch" -o "$effect" = "bulge-top" -o 
 	convert $tmpA0 $vp -background $bc \
 		-monitor -fx \
 		"xd=(i-$xc); yd=(j-$yc); $rd ys=(yd/($a+$b*rd))+$yc; $result" \
-		-background $bc -trim -bordercolor $bc -border $pad \
+		-background $bc -fuzz 0.3% -trim +repage -bordercolor $bc -border $pad \
 		$tmpA0
 	fi
 		
@@ -1244,7 +1270,7 @@ elif [ "$effect" = "concave" -o "$effect" = "convex" -o "$effect" = "concave-top
 		# trim if the effect is concave or convex for top or bottom 
 		if [ "$effect" = "concave-top" -o "$effect" = "concave-bottom" -o "$effect" = "convex-top" -o "$effect" = "convex-bottom" ]
 		  then
-		  convert $tmpA0 $vp -trim +repage $tmpA0
+		  convert $tmpA0 $vp -fuzz 0.3% -trim +repage $tmpA0
 		fi
 
 		ww=`convert $tmpA0 -format "%w" info:`
@@ -1302,9 +1328,9 @@ fi
 
 if [ "$rotation" != "0" -a "$rotation" != "0.0" -a "$rotation" != ".0" ]
 	then
-	convert $tmpA0 -background "$bc" -virtual-pixel background $rotating $rotation +repage $outfile
+	convert $tmpA0 -background "$bc" -virtual-pixel background $rotating $rotation +repage "$outfile"
 else
-	convert $tmpA0 $outfile
+	convert $tmpA0 "$outfile"
 fi
 
 exit 0

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 12/24/2009 .......... revised 10/8/2016
+# Developed by Fred Weinhaus 12/24/2009 .......... revised 3/5/2017
 #
 # ------------------------------------------------------------------------------
 # 
@@ -362,7 +362,6 @@ if [ $test4 -eq 1 ]; then
 			testa=`convert "$outfile" -ping -format "%b" info:- | grep "MB"`
 			testb=`convert "$outfile" -ping -format "%b" info:- | grep "KB"`
 			testc=`convert "$outfile" -ping -format "%b" info:- | grep "B"`
-			# set newsize in KB
 			if [ "$testa" != "" ]; then
 				newsize=`convert "$outfile" $setquality ${ftype}:- | convert - -format "%b" info: | tr -d "[:alpha:]"`
 				newsize=`convert xc: -format "%[fx:$newsize*1000]" info:`
@@ -386,12 +385,7 @@ if [ $test4 -eq 1 ]; then
 		testa=`convert "$outfile" -ping -format "%b" info:- | grep "MB"`
 		testb=`convert "$outfile" -ping -format "%b" info:- | grep "KB"`
 		testc=`convert "$outfile" -ping -format "%b" info:- | grep "B"`
-		# set newsize in KB
-		testa=`convert "$outfile" -ping -format "%b" info:- | grep "MB"`
-		testb=`convert "$outfile" -ping -format "%b" info:- | grep "KB"`
-		testc=`convert "$outfile" -ping -format "%b" info:- | grep "B"`
 		oldsize=$newsize
-		# set newsize in KB
 		if [ "$testa" != "" ]; then
 			newsize=`convert -ping "$outfile" -format "%b" info: | tr -d "[:alpha:]"`
 			newsize=`convert xc: -format "%[fx:$newsize*1000]" info:`
@@ -420,7 +414,6 @@ if [ $test4 -eq 1 ]; then
 			testb=`convert "$outfile" -ping -format "%b" info:- | grep "KB"`
 			testc=`convert "$outfile" -ping -format "%b" info:- | grep "B"`
 			oldsize=$newsize
-			# set newsize in KB
 			if [ "$testa" != "" ]; then
 				newsize=`convert -ping "$outfile" -format "%b" info: | tr -d "[:alpha:]"`
 				newsize=`convert xc: -format "%[fx:$newsize*1000]" info:`

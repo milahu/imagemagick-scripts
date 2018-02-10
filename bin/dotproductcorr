@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 10/7/2013 .......... revised 8/11/2016
+# Developed by Fred Weinhaus 10/7/2013 .......... revised 7/11/2017
 #
 # ------------------------------------------------------------------------------
 # 
@@ -331,13 +331,17 @@ else
 fi
 [ "$hdri_on" = "" ] && errMsg "--- REQUIRES HDRI ENABLED IN IM COMPILE ---"
 
+if [ "$im_version" -ge "07000000" ]; then
+	identifying="magick identify"
+else
+	identifying="identify"
+fi
 
 # get image dimensions to be sure that infile1 is smaller than infile2
-ws=`identify -ping -format "%w" "$dir/tmpA1.mpc"`
-hs=`identify -ping -format "%h" "$dir/tmpA1.mpc"`
-wlo=`identify -ping -format "%w" "$dir/tmpA2.mpc"`
-hlo=`identify -ping -format "%h" "$dir/tmpA2.mpc"`
-
+ws=`$identifying -ping -format "%w" "$dir/tmpA1.mpc"`
+hs=`$identifying -ping -format "%h" "$dir/tmpA1.mpc"`
+wlo=`$identifying -ping -format "%w" "$dir/tmpA2.mpc"`
+hlo=`$identifying -ping -format "%h" "$dir/tmpA2.mpc"`
 
 
 [ $ws -gt $wlo ] && errMsg "--- SECOND IMAGE MUST BE WIDER THAN FIRST IMAGE ---"

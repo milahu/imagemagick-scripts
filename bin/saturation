@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 10/08/2007 .......... revised 6/14/2013
+# Developed by Fred Weinhaus 10/08/2007 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: saturation [value] infile outfile
 # USAGE: saturation [-h or -help]
@@ -56,13 +80,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 #
 # function to report error messages
@@ -119,8 +143,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 
@@ -137,8 +161,9 @@ tmp0="$dir/saturation_0_$$.png"
 tmp1="$dir/saturation_1_$$.png"
 tmp2="$dir/saturation_2_$$.png"
 
-trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2; exit 0" 0
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2;" 0
 trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2; exit 1" ERR
 
 
 # get im_version
@@ -172,7 +197,7 @@ if [ "$im_version" -gt "06080504" ]; then
 fi
 
 
-if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
+if convert -quiet "$infile" +repage "$tmpA"
 	then
 	convert $tmpA $setcspace -colorspace HSL -channel R -separate $tmp0
 	convert $tmpA $setcspace -colorspace HSL -channel G -separate $tmp1
@@ -181,7 +206,7 @@ if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
 		$tmp0 -compose CopyRed -composite \
 		\( $tmp1 -evaluate multiply $value \) -compose CopyGreen -composite \
 		$tmp2 -compose CopyBlue -composite \
-		-colorspace $cspace $outfile
+		-colorspace $cspace "$outfile"
 	else
 		errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 fi

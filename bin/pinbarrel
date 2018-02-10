@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 3/1/2008 .......... revised 11/28/2011
+# Developed by Fred Weinhaus 3/1/2008 .......... revised 5/21/2015
+# 
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: pinbarrel "ax,bx,cx,dx,ex ay,by,cy,dy,ey" [-c coords] [-m mode] [-v vp] infile outfile
 # USAGE: pinbarrel [-h or -help]
@@ -94,7 +118,12 @@
 #
 # Other references suggest that the inverse form allows better fit with the same 
 # or fewer coefficients. See http://www.fieldrobotics.org/~cgeyer/OMNIVIS05/final/Li.pdf
+#
+# WARNING: The input file must not start with a digit or the script will think 
+# it is another set of coefficients. 
 # 
+# RECOMMENDATION: Use the IM function -distort barrel
+#  
 # CAVEAT: No guarantee that this script will work on all platforms, 
 # nor that trapping of inconsistent parameters is complete and 
 # foolproof. Use At Your Own Risk. 
@@ -119,13 +148,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -201,6 +230,7 @@ else
 					   ;;
 	   [\ 0-9,.-]*)    # Coefficients
 		 			   coeffs="$1"
+		 			   echo "coeffs=$coeffs;"
 					   coeffs=`echo "$coeffs" | sed -n 's/[ ]*,[ ]*/,/gp'`  # remove spaces from around commas
 					   coeffs=`echo "$coeffs" | sed -n 's/^ *//p'`  		# remove leading spaces
 					   coeffs=`echo "$coeffs" | sed -n 's/ *$//p'`  		# remove trailing spaces
@@ -237,8 +267,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 [ "$ax" = "-1000000" ] && errMsg "--- NO COEFFICIENTS SUPPLIED ---"
@@ -251,10 +281,11 @@ fi
 
 tmpA="$dir/radialdistort_$$.mpc"
 tmpB="$dir/radialdistort_$$.cache"
-trap "rm -f $tmpA $tmpB; exit 0" 0
+trap "rm -f $tmpA $tmpB;" 0
 trap "rm -f $tmpA $tmpB; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB; exit 1" ERR
 
-if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
+if convert -quiet "$infile" +repage "$tmpA"
 	then
 	width=`identify -format %w $tmpA`
 	height=`identify -format %h $tmpA`
@@ -364,24 +395,24 @@ if [ "$ay" = "1" -a "$by" = "0" -a "$cy" = "0" -a "$dy" = "0" -a "$ey" = "0" ]
 	# x dimension only
 	convert $infile -virtual-pixel $vp -monitor -fx \
 		"xd=(i-$xc); yd=(j-$yc); $rd $rterm $fdx xs=fdx*xd+$xc; u.p{xs,j}" \
-		$outfile
+		"$outfile"
 elif [ "$ax" = "1" -a "$bx" = "0" -a "$cx" = "0" -a "$dx" = "0" -a "$ex" = "0" ]
 	then
 	# y dimension only
 	convert $infile -virtual-pixel $vp -monitor -fx \
 		"xd=(i-$xc); yd=(j-$yc); $rd $rterm $fdy ys=fdy*yd+$yc; u.p{i,ys}" \
-		$outfile
+		"$outfile"
 elif [ "$ay" = "$ax" -a "$by" = "$bx" -a "$cy" = "$cx" -a "$dy" = "$dx" -a "$ey" = "$ex" ]
 	then
 	# x = y coefficients
 	convert $infile -virtual-pixel $vp -monitor -fx \
 		"xd=(i-$xc); yd=(j-$yc); $rd $rterm $fdx xs=fdx*xd+$xc; ys=fdx*yd+$yc; u.p{xs,ys}" \
-		$outfile
+		"$outfile"
 else
 	# all other cases
 	convert $infile -virtual-pixel $vp -monitor -fx \
 		"xd=(i-$xc); yd=(j-$yc); $rd $rterm $fdx $fdy xs=fdx*xd+$xc; ys=fdy*yd+$yc; u.p{xs,ys}" \
-		$outfile
+		"$outfile"
 fi
 exit 0
 

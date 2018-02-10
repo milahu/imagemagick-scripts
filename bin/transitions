@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 5/29/2008 .......... revised 6/14/2013
+# Developed by Fred Weinhaus 5/29/2008 .......... revised 5/3/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: transitions [-m mode] [-f frames] [-d delay] [-p pause] [-r] [-e] infile1 infile2 maskfile [outfile]
 # USAGE: transitions [-h or -help]
@@ -86,13 +110,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -190,10 +214,10 @@ else
 	done
 	#
 	# get infile and outfile
-	infile1=$1
-	infile2=$2
-	maskfile=$3
-	outfile=$4
+	infile1="$1"
+	infile2="$2"
+	maskfile="$3"
+	outfile="$4"
 fi
 
 # test that infile1 provided
@@ -214,8 +238,9 @@ tmpD="$dir/transitions_2_$$.cache"
 tmpE="$dir/transitions_3_$$.mpc"
 tmpF="$dir/transitions_3_$$.cache"
 tmp0="$dir/transitions_0_$$.gif"
-trap "rm -f $tmpA $tmpB $tmpC $tmpD $tmpE $tmpF $tmp0; exit 0" 0
+trap "rm -f $tmpA $tmpB $tmpC $tmpD $tmpE $tmpF $tmp0;" 0
 trap "rm -f $tmpA $tmpB $tmpC $tmpD $tmpE $tmpF $tmp0; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmpC $tmpD $tmpE $tmpF $tmp0; exit 1" ERR
 
 # get im_version
 im_version=`convert -list configure | \
@@ -243,14 +268,14 @@ fi
 
 
 
-if convert -quiet -regard-warnings "$infile1" +repage "$tmpA"
+if convert -quiet "$infile1" +repage "$tmpA"
 	then
 	: ' Do Nothing '
 else
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 fi
 
-if convert -quiet -regard-warnings "$infile2" +repage "$tmpC"
+if convert -quiet "$infile2" +repage "$tmpC"
 	then
 	: ' Do Nothing '
 else
@@ -260,7 +285,7 @@ fi
 if [ "$mask" = "exponential" ]
 	then
 	# exponentiate mask so that transition does not show much of second image too early
-	if convert -quiet -regard-warnings "$maskfile" -fx "(10^(u)-1)/9" +repage "$tmpE"
+	if convert -quiet "$maskfile" -fx "(10^(u)-1)/9" +repage "$tmpE"
 		then
 		: ' Do Nothing '
 	else
@@ -268,7 +293,7 @@ if [ "$mask" = "exponential" ]
 	fi
 elif [ "$mask" = "linear" ]
 	then
-	if convert -quiet -regard-warnings "$maskfile" +repage "$tmpE"
+	if convert -quiet "$maskfile" +repage "$tmpE"
 		then
 		: ' Do Nothing '
 	else
@@ -345,7 +370,7 @@ fi
 
 if [ "$outfile" != "" ]
 	then
-	convert $tmp0 -loop 0 $outfile
+	convert $tmp0 -loop 0 "$outfile"
 else
 	animate $tmp0
 fi

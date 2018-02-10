@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/28/2012 .......... revised 1/22/2013
+# Developed by Fred Weinhaus 8/28/2012 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: softfocus [-m mix] [-b bluramt1] [-B bluramt2] [-o opacity1] [-O opacity2] [-c coords] [-r radius] infile outfile
 # USAGE: softfocus [-h or -help]
@@ -93,13 +117,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -226,8 +250,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -238,30 +262,19 @@ fi
 
 
 # set directory for temporary files
-tmpdir="/$dir"
+tmpdir="$dir"
 
 dir="$tmpdir/SOFTFOCUS.$$"
 
 mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
-trap "rm -rf $dir; exit 0" 0
+trap "rm -rf $dir;" 0
 trap "rm -rf $dir; exit 1" 1 2 3 15
+trap "rm -rf $dir; exit 1" ERR
 
 # read input image into temporary memory mapped (mpc) format image
-convert -quiet -regard-warnings "$infile" +repage $dir/tmpI.mpc ||
+convert -quiet "$infile" +repage $dir/tmpI.mpc ||
 	echo  "--- FILE $thefile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
-
-if [ "$opacity" != "100" ]; then
-	setopacity1="-alpha set -channel A -evaluate set ${opacity1}% +channel"
-else
-	setopacity1=""
-fi
-
-if [ "$opacity2" != "100" ]; then
-	setopacity2="-alpha set -channel A -evaluate set ${opacity2}% +channel"
-else
-	setopacity2=""
-fi
 
 # get image dimensions
 ww=`identify -ping -format "%w" $dir/tmpI.mpc`
@@ -314,7 +327,7 @@ fi
 if [ "$mix" != "100" ]; then
 # process softlight method
 convert $dir/tmpI.mpc \
-\( -clone 0 -blur 0x$bluramt $setopacity1 \) \
+\( -clone 0 -blur 0x$bluramt1 $setopacity1 \) \
 -compose softlight -composite $dir/tmpSL.mpc
 fi
 
@@ -338,12 +351,12 @@ if [ "$mix" != "0" ]; then
 fi
 
 if [ "$mix" = "0" ]; then
-	convert $dir/tmpSL.mpc $outfile
+	convert $dir/tmpSL.mpc "$outfile"
 elif [ "$mix" = "100" ]; then
-	convert $dir/tmpO.mpc $outfile
+	convert $dir/tmpO.mpc "$outfile"
 elif [ "$mix" != "100" -a "$mix" != "0" ]; then
 # mix softlight and over methods
 convert $dir/tmpSL.mpc $dir/tmpO.mpc -define compose:args=$mix% \
-	-compose blend -composite $outfile
+	-compose blend -composite "$outfile"
 fi
 exit 0

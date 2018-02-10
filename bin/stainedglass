@@ -1,8 +1,33 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 6/12/2010 .......... 6/14/2013
+# Developed by Fred Weinhaus 6/12/2010 .......... 11/12/2017
 #
-# USAGE: stainedglass [-k kind] [-s size] [-o offset] [-n ncolors] [-b bright] [-e ecolor] [-t thick] [-r rseed] infile outfile
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: stainedglass [-k kind] [-s size] [-o offset] [-n ncolors] [-b bright] 
+# [-e ecolor] [-t thick] [-r rseed] [-a] infile outfile
 # USAGE: stainedglass [-h or -help]
 #
 # OPTIONS:
@@ -24,6 +49,8 @@
 #                      then image will reproduce; default is no seed, so that 
 #                      each image will be randomly different; only applies 
 #                      to kind=random
+# -a                   use average color of cell rather than color at center 
+#                      of cell; default is center color
 #
 ###
 #
@@ -66,15 +93,28 @@
 # are integers>=0. If a seed is provided,  then the resulting image will be 
 # reproducable. The default is no seed. In that case, each resulting image 
 # will be randomly different.
+#
+# -a ... use AVERAGE color of cell rather than color at center of shell; 
+# default is center color. The average value will be accurate only for odd 
+# square shapes with IM 6.5.9.0 or higher. All others cases will use only an 
+# approximate average.
 # 
 # Thanks to Anthony Thyssen for critiqing the original version and for 
 # several useful suggestions for improvement.
 # 
-# NOTE: This script will be slow due to the need to extract color values for 
-# each cell center point across the input image. A progress meter is therefore 
-# provided to the terminal. A speed-up is available via a -process function, 
-# getColors. To obtain getColors, contact me. It requires IM 6.6.2-10 or 
-# higher.
+# NOTE: This script will be slow prior to IM 6.8.3.10 due to the need to 
+# extract color values for each cell center point across the input image. 
+# A progress meter is therefore provided to the terminal. A speed-up is 
+# available via a -process function, getColors. To obtain getColors, 
+# contact me. It requires IM 6.6.2-10 or higher.
+# 
+# IMPORTANT: This script will fail due to an unintended restriction in the 
+# txt: format starting with IM 6.9.9.1 and IM 7.0.6.2. It has been fixed at 
+# IM 6.9.9.23 and IM 7.0.7.11.
+#
+# REQUIREMENTS: Does not produce a proper set of edges/borders around each
+# cell under Q8, due to insufficient graylevel resolution (0 and 255) 
+# to handle more that 255 cells.
 # 
 # CAVEAT: No guarantee that this script will work on all platforms, 
 # nor that trapping of inconsistent parameters is complete and 
@@ -92,6 +132,7 @@ bright=100			# brightness adjust
 ecolor="black"		# edge color
 thick=1				# edge thickness
 rseed=""			# seed for random
+average="no"        # preprocess for cell average
 
 # set directory for temporary files
 dir="."    # suggestions are dir="." or dir="/tmp"
@@ -104,13 +145,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -139,7 +180,7 @@ if [ $# -eq 0 ]
    echo ""
    usage2
    exit 0
-elif [ $# -gt 18 ]
+elif [ $# -gt 19 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -224,6 +265,9 @@ else
 					   rseed=`expr "$1" : '\([0-9]*\)'`
 					   [ "$rseed" = "" ] && errMsg "--- RSEED=$rseed MUST BE A NON-NEGATIVE INTEGER ---"
 					   ;;
+			 	-a)    # get average
+					   average="yes"
+					   ;;
 			 	-)    # STDIN and end of arguments
 					   break
 					   ;;
@@ -238,8 +282,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -258,8 +302,10 @@ tmpA3="$dir/stainedglass_3_$$.mpc"
 tmpB3="$dir/stainedglass_3_$$.cache"
 tmpC="$dir/stainedglass_C_$$.txt"
 tmpG="$dir/stainedglass_G_$$.txt"
-trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpC $tmpG; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpC $tmpG;" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpC $tmpG; exit 1" 1 2 3 15
+# does not seem to produce output with the following????
+#trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpC $tmpG; exit 1" ERR
 
 # set up color reduction
 if [ "$ncolors" != "" ]; then
@@ -281,6 +327,11 @@ else
 	cspace1="RGB"
 	cspace2="RGBA"
 fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	cspace1=""
+	cspace2=""
+fi
 
 # get colorspace
 colorspace=`convert $infile -ping -format "%[colorspace]" info:`
@@ -297,13 +348,26 @@ else
 fi
 
 # read the input image and filter image into the temp files and test validity.
-convert -quiet -regard-warnings "$infile" $reduce $modulation +repage "$tmpA1" ||
+convert -quiet "$infile" $reduce $modulation +repage "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+	
+# preprocess for average color
+if [ "$average" = "yes" -a "$im_version" -ge "06050900" -a "$kind" = "square" ]; then
+	dim=`convert xc: -format "%[fx:round(($size-1)/2)]" info:`
+	convert $tmpA1 -define convolve:scale=! -morphology convolve square:$dim $tmpA1
+elif [ "$average" = "yes" -a "$im_version" -ge "06050900" -a "$kind" != "square" ]; then
+	dim=`convert xc: -format "%[fx:round(($size-1)/2)+0.5]" info:`
+	convert $tmpA1 -define convolve:scale=! -morphology convolve disk:$dim $tmpA1
+elif [ "$average" = "yes" ]; then
+	dim=`convert xc: -format "%[fx:round(($size-1)/2)]" info:`
+	convert $tmpA1 -blur ${dim}x65000 $tmpA1
+fi
 
 # test if -process module getcolors exists
-if [ "$im_version" -ge "06060210" ]; then
+if [ "$im_version" -ge "06050210" ]; then
 	process_test=`convert -list module | grep "getColors"`
 fi
+#echo "process_test=$process_test;"
 	
 ww=`convert $tmpA1 -ping -format "%w" info:`
 hh=`convert $tmpA1 -ping -format "%h" info:`
@@ -350,8 +414,8 @@ if [ "$kind" = "random" ]; then
 		ry=rand(); if (ry<0.5) {signy=-1;} else {signy=1;}
 		offy=int(signy*rand()*offset); 	
 		yy=y+offy; if (yy<0) {yy=0}; if (yy>hh1) {yy=hh1};
-		g=100*k/qrange; 
-		print xx,yy" gray("g"%)"; k++; x=x+size; } 
+		g=(k % 256); 
+		print xx,yy" gray("g")"; k++; x=x+size; } 
 		y=y+size; } }' >> $tmpG
 
 elif [ "$kind" = "hexagon" ]; then
@@ -364,7 +428,7 @@ elif [ "$kind" = "hexagon" ]; then
 	awk -v size="$size" -v ww1="$ww1" -v hh1="$hh1" -v ww2="$ww2" -v hh2="$hh2" -v qrange="$qrange" '
 		BEGIN { j=0; k=0; y=0; while ( y < hh2 ) 
 		{ if (j%2==0) {x=int((size+0.5)/2);} else {x=0;} while (x < ww2 ) 
-		{ if (x>ww1) {x=ww1;} if (y>hh1) {y=hh1;} g=100*k/qrange; print x,y" gray("g"%)"; k++; x=x+size; } 
+		{ if (x>ww1) {x=ww1;} if (y>hh1) {y=hh1;} g=(k % 256); print x,y" gray("g")"; k++; x=x+size; } 
 		j++; y=y+size; } }' >> $tmpG
 
 elif [ "$kind" = "square" ]; then
@@ -377,7 +441,7 @@ elif [ "$kind" = "square" ]; then
 	awk -v size="$size" -v ww1="$ww1" -v hh1="$hh1" -v ww2="$ww2" -v hh2="$hh2" -v qrange="$qrange" '
 		BEGIN { k=0; y=0; while ( y < hh2 ) 
 		{ x=0; while (x < ww2 ) 
-		{ if (x>ww1) {x=ww1;} if (y>hh1) {y=hh1;} g=100*k/qrange; print x,y" gray("g"%)"; k++; x=x+size; } 
+		{ if (x>ww1) {x=ww1;} if (y>hh1) {y=hh1;} g=(k % 256); print x,y" gray("g")"; k++; x=x+size; } 
 		y=y+size; } }' >> $tmpG
 
 fi
@@ -388,7 +452,7 @@ if [ "$thick" = "0" ]; then
 			-alpha off -compose copy_opacity -composite \
 			sparse-color:- |\
 			convert -size ${ww}x${hh} xc: -sparse-color voronoi '@-' \
-			$outfile
+			"$outfile"
 	elif [ "$im_version" -lt "06060210" -o "$process_test" != "getColors" ]; then
 		echo ""
 		echo "Progress:"
@@ -398,14 +462,14 @@ if [ "$thick" = "0" ]; then
 			txt:- |\
 			sed '1d; / 0) /d; s/:.* /,/;' |\
 			convert -size ${ww}x${hh} xc: -sparse-color voronoi '@-' \
-			+monitor $outfile
+			+monitor "$outfile"
 		echo ""
 	else
 		convert $tmpA1 \( -background black $tmpC \) \
 			-alpha off -compose copy_opacity -composite $tmpA1
 		convert $tmpA1 -alpha on -process "getColors" null: > $tmpC
 		convert -size ${ww}x${hh} xc: -sparse-color voronoi "@$tmpC" \
-			$outfile
+			"$outfile"
 	fi
 		
 else
@@ -418,7 +482,7 @@ else
 			-auto-level -morphology edge diamond:$thick -threshold 0 -negate $tmpA3
 		convert $tmpA2 $tmpA3 -alpha off -compose copy_opacity -composite \
 			-compose over -background $ecolor -flatten \
-			$outfile
+			"$outfile"
 	elif [ "$im_version" -lt "06060210" -o "$process_test" != "getColors" ]; then
 		echo ""
 		echo "Progress:"
@@ -432,7 +496,7 @@ else
 			-auto-level -morphology edge diamond:$thick -threshold 0 -negate $tmpA3
 		convert $tmpA2 $tmpA3 -alpha off -compose copy_opacity -composite \
 			-compose over -background $ecolor -flatten \
-			$outfile
+			"$outfile"
 		echo ""
 	else
 		convert $tmpA1 \( -background black $tmpC \) \
@@ -443,9 +507,8 @@ else
 			-auto-level -morphology edge diamond:$thick -threshold 0 -negate $tmpA3
 		convert $tmpA2 $tmpA3 -alpha off -compose copy_opacity -composite \
 			-compose over -background $ecolor -flatten \
-			$outfile
+			"$outfile"
 	fi
 fi
-echo ""
 
 exit 0

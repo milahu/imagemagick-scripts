@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 3/31/2012 .......... revised 8/20/2012
+# Developed by Fred Weinhaus 3/31/2012 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: sigmoidal [-b bri] [-c con] [-C channels] [-l lutlength] [-g] infile outfile
 # USAGE: sigmoidal [-h or -help]
@@ -20,7 +44,7 @@
 #                        mapping transformation, which is then displayed 
 #                        automatically. There is a default setting below that 
 #                        can be changed to enable this to be save to a file 
-#                        named outfile_kneegraph.gif rather than just viewed.
+#                        named outfile_sigmoidal_graph.gif rather than just viewed.
 #                         
 ###
 #
@@ -61,12 +85,12 @@
 # -g ... enables the creation of a graph of the knee curve mapping 
 # transformation, which is then displayed automatically. There is a default 
 # setting below that can be changed to enable this to be save to a file named 
-# outfile_kneegraph.gif. The graph will be scaled to size 100x100.
+# outfile_sigmoidal_graph.gif. The graph will be scaled to size 100x100.
 # 
 # REQUIREMENTS: IM 6.3.5-7 is required to support the use of -clut
 # 
 # NOTE: Negative values for con do not work properly between IM 6.7.6.4 and 
-# IM 6.7.8.2 inclusive due to bug in +contrast-stretch
+# IM 6.7.8.2 inclusive due to bug in +sigmoidal-contrast
 # 
 # CAVEAT: No guarantee that this script will work on all platforms, nor that 
 # trapping of inconsistent parameters is complete and foolproof. Use At Your 
@@ -82,7 +106,7 @@ channels=""			# combination of channels: r,g,b,a or c,m,y,k,a
 lutlength=1000		# length of 1D lut
 
 # set flag if graph is permanent (graph=save) or temporary (graph=view)
-graph="save"
+graph="view"
 
 # set directory for temporary files
 dir="."    # suggestions are dir="." or dir="/tmp"
@@ -95,13 +119,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 # function to report error messages, usage and exit
@@ -193,8 +217,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -212,15 +236,16 @@ tmpL2="$dir/sigmoidal_L_$$.cache"
 
 # get outfile name before suffix
 outname=`echo "$outfile" | sed -n 's/^\([^.]*\)[.][^.]*$/\1/ p'`
-gg="_graph"
+gg="_sigmoidal_graph"
 graphfile="$outname$gg.gif"
 
 # delete temporaries
-trap "rm -f $tmpI1 $tmpI2 $tmpL1 $tmpL2; exit 0" 0
+trap "rm -f $tmpI1 $tmpI2 $tmpL1 $tmpL2;" 0
 trap "rm -f $tmpI1 $tmpI2 $tmpL1 $tmpL2; exit 1" 1 2 3 15
+trap "rm -f $tmpI1 $tmpI2 $tmpL1 $tmpL2; exit 1" ERR
 
 # read the input image into the temp files and test validity.
-convert -quiet -regard-warnings "$infile" +repage "$tmpI1" ||
+convert -quiet "$infile" +repage "$tmpI1" ||
 	errMsg "--- FILE $infile1 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 # setup channels
@@ -289,7 +314,7 @@ elif [ $britest -eq -1 -a $contest -eq -1 ]; then
 fi
 
 # process output
-convert $tmpI1 $tmpL1 -clut $outfile
+convert $tmpI1 $tmpL1 -clut "$outfile"
 
 # convert lut into text format and scale to 101x101
 frac=`convert xc: -format "%[fx:101/255]" info:`

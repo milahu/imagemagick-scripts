@@ -1,7 +1,32 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 1/22/2008 .......... revised 1/22/2008
+# Developed by Fred Weinhaus 1/22/2008 .......... revised 4/25/2015
 #
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: splittone1 [-sc shadowcolor] [-sa shadowamt] [-hc highlightcolor] 
 # USAGE: squareup [-s size] [-m mode] [-c color] [-g gravity] [-f filter] infile outfile
 # USAGE: squareup [-h or -help]
 #
@@ -77,13 +102,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -180,8 +205,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 
@@ -195,11 +220,12 @@ fi
 # use mpc/cache to hold input image temporarily in memory
 tmpA="$dir/squareup_$$.mpc"
 tmpB="$dir/squareup_$$.cache"
-trap "rm -f $tmpA $tmpB; exit 0" 0
+trap "rm -f $tmpA $tmpB;" 0
 trap "rm -f $tmpA $tmpB; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB; exit 1" ERR
 
 # test if infile exists and compute dimensions
-if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
+if convert -quiet "$infile" +repage "$tmpA"
 	then
 	width=`identify -format "%w" $tmpA`
 	height=`identify -format "%h" $tmpA`
@@ -263,11 +289,11 @@ fi
 # process image
 if [ "$mode" = "pad" ]
 	then
-	convert \( -size ${dim}x${dim} xc:$bgcolor \) \( $resize $tmpA \) \
-		-gravity $gravity -composite +repage $outfile
+	convert \( -size ${dim}x${dim} xc:$bgcolor \) \( $tmpA $resize \) \
+		-gravity $gravity -composite +repage "$outfile"
 elif [ "$mode" = "crop" ]
 	then
 	convert $tmpA $resize -gravity $gravity \
-		-crop ${dim}x${dim}+0+0 +repage $outfile
+		-crop ${dim}x${dim}+0+0 +repage "$outfile"
 fi
 exit 0

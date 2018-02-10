@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 4/8/2011 .......... revised 11/28/2011
+# Developed by Fred Weinhaus 4/8/2011 .......... revised 5/3/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: tiler [-m method] [-o overlap] [-v vpmethod] infile outfile
 # USAGE: tiler [-h or -help]
@@ -69,13 +93,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -168,8 +192,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -186,12 +210,13 @@ tmpM1="$dir/tiler_M_$$.mpc"
 tmpM2="$dir/tiler_M_$$.cache"
 tmpN1="$dir/tiler_N_$$.mpc"
 tmpN2="$dir/tiler_N_$$.cache"
-trap "rm -f $tmpA1 $tmpA2 $tmpM1 $tmpM2 $tmpN1 $tmpN2; exit 0" 0
+trap "rm -f $tmpA1 $tmpA2 $tmpM1 $tmpM2 $tmpN1 $tmpN2;" 0
 trap "rm -f $tmpA1 $tmpA2 $tmpM1 $tmpM2 $tmpN1 $tmpN2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2 $tmpM1 $tmpM2 $tmpN1 $tmpN2; exit 1" ERR
 
 
 # read the input image into the tmp cached image.
-convert -quiet -regard-warnings "$infile" +repage "$tmpA1" ||
+convert -quiet "$infile" +repage "$tmpA1" ||
 	errMsg "--- FILE $infile NOT READABLE OR HAS ZERO SIZE ---"
 
 
@@ -243,7 +268,8 @@ if [ $method -eq 1 ]; then
 			-clone 3 -gravity southwest -compose blend -define compose:args=50,50 -composite \
 			-clone 4 -gravity southeast -compose blend -define compose:args=50,50 -composite \) \
 		-delete 0-4 \
-		$outfile
+		"$outfile"
+
 elif [ $method -eq 2 ]; then
 	# Create horizontal mask; black on left, gradient, white on right
 	convert \( -size ${ww}x${hho} xc:black xc:white +append \) \
@@ -270,7 +296,7 @@ elif [ $method -eq 2 ]; then
 		\( -clone 5 -gravity north -extent ${wd}x${ht} -clone 6 $tmpN1 \
 			-gravity south -composite \) \
 		-delete 0-6 \
-		$outfile
+		"$outfile"
 fi
 
 exit 0

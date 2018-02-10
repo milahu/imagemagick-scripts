@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/17/2009 .......... revised 7/25/2012
+# Developed by Fred Weinhaus 8/17/2009 .......... revised 7/28/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: spectrum [-m] [-s scale] [-g] infile outfile
 # USAGE: spectrum [-h or -help]
@@ -37,10 +61,10 @@
 # the input image is already the magnitude of the Fourier Transform.
 # 
 # -s scale ... SCALE is the scaling constant used with the log. Values are 
-# integers greater than zero. Typical values range from 100 to 10,000. 
-# Larger values will bring out more low amplitude detail. But too large a 
-# value will bring out excessive noise. The default is to compute a scaling 
-# value automatically.
+# integers greater than zero. Values are convert to 10^scale for use with 
+# log. Typical values range from 2 to 5. Larger values will bring out more 
+# low amplitude detail. But too large a value will bring out excessive noise. 
+# The default is to compute a scaling value automatically.
 # 
 # -g ... Convert magnitude input to grayscale to produce a grayscale spectrum.
 # 
@@ -80,13 +104,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -158,8 +182,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -170,8 +194,9 @@ fi
 
 tmpA="$dir/spectrum_$$.mpc"
 tmpB="$dir/spectrum_$$.cache"
-trap "rm -f $tmpA $tmpB; exit 0" 0
+trap "rm -f $tmpA $tmpB;" 0
 trap "rm -f $tmpA $tmpB; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB; exit 1" ERR
 
 # read the input image into the temp file and test validity.
 if [ "$makemag" = "yes" ]; then
@@ -199,6 +224,10 @@ if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
 else
 	setcspace=""
 fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
 
 # set up conversion to grayscale
 if [ "$makegray" = "yes" ]; then
@@ -208,7 +237,7 @@ else
 fi
 
 
-convert -quiet -regard-warnings "$infile" $makegray $makemag +repage "$tmpA" ||
+convert -quiet "$infile" $makegray $makemag +repage "$tmpA" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 
@@ -233,12 +262,12 @@ if [ "$scale" != "" ]; then
 	scale=`convert xc: -format "%[fx:int(10^$scale) - 1]" info:`
 	levelParms $tmpA
 	convert $tmpA -level ${min},${max} \
-		-evaluate log $scale -fill "rgb(1,1,1)" -opaque black $outfile
+		-evaluate log $scale -fill "rgb(1,1,1)" -opaque black "$outfile"
 else
 	levelParms $tmpA
 	convert $tmpA -level ${min},${max} $tmpA
 	scale=`convert $tmpA -format "%[fx:floor(exp(log(mean)/log(0.5)))]" info:`
-	convert $tmpA -evaluate log $scale -fill "rgb(1,1,1)" -opaque black $outfile
+	convert $tmpA -evaluate log $scale -fill "rgb(1,1,1)" -opaque black "$outfile"
 echo ""
 echo "scale=$scale"
 echo ""

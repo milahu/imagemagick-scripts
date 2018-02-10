@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/18/2007 .......... revised 11/28/2011
+# Developed by Fred Weinhaus 8/18/2007 .......... revised 2/23/2017
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # define usage function
 function usage
@@ -146,23 +170,24 @@ elif [ $# -eq 3 ]
 		then
 		[ $peftestA -eq 1 -o $peftestB -eq 1 ] && errMsg "PEF=$pef MUST BE GREATER THAN 0 AND LESS THAN 2"
 	fi
-	infile=$2
-	outfile=$3
+	infile="$2"
+	outfile="$3"
 fi
 #
 # setup temporary images and auto delete upon exit
 # use mpc/cache to hold input image temporarily in memory
 tmpA="$dir/rotate3D_$$.mpc"
 tmpB="$dir/rotate3D_$$.cache"
-trap "rm -f $tmpA $tmpB; exit 0" 0
+trap "rm -f $tmpA $tmpB;" 0
 trap "rm -f $tmpA $tmpB; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB; exit 1" ERR
 #
 # test that infile provided
 [ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
 # test that outfile provided
 [ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
 #
-if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
+if convert -quiet "$infile" +repage "$tmpA"
 	then
 	[ "$pef" = "" ] && pef=1
 else
@@ -330,12 +355,23 @@ dl4=`echo "scale=0; $offsetl + (($l4 - $lmin) * $nl / $del)" | bc`
 # now do the perspective distort
 im_version=`convert -list configure | \
 	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+
+# set up $matting
+if [ "$im_version" -ge "07000000" -a "$im_version" -le "07000409" ]
+	then
+	matting="-alpha-color"
+else
+	matting="-mattecolor"
+fi
+
+
 if [ "$im_version" -lt "06030600" ]
 	then
 	convert $tmpA -virtual-pixel background -background black -distort Perspective \
-	"$ss1,$sl1 $ss2,$sl2 $ss3,$sl3 $ss4,$sl4  $ds1,$dl1 $ds2,$dl2 $ds3,$dl3 $ds4,$dl4" $outfile
+	"$ss1,$sl1 $ss2,$sl2 $ss3,$sl3 $ss4,$sl4  $ds1,$dl1 $ds2,$dl2 $ds3,$dl3 $ds4,$dl4" "$outfile"
 else
-	convert $tmpA -virtual-pixel background -background black -mattecolor black -distort Perspective \
-	"$ss1,$sl1 $ds1,$dl1   $ss2,$sl2 $ds2,$dl2   $ss3,$sl3 $ds3,$dl3   $ss4,$sl4 $ds4,$dl4" $outfile
+	convert $tmpA -virtual-pixel background -background black $matting black -distort Perspective \
+	"$ss1,$sl1 $ds1,$dl1   $ss2,$sl2 $ds2,$dl2   $ss3,$sl3 $ds3,$dl3   $ss4,$sl4 $ds4,$dl4" "$outfile"
 fi
 exit 0

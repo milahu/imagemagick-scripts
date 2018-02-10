@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 12/8/2011 .......... revised 1/27/2017
+# Developed by Fred Weinhaus 12/8/2011 .......... revised 6/17/2017
 #
 # ------------------------------------------------------------------------------
 # 
@@ -400,7 +400,7 @@ fi
 
 if [ "$im_version" -lt "06080610" ]; then
 	flag=""
-	for ((number=2; number<num; number++)); do
+	for ((number=2; number<=num; number++)); do
 		[ "$graphic" = "yes" ] && convert $dir/tmpI.mpc show:
 		val=`convert $dir/tmpI.mpc -format "%[$maximum]" info:`
 		valfrac=`convert xc: -format "%[fx:$val/$qrange]" info:`
@@ -437,7 +437,7 @@ if [ "$im_version" -lt "06080610" ]; then
 	done
 else
 	flag=""
-	for ((number=2; number<num; number++)); do
+	for ((number=2; number<=num; number++)); do
 		[ "$graphic" = "yes" ] && convert $dir/tmpI.mpc show:
 		data=`identify -precision 5 -define identify:locate=maximum -define identify:limit=1 $dir/tmpI.mpc |
 			tail -n +2 | tr -cs "[0-9,.]*" " " | sed 's/^ *//g'`

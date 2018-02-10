@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 1/22/2010 .......... revised 8/10/2013
+# Developed by Fred Weinhaus 1/22/2010 .......... revised 7/15/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: notch [-r rad] [-t thresh] [-c centrad] [-h horizontal] [-v vertical] [-o outer] [-L left] [-R right] [-U upper] [-B bottom] [-m median] [-d dilate] [-s smooth] [-S] [-K] infile outfile
 # USAGE: notch [-H or -help]
@@ -252,13 +276,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -429,8 +453,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -452,11 +476,12 @@ tmp2B="$dir/notch_2_$$.cache"
 tmp3A="$dir/notch_3_$$.mpc"
 tmp3B="$dir/notch_3_$$.cache"
 
-trap "rm -rf $tmp1A $tmp1B $tmp2A $tmp2B $tmp3A $tmp3B; exit 0" 0
+trap "rm -rf $tmp1A $tmp1B $tmp2A $tmp2B $tmp3A $tmp3B;" 0
 trap "rm -ff $tmp1A $tmp1B $tmp2A $tmp2B $tmp3A $tmp3B; exit 1" 1 2 3 15
+trap "rm -ff $tmp1A $tmp1B $tmp2A $tmp2B $tmp3A $tmp3B; exit 1" ERR
 
 # read the input image into the TMP cached image.
-convert -quiet -regard-warnings "$infile" +repage "$tmp1A" ||
+convert -quiet "$infile" +repage "$tmp1A" ||
   errMsg "--- FILE $infile NOT READABLE OR HAS ZERO SIZE ---"
 
 # get IM version
@@ -596,6 +621,10 @@ if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
 else
 	setcspace=""
 fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace=""
+fi
 
 # convert to non-linear grayscale
 convert $tmp2A[0] $setcspace -colorspace gray $tmp3A
@@ -607,6 +636,7 @@ else
 fi
 scale=`convert $tmp3A -format "%[fx:floor(exp(log(mean)/log(0.5)))]" info:`
 convert $tmp3A -evaluate log $scale $tmp3A
+echo "scale=$scale;"
 
 
 # compute mean and subtract from image
@@ -693,7 +723,7 @@ fi
 
 # apply mask to FFT and do IFT
 convert \( $tmp2A[0] $tmp3A -compose multiply -composite \) $tmp2A[1] \
-	-ift -crop ${ww}x${hh}+0+0 +repage $outfile
+	-ift -crop ${ww}x${hh}+0+0 +repage "$outfile"
 
 exit 0
 

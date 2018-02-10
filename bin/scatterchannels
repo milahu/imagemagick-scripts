@@ -1,6 +1,31 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 12/14/2008 .......... revised 6/14/2013
+# Developed by Fred Weinhaus 12/14/2008 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
 #
 # USAGE: scatterchannels [-c channels] [-f format] [-s scale] [-l] [-t] [-m] infile
 # USAGE: scatterchannels [-h or -help]
@@ -93,13 +118,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 # function to report error messages
@@ -196,7 +221,7 @@ else
 	done
 	#
 	# get infiles and outfile
-	infile=$1
+	infile="$1"
 fi
 
 # test that infile provided
@@ -216,8 +241,9 @@ tmpA2="$dir/scatterchannels_A_$$.cache"
 tmpRed="$dir/scatterchannels_Red_$$.png"
 tmpGreen="$dir/scatterchannels_Green_$$.png"
 tmpBlue="$dir/scatterchannels_Blue_$$.png"
-trap "rm -f $tmpA1 $tmpA2 $tmpRed $tmpGreen $tmpBlue; exit 0" 0
+trap "rm -f $tmpA1 $tmpA2 $tmpRed $tmpGreen $tmpBlue;" 0
 trap "rm -f $tmpA1 $tmpA2 $tmpRed $tmpGreen $tmpBlue; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2 $tmpRed $tmpGreen $tmpBlue; exit 1" ERR
 
 # get im_version
 im_version=`convert -list configure | \
@@ -251,7 +277,7 @@ fi
 
 
 # test if infile exists
-if convert -quiet -regard-warnings "$infile" -scale "${scale}x${scale}>" +repage "$tmpA1"
+if convert -quiet "$infile" -scale "${scale}x${scale}>" +repage "$tmpA1"
 	then
 	: 'do nothing'
 else
@@ -337,16 +363,16 @@ fi
 
 # convert output
 if [ "$channels" = "rg" ]; then
-	convert $tmpRed $trans $flip $outfile_rg
+	convert $tmpRed $trans $flip "$outfile_rg"
 elif [ "$channels" = "gb" ]; then
-	convert $tmpGreen $trans $flip $outfile_gb
+	convert $tmpGreen $trans $flip "$outfile_gb"
 elif [ "$channels" = "br" ]; then
-	convert $tmpBlue $trans $flip $outfile_br
+	convert $tmpBlue $trans $flip "$outfile_br"
 elif [ "$channels" = "all" -a $format -eq 1 ]; then
-	convert $tmpRed $tmpGreen $tmpBlue -combine -colorspace $cspace $trans $flip $outfile
+	convert $tmpRed $tmpGreen $tmpBlue -combine -colorspace $cspace $trans $flip "$outfile"
 elif [ "$channels" = "all" -a $format -eq 3 ]; then
-	convert $tmpRed $trans $flip $outfile_rg
-	convert $tmpGreen $trans $flip $outfile_gb
-	convert $tmpBlue $trans $flip $outfile_br
+	convert $tmpRed $trans $flip "$outfile_rg"
+	convert $tmpGreen $trans $flip "$outfile_gb"
+	convert $tmpBlue $trans $flip "$outfile_br"
 fi
 exit 0

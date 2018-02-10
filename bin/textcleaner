@@ -1,8 +1,34 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 6/9/2009 .......... revised 7/27/2013
+# Developed by Fred Weinhaus 6/9/2009 .......... revised 12/18/2017
 #
-# USAGE: textcleaner [-r rotate] [-l layout] [-c cropoff] [-g] [-e enhance ] [-f filtersize] [-o offset] [-u]  [-t threshold] [-s sharpamt] [-s saturation] [-a adaptblur] [-T] [-p padamt] [-b bgcolor] infile outfile
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: textcleaner [-r rotate] [-l layout] [-c cropoff] [-g] [-e enhance ] 
+# [-f filtersize] [-o offset] [-u]  [-t threshold] [-s sharpamt] [-s saturation] 
+# [-a adaptblur] [-T] [-p padamt] [-b bgcolor] [-F fuzzval] [-i invert] infile outfile
 # USAGE: textcleaner [-help]
 #
 # OPTIONS:
@@ -33,13 +59,18 @@
 # -s      sharpamt          sharpening amount in pixels; float>=0; 
 #                           nominal about 1; default=0
 # -S      saturation        color saturation expressed as percent; integer>=0; 
-#                           only applicable if -g not set; default=100 (no change)
+#                           only applicable if -g not set; a value of 100 is 
+#                           no change; default=200 (double saturation)
 # -a      adaptblur         alternate text smoothing using adaptive blur; 
 #                           floats>=0; default=0 (no smoothing)
 # -T         				trim background around outer part of image 
 # -p      padamt			border pad amount around outer part of image;
 #                           integer>=0; default=0
-# -b      bgcolor           desired color for background; default=white
+# -b      bgcolor           desired color for background or "image"; default=white
+# -F      fuzzval           fuzz value for determining bgcolor when bgcolor=image; 
+#                           integer>=0; default=10
+# -i      invert            invert colors; choices are: 1 or 2 for one-way or two-ways
+#                           (input or input and output); default is no inversion
 #
 ###
 #
@@ -53,7 +84,7 @@
 # 2) optional crop, 
 # 3) optional convert to grayscale, 
 # 4) optional enhance, 
-# 5) filter to clean background and remove noise, 
+# 5) filter to clean background and optionally smooth/antialias, 
 # 6) optional unrotate (limited to about 5 degrees or less), 
 # 7) optional text smoothing,
 # 8) optional sharpening, 
@@ -110,7 +141,7 @@
 # indicates double saturation. Not applicable when -g option specified.
 # 
 # -a adaptblur ... ADAPTBLUR applies an alternate text smoothing using 
-# and adaptive blur. The values are floats>=0. The default=0 indicates no 
+# an adaptive blur. The values are floats>=0. The default=0 indicates no 
 # blurring.
 # 
 # -T ... TRIM the border around the image.
@@ -118,8 +149,17 @@
 # -p padamt ... PADAMT is the border pad amount in pixels. The default=0.
 # 
 # -b bgcolor ... BGCOLOR is the desired background color after it has been 
-# cleaned up. Any valid IM color may be use. The default is white.
+# cleaned up. Any valid IM color may be use. If bgcolor=image, then the color will 
+# be computed from the top left corner pixel and a fuzzval. The final color will be 
+# computed subsequently as an average over the whole image. The default is white.
 #
+# -F fuzzval ... FUZZVAL is the fuzz value for determining bgcolor when bgcolor=image. 
+# Values are integers>=0. The default=10.
+#
+# -i invert ... INVERT colors for example to convert white text on black background to 
+# black text on white background. The choices are: 1 or 2 for one-way or two-ways
+# (input or input and output). The default is no inversion.
+# 
 # CAVEAT: No guarantee that this script will work on all platforms, 
 # nor that trapping of inconsistent parameters is complete and 
 # foolproof. Use At Your Own Risk. 
@@ -144,7 +184,8 @@ unrotate="no"		# unrotate flag
 trim="no"			# trim flag
 padamt=0			# pad amount
 bgcolor="white"		# color for output whiteboard background
-bluramt=0.2			# blur sigma for use with smoothing threshold
+fuzzval=10			# fuzz value for determining bgcolor from image
+invert=""			# invert colors: 1 or 2
 
 # set directory for temporary files
 dir="."    # suggestions are dir="." or dir="/tmp"
@@ -157,13 +198,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -192,7 +233,7 @@ if [ $# -eq 0 ]
    echo ""
    usage2
    exit 0
-elif [ $# -gt 27 ]
+elif [ $# -gt 31 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -318,7 +359,7 @@ else
 			   	-u)    # set unrotate
 					   unrotate="yes"
 					   ;;
-			   	-T)    # set unrotate
+			   	-T)    # set trim
 					   trim="yes"
 					   ;;
 				-p)    # get padamt
@@ -336,6 +377,25 @@ else
 					   checkMinus "$1"
 					   bgcolor="$1"
 					   ;;
+				-F)    # get fuzzval
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FUZZVAL SPECIFICATION ---"
+					   checkMinus "$1"
+					   fuzzval=`expr "$1" : '\([0-9]*\)'`
+					   [ "$fuzzval" = "" ] && errMsg "--- FUZZVAL=$fuzzval MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-i)    # get invert
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID INVERT SPECIFICATION ---"
+					   checkMinus "$1"
+					   invert=`expr "$1" : '\([0-9]*\)'`
+					   [ "$invert" = "" ] && errMsg "--- INVERT=$invert MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$invert < 1" | bc`
+					   testB=`echo "$invert > 2" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- INVERT=$invert MUST BE AN INTEGER VALUE OF 1 OR 2 ---"
+					   ;;
 				 -)    # STDIN and end of arguments
 					   break
 					   ;;
@@ -350,8 +410,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -360,14 +420,25 @@ fi
 # test that outfile provided
 [ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
 
+# get im version
+im_version=`convert -list configure | \
+sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
 tmpA1="$dir/textcleaner_1_$$.mpc"
 tmpA2="$dir/textcleaner_1_$$.cache"
-trap "rm -f $tmpA1 $tmpA2; exit 0" 0
+trap "rm -f $tmpA1 $tmpA2 exit 0;" 0
 trap "rm -f $tmpA1 $tmpA2; exit 1" 1 2 3 15
+#trap "rm -f $tmpA1 $tmpA2; exit 1" ERR
 
-# get im_version
-im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+# test for hdri enabled
+# NOTE: must put grep before trap using ERR in case it does not find a match
+if [ "$im_version" -ge "07000000" ]; then
+	hdri_on=`convert -version | grep "HDRI"`	
+else
+	hdri_on=`convert -list configure | grep "enable-hdri"`
+fi
+
 
 # colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
 # though probably not resolved until the latter
@@ -389,9 +460,14 @@ if [ "$im_version" -gt "06080504" ]; then
 	setcspace=""
 fi
 
+if [ "$invert" != "" ]; then
+	inversion1="-negate"
+else
+	inversion1=""
+fi	
 
 # read the input image into the TMP cached image.
-convert -quiet -regard-warnings "$infile" +repage "$tmpA1" ||
+convert -quiet "$infile" +repage $inversion1 "$tmpA1" ||
 	errMsg "--- FILE $infile NOT READABLE OR HAS ZERO SIZE ---"
 
 # get image size
@@ -458,10 +534,21 @@ fi
 if [ "$threshold" = "" ]; then
 	blurring=""
 else
-	bluramt=`convert xc: -format "%[fx:$threshold/100]" info:`
-	blurring="-blur ${bluramt}x65535 -level ${threshold}x100%"
+	# note: any 0<bluramt<=1, will be the same as using bluramt=1, since radius must be used as an integer
+#	bluramt=`convert xc: -format "%[fx:$threshold/100]" info:`
+#	blurring="-blur ${bluramt}x65535 -level ${threshold}x100%"
+	blurring="-blur 1x65535 -level ${threshold}x100%"
 fi
 #echo "blurring=$blurring"
+
+# get background color
+bgcolor=`echo "$bgcolor" | tr "[:upper:]" "[:lower:]"`
+if [ "$bgcolor" = "image" ]; then
+	bgcolor=`convert $tmpA1 -format "%[pixel:u.p{0,0}]" info:`
+	fuzzval=$((100-fuzzval))
+	bgcolor=`convert $tmpA1 -fuzz $fuzzval% +transparent "$bgcolor" -scale 1x1! -alpha off -format "%[pixel:u.p{0,0}]" info:`
+fi
+#echo "$bgcolor"
 
 # set up unrotate
 if [ "$unrotate" = "yes" ]; then
@@ -484,7 +571,7 @@ fi
 if [ $saturation -eq 100 ]; then
 	modulation=""
 else
-	modulation="-modulate 100,$saturation"
+	modulation="-modulate 100,$saturation,100"
 fi
 #echo "modulation=$modulation"
 
@@ -496,8 +583,13 @@ else
 fi
 
 # set up trim
-if [ "$trim" = "yes" ]; then
-	trimming="-trim +repage"
+if [ "$trim" = "yes" -a "$hdri_on" != "" ]; then
+	# hdri is enabled
+	# need to round near white to pure white for trim to work
+	trimming="-white-threshold 99.9% -trim +repage "
+elif [ "$trim" = "yes" -a "$hdri_on" = "" ]; then
+	# hdri is not enabled
+	trimming="-trim +repage "
 else
 	trimming=""
 fi
@@ -512,11 +604,16 @@ else
 fi
 #echo "padding=$padding"
 
+if [ "$invert" = 2 ]; then
+	inversion2="-negate"
+else
+	inversion2=""
+fi	
 
 # process image
 convert -respect-parenthesis \( $tmpA1 $rotation $cropping $makegray $enhancing \) \
 	\( -clone 0  $setcspace -colorspace gray -negate -lat ${filtersize}x${filtersize}+${offset}% -contrast-stretch 0 $blurring \) \
-	-compose copy_opacity -composite -fill "$bgcolor" -opaque none +matte \
-	$unrotating $sharpening $modulation $adaptiveblurring $trimming $padding \
-	$outfile
+	-compose copy_opacity -composite -fill "$bgcolor" -opaque none -alpha off \
+	$unrotating $sharpening $modulation $adaptiveblurring $trimming $padding $inversion2 \
+	"$outfile"
 exit 0

@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus revised 6/9/2012 .......... revised 12/29/2012
+# Developed by Fred Weinhaus revised 6/9/2012 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: splitcrop [-x xcoord] [-y ycoord] [-L] infile [outfile]
 # USAGE: splitcrop [-h or -help]
@@ -66,13 +90,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -102,7 +126,7 @@ if [ $# -eq 0 ]
    echo ""
    usage2
    exit 0
-elif [ $# -gt 5 ]
+elif [ $# -gt 6 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -148,8 +172,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -170,12 +194,13 @@ fi
 # setup temporary images
 tmpA1="$dir/split_A_$$.mpc"
 tmpA2="$dir/split_A_$$.cache"
-trap "rm -f $tmpA1 $tmpA2; exit 0" 0
+trap "rm -f $tmpA1 $tmpA2;" 0
 trap "rm -f $tmpA1 $tmpA2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2; exit 1" ERR
 
 
 # read the input image into the temporary cached image and test if valid
-convert -quiet -regard-warnings "$infile" +repage "$tmpA1" ||
+convert -quiet "$infile" +repage "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
 
 
@@ -214,10 +239,10 @@ if [ "$x" != "" -a "$y" != "" ]; then
 		echo "blsize=$blsize"
 		echo "brsize=$brsize"
 	fi
-	convert $tmpA1 -crop $tlsize +repage ${outname}_topleft.$suffix
-	convert $tmpA1 -crop $trsize +repage ${outname}_topright.$suffix
-	convert $tmpA1 -crop $blsize +repage ${outname}_bottomleft.$suffix
-	convert $tmpA1 -crop $brsize +repage ${outname}_bottomright.$suffix
+	convert $tmpA1 -crop $tlsize +repage "${outname}_topleft.$suffix"
+	convert $tmpA1 -crop $trsize +repage "${outname}_topright.$suffix"
+	convert $tmpA1 -crop $blsize +repage "${outname}_bottomleft.$suffix"
+	convert $tmpA1 -crop $brsize +repage "${outname}_bottomright.$suffix"
 elif [ "$x" != "" ]; then
 	#split into two parts horizontally
 	lsize=`convert xc: -format "%[fx:$x+1]x${hh}+0+0" info:`
@@ -226,8 +251,8 @@ elif [ "$x" != "" ]; then
 		echo "lsize=$lsize"
 		echo "rsize=$rsize"
 	fi
-	convert $tmpA1 -crop $lsize +repage ${outname}_left.$suffix
-	convert $tmpA1 -crop $rsize +repage ${outname}_right.$suffix
+	convert $tmpA1 -crop $lsize +repage "${outname}_left.$suffix"
+	convert $tmpA1 -crop $rsize +repage "${outname}_right.$suffix"
 elif [ "$y" != "" ]; then
 	#split into two parts vertically
 	tsize=`convert xc: -format "${ww}x%[fx:$y+1]+0+0" info:`
@@ -236,8 +261,8 @@ elif [ "$y" != "" ]; then
 		echo "tsize=$tsize"
 		echo "bsize=$bsize"
 	fi
-	convert $tmpA1 -crop $tsize +repage ${outname}_top.$suffix
-	convert $tmpA1 -crop $bsize +repage ${outname}_bottom.$suffix
+	convert $tmpA1 -crop $tsize +repage "${outname}_top.$suffix"
+	convert $tmpA1 -crop $bsize +repage "${outname}_bottom.$suffix"
 fi
 
 exit 0

@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/23/2007 .......... revised 3/9/2011
+# Developed by Fred Weinhaus 8/23/2007 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: spline [-s spline] [-t tension] [-b bias] [-e endmode] [-c curvecolor] [-p pointcolor] [-l linecolor] [-i interiorcolor] [-sw strokewidth] [-d widthxheight] [-bg bgcolor] "x1,y1 x2,y2 ..." [infile] outfile
 # USAGE: spline [-s spline] [-t tension] [-b bias] [-e endmode] [-c curvecolor] [-p pointcolor] [-l linecolor] [-i interiorcolor] [-sw strokewidth] [-d widthxheight] [-bg bgcolor] -f point_file [infile] outfile
@@ -227,13 +251,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 # function to report error messages, usage and exit
@@ -422,11 +446,11 @@ if [ "$opt" = "-f" -o "$opt" = "-j" ]
 	then
 	# get infile and outfile as the last arguments left
 	if [ "$dimension" = "" ]; then
-		infile=$1
-		outfile=$2
+		infile="$1"
+		outfile="$2"
 	else
 		#no infile provided
-		outfile=$1
+		outfile="$1"
 	fi
 	# put the file with line breaks into parm
 	if [ "$opt" = "-f" ]; then
@@ -490,8 +514,9 @@ tmpA="$dir/spline_$$.mpc"
 tmpB="$dir/spline_$$.cache"
 
 # remove temporaries
-trap "rm -f $tmpA $tmpB; exit 0" 0
+trap "rm -f $tmpA $tmpB;" 0
 trap "rm -f $tmpA $tmpB; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB; exit 1" ERR
 
 # test that infile provided
 [ "$dimension" = "" -a "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
@@ -961,5 +986,5 @@ if [ "$pcolor" != "" ]; then
 		echo "circle $x,$y $xx,$y"
 	done
 fi
-) | convert mvg:- $outfile
+) | convert mvg:- "$outfile"
 exit 0

@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 10/05/2007 .......... revised 5/8/2012
+# Developed by Fred Weinhaus 10/05/2007 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: sharp [-m method] [-f factor] infile outfile
 # USAGE: sharp [-st] infile
@@ -74,13 +98,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 #
 # function to report error messages
@@ -155,8 +179,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	[ "$stats" = "false" ] && outfile=$2
+	infile="$1"
+	[ "$stats" = "false" ] && outfile="$2"
 fi
 
 
@@ -176,8 +200,9 @@ tmpA="$dir/sharp_$$.mpc"
 tmpB="$dir/sharp_$$.cache"
 tmpM="$dir/sharp_mean_$$.miff"
 tmpS="$dir/sharp_std_$$.miff"
-trap "rm -f $tmpA $tmpB $tmpM $tmpS; exit 0" 0
+trap "rm -f $tmpA $tmpB $tmpM $tmpS;" 0
 trap "rm -f $tmpA $tmpB $tmpM $tmpS; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmpM $tmpS; exit 1" ERR
 
 
 # function to get min, max, mean, std from Brightness channel (or Graylevel image)
@@ -220,7 +245,7 @@ else
 	echo "Please Wait - This May Take Some Time"
 	echo ""
 	# convert $infile to mpc format
-	if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
+	if convert -quiet "$infile" +repage "$tmpA"
 		then
 		: 'do nothing special'
 	else
@@ -232,13 +257,13 @@ fi
 imagestats $tmpA	
 
 # get mean
-convert $tmpA -define convolve:scale=\! -convolve "$ave" $tmpM
+convert $tmpA -define convolve:scale=1 -convolve "$ave" $tmpM
 
 # get std = sqrt( ave(x^2) - ave(x)^2 )
-# -gamma 2 is equivalent to sqrt
-convert \( $tmpA $tmpA -compose multiply -composite -define convolve:scale=\! -convolve "$ave" \) \
+# -evaluate pow 0.5 is equivalent to sqrt
+convert \( $tmpA $tmpA -compose multiply -composite -define convolve:scale=1 -convolve "$ave" \) \
 	\( $tmpM $tmpM -compose multiply -composite \) +swap \
-	-compose minus -composite -gamma 2 $tmpS
+	-compose minus -composite -evaluate pow 0.5 $tmpS
 	
 # compute gain and final image
 [ `echo "scale=6; $factor < .001" | bc` -eq 1 ] && factor=.001
@@ -247,10 +272,10 @@ dsdmg=`echo "scale=5; $dstd / $mg" | bc`
 gain="gn=($dstd)/(u[2]+($dsdmg));"
 if [ $method -eq 0 ]
 	then
-	convert $tmpA $tmpM $tmpS -monitor -fx "$gain (gn*(u-v))" -normalize $outfile
+	convert $tmpA $tmpM $tmpS -monitor -fx "$gain (gn*(u-v))" -normalize "$outfile"
 elif [ $method -eq 1 ]
 	then
-	convert $tmpA $tmpM $tmpS -monitor -fx "$gain (v+(gn*(u-v)))" $outfile
+	convert $tmpA $tmpM $tmpS -monitor -fx "$gain (v+(gn*(u-v)))" "$outfile"
 else
 	errMsg "--- INVALID METHOD ---"
 fi

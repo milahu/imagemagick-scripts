@@ -1,8 +1,34 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 5/29/2009 .......... revised 6/15/2013
+# Developed by Fred Weinhaus 5/29/2009 .......... revised 5/7/2015
 #
-# USAGE: whiteboard  [-c coords] [-a aspect ] [-m magnify] [-d dimensions] [-e enhance ] [-f filtersize] [-o offset] [-t threshold]  [-s sharpen] [-S saturation] [-w whitecolor] infile outfile
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
+# USAGE: whiteboard  [-c coords] [-a aspect ] [-m magnify] [-d dimensions] 
+# [-e enhance ] [-f filtersize] [-o offset] [-t threshold]  [-s sharpen] 
+# [-S saturation] [-w whitecolor] [-p percent] infile outfile
 # USAGE: whiteboard [-help]
 #
 # OPTIONS:
@@ -40,6 +66,8 @@
 #                           default=200 (double saturation)
 # -w      whitecolor        desired color for whiteboard background;
 #                           default=white
+# -p      percent           percent near white to use for white balancing;
+#                           float>=0; default=0.01
 #
 ###
 #
@@ -111,6 +139,9 @@
 # -w whitecolor ... WHITECOLOR is the desired background color of the whiteboard 
 # after it has been cleaned up. Any valid IM color may be use. The default is white.
 # 
+# -p percent ... PERCENT near white to use for white balancing; float>=0; 
+# default=0.01
+# 
 # NOTE: For coordinate selection, one can use the IM display function and 
 # on the Mac option-rightmousebutton hold and drag to display coordinates. 
 # I am not sure what the equivalent is on other systems. Possibly middle 
@@ -147,6 +178,7 @@ sharpamt=0			# sharpen sigma
 saturation=200		# color saturation percent; 100 is no change
 wcolor="white"		# color for output whiteboard background
 bluramt=0.2			# blur sigma for use with smoothing threshold
+percent=0.01		# percent close to white for white balancing 
 
 # set directory for temporary files
 dir="."    # suggestions are dir="." or dir="/tmp"
@@ -159,13 +191,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -274,7 +306,7 @@ if [ $# -eq 0 ]
    echo ""
    usage2
    exit 0
-elif [ $# -gt 24 ]
+elif [ $# -gt 26 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -394,6 +426,14 @@ else
 					   saturation=`expr "$1" : '\([0-9]*\)'`
 					   [ "$saturation" = "" ] && errMsg "--- SATURATION=$saturation MUST BE A NON-NEGATIVE INTEGER ---"
 					   ;;
+				-p)    # get percent
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID PERCENT SPECIFICATION ---"
+					   checkMinus "$1"
+					   percent=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$percent" = "" ] && errMsg "--- PERCENT=$percent MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
 				 -)    # STDIN and end of arguments
 					   break
 					   ;;
@@ -408,8 +448,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -430,8 +470,10 @@ tmpG1="$dir/autowhite_G_$$.mpc"
 tmpG2="$dir/autowhite_G_$$.cache"
 tmpB1="$dir/autowhite_B_$$.mpc"
 tmpB2="$dir/autowhite_B_$$.cache"
-trap "rm -f $tmpA1 $tmpA2 $tmpM1 $tmpM2 $tmpT1 $tmpT2 $tmpR1 $tmpR2 $tmpG1 $tmpG2 $tmpB1 $tmpB2; exit 0" 0
+trap "rm -f $tmpA1 $tmpA2 $tmpM1 $tmpM2 $tmpT1 $tmpT2 $tmpR1 $tmpR2 $tmpG1 $tmpG2 $tmpB1 $tmpB2;" 0
 trap "rm -f $tmpA1 $tmpA2 $tmpM1 $tmpM2 $tmpT1 $tmpT2 $tmpR1 $tmpR2 $tmpG1 $tmpG2 $tmpB1 $tmpB2; exit 1" 1 2 3 15
+# if use following it fails to produce the output????
+#trap "rm -f $tmpA1 $tmpA2 $tmpM1 $tmpM2 $tmpT1 $tmpT2 $tmpR1 $tmpR2 $tmpG1 $tmpG2 $tmpB1 $tmpB2; exit 1" ERR
 
 # get im_version
 im_version=`convert -list configure | \
@@ -459,12 +501,9 @@ fi
 
 
 # read the input image into the TMP cached image.
-convert -quiet -regard-warnings "$infile" +repage "$tmpA1" ||
+convert -quiet "$infile" +repage "$tmpA1" ||
 	errMsg "--- FILE $infile NOT READABLE OR HAS ZERO SIZE ---"
 
-# get im_version
-im_version=`convert -list configure | \
-sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # get input image size and center
 w=`convert -ping $tmpA1 -format "%w" info:`
@@ -623,8 +662,7 @@ fi
 if [ "$threshold" = "" ]; then
 	blurring=""
 else
-	bluramt=`convert xc: -format "%[fx:$threshold/100]" info:`
-	blurring="-blur ${bluramt}x65535 -level ${threshold}x100%"
+	blurring="-blur 1x65535 -level ${threshold}x100%"
 fi
 
 # setup modulation
@@ -648,27 +686,27 @@ fi
 if [ "$coords" = "" -a "$magnify" = "1" -a "$dimensions" = "" ]; then
 	convert \( $tmpA1 \) \
 		\( -clone 0 -colorspace gray -negate -lat ${filtersize}x${filtersize}+${offset}% $setcspace -contrast-stretch 0 $blurring \) \
-		-compose copy_opacity -composite -fill "$wcolor" -opaque none +matte \
+		-compose copy_opacity -composite -fill "$wcolor" -opaque none -alpha off \
 		$sharpening $modulation \
-		$outfile
+		"$outfile"
 elif [ "$coords" = "" -a "$magnify" != "1" ]; then
 	convert \( $tmpA1 -virtual-pixel white -set option:distort:viewport ${width}x${height}${delx}${dely} -distort SRT "$magnify 0" \) \
 		\( -clone 0 -colorspace gray -negate -lat ${filtersize}x${filtersize}+${offset}% $setcspace -contrast-stretch 0 $blurring \) \
-		-compose copy_opacity -composite -fill "$wcolor" -opaque none +matte \
+		-compose copy_opacity -composite -fill "$wcolor" -opaque none -alpha off \
 		$sharpening $modulation \
-		$outfile
+		"$outfile"
 elif [ "$coords" = "" -a "$dimensions" != "" ]; then
 	convert \( $tmpA1 -virtual-pixel white -set option:distort:viewport ${width}x${height}${delx}${dely} -distort SRT "$cx,$cy $magx,$magy 0" \) \
 		\( -clone 0 -colorspace gray -negate -lat ${filtersize}x${filtersize}+${offset}% $setcspace -contrast-stretch 0 $blurring \) \
-		-compose copy_opacity -composite -fill "$wcolor" -opaque none +matte \
+		-compose copy_opacity -composite -fill "$wcolor" -opaque none -alpha off \
 		$sharpening $modulation \
-		$outfile
+		"$outfile"
 elif [ "$coords" != "" ]; then
 	convert \( $tmpA1 -virtual-pixel white -set option:distort:viewport ${width}x${height}+0+0 -distort perspective "$coords" \) \
 		\( -clone 0 -colorspace gray -negate -lat ${filtersize}x${filtersize}+${offset}% $setcspace -contrast-stretch 0 $blurring \) \
-		-compose copy_opacity -composite -fill "$wcolor" -opaque none +matte \
+		-compose copy_opacity -composite -fill "$wcolor" -opaque none -alpha off \
 		$sharpening $modulation \
-		$outfile
+		"$outfile"
 else
 	errMsg = "--- INVALID SITUATION ---"
 fi

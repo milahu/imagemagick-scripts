@@ -1,7 +1,31 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 10/21/2011 .......... revised 7/6/2012
+# Developed by Fred Weinhaus 10/21/2011 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
 # 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
 # USAGE: remap [-n numcolors ] [-m metric] [-s] infile mapfile outfile
 # USAGE: remap [-h or -help]
 # 
@@ -78,8 +102,9 @@ tmpdir="." 		# suggestions are tmpdir="." or tmpdir="/tmp"
 dir="$tmpdir/REMAP.$$"
 
 mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
-trap "rm -rf $dir; exit 0" 0
+trap "rm -rf $dir;" 0
 trap "rm -rf $dir; exit 1" 1 2 3 15
+trap "rm -rf $dir; exit 1" ERR
 
 
 # set up functions to report Usage and Usage with Description
@@ -90,13 +115,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 # function to report error messages
@@ -176,9 +201,9 @@ else
 		shift   # next option
 	done
 	# get infile and outfile
-	infile=$1
-	mapfile=$2
-	outfile=$3
+	infile="$1"
+	mapfile="$2"
+	outfile="$3"
 fi
 
 # test that infile provided
@@ -197,12 +222,12 @@ fi
 # Assumes images are RGB or sRGB
 
 # test input image
-convert -quiet -regard-warnings "$infile" -alpha off +repage -depth 8 "$dir/tmpA.mpc" ||
+convert -quiet "$infile" -alpha off +repage -depth 8 "$dir/tmpA.mpc" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 
 
 # test color table mapfile image
-convert -quiet -regard-warnings "$mapfile" -alpha off -depth 8 +repage "$dir/tmpM.mpc" ||
+convert -quiet "$mapfile" -alpha off -depth 8 +repage "$dir/tmpM.mpc" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 
 
@@ -241,7 +266,7 @@ ncolors="${#colorArr[*]}"
 [ "$show" = "yes" ] && echo "number of reduced colors = $ncolors"
 
 # output color reduced image for testing
-convert $dir/tmpA.mpc ${inname}_remap_reduced.png
+#convert $dir/tmpA.mpc ${inname}_remap_reduced.png
 
 # create colorlist from both arrays
 colorlist=":${colorArr[*]}:${mapcolorArr[*]}:"
@@ -304,7 +329,7 @@ for colorpair in ${pairArr[*]}; do
 		-composite $dir/tmpO.mpc
 	i=`expr $i + 1`
 done
-convert $dir/tmpO.mpc $outfile
+convert $dir/tmpO.mpc "$outfile"
 
 
 if [ "$show" = "yes" ]; then

@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 3/11/2008 .......... revised 3/29/2013
+# Developed by Fred Weinhaus 3/11/2008 .......... revised 4/25/2015
+# 
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: picframe [-f frameid] [-m mattesize] [-c mattecolor] [-b bordersize] [-s shade] [-a adjust] [-o opacity ] [-d distance] infile outfile
 # USAGE: picframe [-h or -help]
@@ -125,13 +149,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -258,8 +282,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -279,11 +303,12 @@ tmp2A="$dir/picframe_2_$$.mpc"
 tmp2B="$dir/picframe_2_$$.cache"
 tmp3A="$dir/picframe_3_$$.mpc"
 tmp3B="$dir/picframe_3_$$.cache"
-trap "rm -f $tmpA $tmpB $tmp0A $tmp0B $tmp1A $tmp1B $tmp2A $tmp2B $tmp3A $tmp3B; exit 0" 0
+trap "rm -f $tmpA $tmpB $tmp0A $tmp0B $tmp1A $tmp1B $tmp2A $tmp2B $tmp3A $tmp3B;" 0
 trap "rm -f $tmpA $tmpB $tmp0A $tmp0B $tmp1A $tmp1B $tmp2A $tmp2B $tmp3A $tmp3B; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmp0A $tmp0B $tmp1A $tmp1B $tmp2A $tmp2B $tmp3A $tmp3B; exit 1" ERR
 
 # test infile
-if convert -quiet -regard-warnings "$infile" +repage "$tmp0A"
+if convert -quiet "$infile" +repage "$tmp0A"
 	then
 	w1=`identify -format %w $tmp0A`
 	h1=`identify -format %h $tmp0A`
@@ -383,7 +408,7 @@ if [ "$distance" != "0" ]; then
 			-transparent white -background black -alpha background  \
 			-shadow ${opacity}x${border}+${distance}+${distance} \
 			-crop ${w3}x${h3}+${offset}+${offset} +repage \) \
-		-gravity center -compose over -composite $outfile
+		-gravity center -compose over -composite "$outfile"
 
 : <<COMMENT
 # alternate better looking shadow, but slower (due to extra blur)
@@ -406,11 +431,11 @@ if [ "$distance" != "0" ]; then
 			-channel rgba -motion-blur 0x${distance}+225 -blur 0x$blur  \
 			-alpha on -channel A -evaluate multiply $opacity +channel \
 			-crop ${w3}x${h3}+0+0 +repage  \) \
-		-gravity center -compose over -composite $outfile		
+		-gravity center -compose over -composite "$outfile"		
 COMMENT
 
 
 else
-	convert $tmp3A $outfile
+	convert $tmp3A "$outfile"
 fi
 exit 0

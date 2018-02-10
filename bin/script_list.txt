@@ -12,6 +12,8 @@
 
 accentedges --- Applies accented edges to an image.
 
+adaptivegamma --- Enhances the contrast/brightness in an image using a locally adaptive gamma method.
+
 adjoin --- Appends multiple images together with positional justification.
 
 anglegradient --- Creates a gradient effect at a specific orientation angle.
@@ -96,6 +98,8 @@ colorbalance2 --- Manually color balances an image in midtones, highlights, or s
 
 colorboost --- Enhances the color in an under saturated image.
 
+colorcells --- Randomly modifies the color of rectangular cells of an image.
+
 colorconverter --- To convert any valid ImageMagick color specification to the other ImageMagick color representations.
 
 colorcoords --- Locates in the image the first location and/or last location for the closest pixel within the fuzz value to the color specified.
@@ -114,6 +118,8 @@ cone --- Draws a cone-shaped object on an image.
 
 conformal --- Applies a conformal mapping to an image.
 
+contour --- Applies a contour outline to the image content.
+
 corners --- Detects corner structures in an image.
 
 cosinebell --- Creates a cosine-bell-shaped tapered alpha channel in an image and optionally blends the image into a background image.
@@ -121,6 +127,8 @@ cosinebell --- Creates a cosine-bell-shaped tapered alpha channel in an image an
 crosshatch --- Applies a crosshatch effect to an image.
 
 crossprocess --- Applies a color crossprocessing effect to an image.
+
+cube2sphericalpano --- Transforms 6 cube face images into a spherical panorama image.
 
 cumhist --- Creates the combined grayscale cumulative histogram of one or more images.
 
@@ -284,6 +292,10 @@ lupe --- Applies a magnifying glass effect in a local area of an image.
 
 magicwand --- Isolates a contiguous region of an image based upon a color determined from a user specified image coordinate.
 
+mandala --- Creates a Mandala type image from simple graphic figures.
+
+mandalascope --- Converts an image into a mandala-like kaleidoscope image.
+
 mandelbrot --- Creates a mandelbrot set fractal image.
 
 mapcolors --- Maps or translates one set of colors in an image to another set of colors.
@@ -346,11 +358,19 @@ ortoneffect --- Applies an Orton effect to an image.
 
 otsuthresh --- Automatically thresholds an image to binary (b/w) format using Otsu's between class variance technique.
 
+outfit --- Transforms a pattern image to place it over an image of some piece of clothing or outfit.
+
+outfitwarper --- Transforms a pattern image to place it over an image of some piece of clothing or outfit.
+
 overlapcrop --- Creates a sequence of cropped subsections permitting optional overlap of the subsections.
 
 pagecurl --- Applies a pagecurl effect to the lower right corner of an image.
 
 pagepeel --- Applies a pagepeel effect to the lower right corner of an image.
+
+painteffect --- Applies a paint type effect to an image.
+
+pano2fisheye --- Transforms a spherical panorama to a fisheye view.
 
 pano2rect --- Applies vertical perspective correction to an angular panoramic image.
 
@@ -371,6 +391,8 @@ picframe --- Adds a picture frame around an image.
 picturefold --- Applies a map-like folded appearance to an image.
 
 pinbarrel --- Applies or corrects pincushion and/or barrel lens distortion to an image.
+
+pip --- Creates a picture-in-picture effect.
 
 pixelize --- Creates a pixelized or blocky effect in an image.
 
@@ -401,6 +423,8 @@ ptilethresh --- Automatically thresholds an image to binary (b/w) format at a sp
 puzzle --- Applies a puzzle like effect to an image.
 
 radialgradient --- Creates a radial gradient image.
+
+radialgrid --- Superimposes circular grid lines on an image.
 
 randomblob --- Creates an image composed of a moderate sized black random blob shape on a white background.
 
@@ -442,6 +466,8 @@ separate --- Identifies each separate white shape in a binary image.
 
 shadowhighlight --- Adjusts the tone in shadow and highlight areas of an image.
 
+shapecluster --- Creates a division of the image into 5 separated rectangular regions.
+
 shapemorph --- Create a shape morphing animation sequence between two images.
 
 shapemorph2 --- Create a shape morphing animation sequence between two images.
@@ -460,11 +486,19 @@ sketch --- Applies a sketch effect to an image.
 
 sketcher --- Applies a sketch effect to an image.
 
+sketchetech --- Creates an etch-like sketch from an image.
+
+sketching --- Applies a sketch effect to an image.
+
 skew --- Applies a skew distortion to an image.
 
 slantedlight --- Applies slanted lighting to an image.
 
 slice --- Thresholds an image (inclusively) between a range of graylevels and optionally colorizes inside and/or outside the threshold range.
+
+smartcrop --- Automatically crops an image to a given size around the hightest detail region.
+
+smarttrim --- Automatically trims an image around the region of highest detail in the image.
 
 softfocus --- Applies a softfocus effect to an image.
 
@@ -479,6 +513,10 @@ spectrum --- Computes the spectrum image from the magnitude of the Fourier Trans
 spectrumhist --- Creates either a color spectrum or histogram of the colors in an image.
 
 sphere --- Creates a colored sphere with a combination of diffuse and specular illumination.
+
+sphericalpano2cube --- Transforms a spherical panorama into a cubical representation.
+
+sphericalpano2cube --- Generate a perspective (rectilinear) image from a region of a spherical panorama image.
 
 spherize ---  Warps an image onto a (hemi-)sphere.
 
@@ -520,6 +558,8 @@ textcleaner --- Processes a scanned document of text to clean the text backgroun
 
 textdeskew --- Unrotates (deskews) an image containing text.
 
+textdistort --- Distorts repeated text to warp it to the shape of the image content.
+
 texteffect --- Convert text to an image after applying various effects, styling and color.
 
 texteffect2 --- Converts large size text to an image with color, effects and styling.
@@ -538,6 +578,8 @@ tiltshift --- Applies a tiltshift effect to an image.
 
 tintilize --- Applies a color tint to the mid-range of a grayscale image.
 
+tinyplanet --- Transforms a spherical panorama to a linear fisheye view.
+
 tonemap1 --- Enhances the shadows and/or highlight regions in an image using a non-linear log or gamma function.
 
 tonemap2 --- Enhances the shadows and/or highlight regions in an image using a non-linear log or gamma function plus an extra processing function.
@@ -547,6 +589,10 @@ tonemap3 --- Enhances the shadows and/or highlight regions in an image using a n
 tonemap4 --- Enhances the shadows and/or highlight regions in an image using a dual gamma function plus an extra processing function.
 
 toon --- Applies a cartoon effect to an image.
+
+toonify --- Applies a cartoon-like effect to an image.
+
+toonizarro --- Applies a Superman Bizarro-like cartoon effect to an image.
 
 toycamera --- Simulates pictures taken by lomographic or holga type toy cameras.
 
@@ -558,13 +604,19 @@ trianglethresh --- Automatically thresholds an image to binary (b/w) format usin
 
 tricolorize --- Smoothly colorizes a grayscale image with either one, two or three different colors.
 
+trimcorners --- Automatically crops the image to removed rounded corners.
+
 trimmer --- Trims the background from any number of specified sides of an image.
 
 tshirt --- Transforms an image to place it in a region of a tshirt image.
 
 tshirtwarp --- Transforms an image to place it in a region of a tshirt image using a lighting file, a displacement map and arguments provided by the script tshirt.
 
+tshirtwarper --- Transforms an image to place it in a region of a tshirt image using a lighting file, a displacement map and arguments provided by the script tshirt.
+
 tunnelize --- Creates a tunnel-like effect on an image.
+
+turbulences --- Applies a turbulence-like warping of the image.
 
 turn --- Simultaneously rotates and crops an image to eliminate any background.
 
@@ -577,6 +629,8 @@ uwcorrect --- Corrects the color balance for red light attenuation in pictures t
 variableblur --- Applies a variable blur to an image based upon a mask image.
 
 vibrance --- Applies a non-linear change to the saturation of an image.
+
+vibrance2 --- Applies a non-linear change to the chroma channel of an image.
 
 vignette --- Applies a vignette effect to a picture.
 
@@ -591,6 +645,8 @@ vintage2 --- Applies a colorful vintage effect to an image.
 vintage3 --- Applies an old, heritage style vintage effect to an image.
 
 warholeffect --- Creates an Andy Warhol style colorization image.
+
+watercolor --- Applies a watercolor effect to an image.
 
 wavemap --- Transforms the graylevels in each RGB channel according to a sinusoidal wave function.
 

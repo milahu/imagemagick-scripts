@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 12/12/2012 .......... revised 6/13/2013
+# Developed by Fred Weinhaus 12/12/2012 .......... revised 5/29/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: posteredges [-w width ] [-a amount] [-m method] [-n number] [-b blur] 
 # [-s sat] infile outfile
@@ -74,13 +98,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -176,6 +200,16 @@ else
 					   		*) errMsg "--- METHOD=$method IS AN INVALID VALUE ---" 
 					   	esac
 					   ;;
+				-n)    # get number colors
+                       shift  # to get the next parameter
+                       # test if parameter starts with minus sign
+                       errorMsg="--- INVALID NUMBER OF COLORS SPECIFICATION ---"
+                       checkMinus "$1"
+                       number=`expr "$1" : '\([0-9]*\)'`
+                       [ "$number" = "" ] && errMsg "--- NUMBER OF COLORS=$number MUST BE A NON-NEGATIVE INTEGER ---"
+                       test=`echo "$number <= 1" | bc`
+                       [ $test -eq 1 ] && errMsg "--- NUMBER OF COLORS=$number MUST BE A POSITIVE INTEGER GREATER THAN 1 ---"
+                       ;;
 				 -)    # STDIN and end of arguments
 					   break
 					   ;;
@@ -190,8 +224,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -204,8 +238,9 @@ fi
 # set up temp files
 tmpA1="$dir/posteredges_A_$$.mpc"
 tmpA2="$dir/posteredges_A_$$.cache"
-trap "rm -f $tmpA1 $tmpA2; exit 0" 0
+trap "rm -f $tmpA1 $tmpA2;" 0
 trap "rm -f $tmpA1 $tmpA2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2; exit 1" ERR
 
 
 # get im version
@@ -240,7 +275,7 @@ fi
 
 
 # read input image
-convert -quiet -regard-warnings "$infile" $setcspace +repage $tmpA1 ||
+convert -quiet "$infile" $setcspace +repage $tmpA1 ||
 	echo  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 # set up colormode
@@ -283,7 +318,7 @@ convert $tmpA1 \
 	\( -clone 0 $setcspace -colorspace gray \) \
 	\( -clone 2 -unsharp 0x$width  \) \
 	\( -clone 2 -clone 3 +swap -compose minus -composite -evaluate multiply $amount -negate \) \
-	-delete 0,2,3 -compose multiply -composite $blurring $outfile
+	-delete 0,2,3 -compose multiply -composite $blurring "$outfile"
 
 
 exit 0

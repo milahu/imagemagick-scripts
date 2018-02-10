@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/26/2011 .......... 7/16/2012
+# Developed by Fred Weinhaus 8/26/2011 .......... 7/14/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: tonemap3 [-k kind] [-a amount] [-t type] [-c colormode] [-s shadows] [-h highlights] [-e edge] [-w window] [-S saturation] [-C colorspace] [-A] infile outfile
 # USAGE: tonemap3 [-help]
@@ -157,13 +181,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -336,8 +360,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -353,8 +377,9 @@ tmpS1="$dir/tonemap2_S_$$.mpc"
 tmpS2="$dir/tonemap2_S_$$.cache"
 tmpI1="$dir/tonemap2_I_$$.mpc"
 tmpI2="$dir/tonemap2_I_$$.cache"
-trap "rm -f $tmpA1 $tmpA2 $tmpS1 $tmpS2 $tmpI1 $tmpI2; exit 0" 0
+trap "rm -f $tmpA1 $tmpA2 $tmpS1 $tmpS2 $tmpI1 $tmpI2;" 0
 trap "rm -f $tmpA1 $tmpA2 $tmpS1 $tmpS2 $tmpI1 $tmpI2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2 $tmpS1 $tmpS2 $tmpI1 $tmpI2; exit 1" ERR
 
 # get im_version
 im_version=`convert -list configure | \
@@ -382,6 +407,11 @@ if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
 else
 	setcspace=""
 fi
+# no need for setcspace for grayscale or channels after 6.8.5.4
+if [ "$im_version" -gt "06080504" ]; then
+	setcspace="-set colorspace sRGB"
+	cspace="sRGB"
+fi
 #echo "setcspace=$setcspace"
 
 : <<COMMENT
@@ -393,26 +423,54 @@ else
 fi
 #echo "cproc=$cproc"
 COMMENT
+
 # set up cproc processing -- new method
 if [ "$colorproc" = "none" ]; then
 	cproc=""
 else
 	cproc="-set colorspace $colorproc"
-	# from trial and error using 6.7.2.0/6.7.4.10, 6.7.6.10 and 6.7.8.2/6.7.8.3
-	# the following is needed for tonemap2 and tonemap3 when using -C colorproc != none, i.e. for .hdr images after 6.7.7.7
-	if [ "$im_version" -lt "06070607" ]; then
-		setcspace=""
-	fi
+fi
+# from trial and error using 6.7.2.0/6.7.4.10, 6.7.6.10 and 6.7.8.2/6.7.8.3
+# the following is needed for tonemap2 and tonemap3 when using -C colorproc != none, i.e. for .hdr images after 6.7.7.7
+if [ "$im_version" -lt "06070607" ]; then
 	if [ "$colorproc" = "sRGB" ]; then
+		setcspace="-set colorspace RGB"
 		cspace="RGB"
 	elif [ "$colorproc" = "RGB" ]; then
+		setcspace="-set colorspace sRGB"
 		cspace="sRGB"
+	fi
+else
+	if [ "$colorproc" = "sRGB" ]; then
+		setcspace="-set colorspace sRGB"
+		cspace="sRGB"
+	elif [ "$colorproc" = "RGB" ]; then
+		setcspace="-set colorspace RGB"
+		cspace="RGB"
 	fi
 fi
 #echo "cproc=$cproc"
 
+# set up autolevel processing
+if [ "$alevel" = "yes" ]; then
+	aproc="-auto-level"
+else
+	aproc=""
+fi
+#echo "aproc=$aproc"
+
+# set up clamp due its removal for HDRI somewhere after IM 6.6.0.10, 
+# so that neg values do not cause problems with -evaluate log.
+# clamping added to log in IM 6.7.7.6
+if [ "$im_version" -lt "06070706" -a "$im_version" -gt "06060010" -a "$kind" = "log" -a "$amount" != "0" ]; then
+	clamp="-evaluate max 0"
+else
+	clamp=""
+fi
+#echo "clamp=$clamp"
+
 # test input image
-convert -quiet -regard-warnings "$infile" -alpha off $cproc $aproc $clamp +repage "$tmpA1" ||
+convert -quiet "$infile" -alpha off $cproc $aproc $clamp +repage "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 
 
@@ -424,7 +482,7 @@ if [ "$kind" = "log" ]; then
 elif [ "$kind" = "gamma" ]; then
 	proc0="-gamma $amount"
 fi
-echo "amount=$amount; proc0=$proc0"
+#echo "amount=$amount; proc0=$proc0"
 
 
 # setup shadows and hightlights level values
@@ -458,7 +516,7 @@ if [ $plo -eq 0 -a $phi -eq 100 ]; then
 else
 	proc2="+level $plo,$phi%"
 fi
-echo "mlo=$mlo; mhi=$mhi; plo=$plo; phi=$phi; proc1=$proc1; proc2=$proc2"
+#echo "mlo=$mlo; mhi=$mhi; plo=$plo; phi=$phi; proc1=$proc1; proc2=$proc2"
 
 
 # set up saturation processing
@@ -467,7 +525,7 @@ if [ "$sat" = "0" ]; then
 else
 	saturation="-brightness-contrast 0,$sat"
 fi
-echo "saturation=$saturation"
+#echo "saturation=$saturation"
 
 
 # set up edge sharpening
@@ -476,7 +534,7 @@ if [ "$edge" = "0" ]; then
 else
 	eproc="-sharpen 0x$edge"
 fi
-echo "eproc=$eproc"
+#echo "eproc=$eproc"
 
 
 # set up for type
@@ -487,24 +545,15 @@ elif [ "$type" = "space" ]; then
 elif [ "$type" = "retinex" ]; then
 	tproc="retinex"
 fi
-echo "tproc=$tproc"
+#echo "tproc=$tproc"
 
-# set up clamp due its removal for HDRI somewhere after IM 6.6.0.10, 
-# so that neg values do not cause problems with -evaluate log.
-# clamping added to log in IM 6.7.7.6
-if [ "$im_version" -lt "06070706" -a "$im_version" -gt "06060010" -a "$kind" = "log" -a "$amount" != "0" ]; then
-	clamp="-evaluate max 0"
-else
-	clamp=""
-fi
-echo "clamp=$clamp"
 
 if [ "$type" = "none" ]; then
 	convert $tmpA1 \
 		\( -clone 0 $proc0 $setcspace -colorspace $colormode -separate +channel $saturation \) \
 		\( -clone 0 $proc0 $setcspace -colorspace $colormode -channel R -separate +channel $tproc $proc1 $proc2 $eproc \) \
 		-delete 0,1 -insert 0 -set colorspace $colormode -combine -colorspace $cspace \
-		$outfile
+		"$outfile"
 
 elif [ "$type" = "space" -o "$type" = "retinex" ]; then
 	convert $tmpA1 $proc0 $setcspace -colorspace $colormode -separate +channel $saturation $tmpS1
@@ -512,7 +561,7 @@ elif [ "$type" = "space" -o "$type" = "retinex" ]; then
 	$tproc $tmpI1 $tmpI1
 	convert \( $tmpI1 $proc1 $proc2 $eproc \) $tmpS1[1] $tmpS1[2] \
 		-set colorspace $colormode -combine -colorspace $cspace \
-		$outfile
+		"$outfile"
 fi
 
 exit 0

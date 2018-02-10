@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 7/15/2009 .......... revised 6/14/2013
+# Developed by Fred Weinhaus 7/15/2009 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: screeneffects [-s spacing] [-r] [-t type] [-a amount] [-m method] [-c color] infile outfile
 # USAGE: screeneffects [-h or -help]
@@ -88,13 +112,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -201,8 +225,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -218,8 +242,9 @@ tmpA1="$dir/screen_$$.mpc"
 tmpB1="$dir/screen_$$.cache"
 tmp1="$dir/screen_1_$$.miff"
 tmp2="$dir/screen_2_$$.miff"
-trap "rm -f $tmpA1 $tmpB1 $tmp1 $tmp2; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmp1 $tmp2;" 0
 trap "rm -f $tmpA1 $tmpB1 $tmp1 $tmp2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmp1 $tmp2; exit 1" ERR
 
 # get im_version
 im_version=`convert -list configure | \
@@ -247,7 +272,7 @@ fi
 
 
 # read the input image into the temp files and test validity.
-convert -quiet -regard-warnings "$infile" +repage "$tmpA1" ||
+convert -quiet "$infile" +repage "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 
@@ -295,7 +320,7 @@ if [ "$type" = "simple" ]; then
 		convert $tmp1 $tmp2 -average -contrast-stretch 0 $tmp1
 	fi
 	convert $infile \( $tmp1 +level-colors ${bcolor},white \) $tmp1 \
-		 $setcspace -compose multiply -composite $outfile
+		 $setcspace -compose multiply -composite "$outfile"
 
 elif [ "$type" = "displace" -a "$method" = "1" ]; then
 	if [ "$im_version" -ge "06060904" ]; then 
@@ -304,17 +329,17 @@ elif [ "$type" = "displace" -a "$method" = "1" ]; then
 		convert $tmp1 $tmp2 -average -contrast-stretch 0 $tmp1
 	fi
 	if [ "$im_version" -lt "06050304" ]; then
-		composite -displace ${amount}x${amount} $tmp1 $tmpA1 $outfile
+		composite -displace ${amount}x${amount} $tmp1 $tmpA1 "$outfile"
 	else
 		convert $tmpA1 $tmp1 $setcspace -define compose:args=${amount}x${amount} \
-			-compose displace -composite $outfile
+			-compose displace -composite "$outfile"
 	fi
 elif [ "$type" = "displace" -a "$method" = "2" ]; then
 	if [ "$im_version" -lt "06050304" ]; then
-		composite -displace ${amount}x${amount} $tmp1 $tmpA1 $tmp2 $outfile
+		composite -displace ${amount}x${amount} $tmp1 $tmpA1 $tmp2 "$outfile"
 	else
 		convert $tmpA1 $tmp1 $tmp2 -define compose:args=${amount}x${amount} \
-			-compose displace -composite $outfile
+			-compose displace -composite "$outfile"
 	fi
 elif [ "$type" = "displace" -a "$method" = "3" ]; then
 	if [ "$im_version" -ge "06060904" ]; then 
@@ -323,10 +348,10 @@ elif [ "$type" = "displace" -a "$method" = "3" ]; then
 		convert $tmp1 $tmp2 -average -contrast-stretch 0 $tmp1
 	fi
 		if [ "$im_version" -lt "06050304" ]; then
-		composite -displace ${amount}x${amount} $tmp2 $tmpA1 $tmp1 $outfile
+		composite -displace ${amount}x${amount} $tmp2 $tmpA1 $tmp1 "$outfile"
 	else
 		convert $tmpA1 $tmp2 $tmp1 -define compose:args=${amount}x${amount} \
-			-compose displace -composite $outfile
+			-compose displace -composite "$outfile"
 	fi
 
 fi

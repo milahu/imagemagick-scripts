@@ -1,7 +1,31 @@
 #!/bin/bash
 #
-# Script Developed by Fred Weinhaus 2/24/2009 ........... revised 6/14/2013
+# Script Developed by Fred Weinhaus 2/24/2009 ........... revised 4/25/2015
 # Concept And Intial Example By Anthony Thyssen  ................ 2/13/2009
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: starburst [-r radius] [-g glow] [-c center] [-k contrast] [-t tcolor] [-b bcolor] [-f fcolor] [-a angle] [-n newseed] [-s size] [infile] outfile
 # USAGE: starburst [-h or -help]
@@ -114,13 +138,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -274,13 +298,13 @@ else
 	#
 	# get infile and outfile
 	if [ $# -eq 2 ]; then
-		infile=$1
-		outfile=$2
+		infile="$1"
+		outfile="$2"
 	elif [ $# -eq 1 ]; then
 		if [ "$size" = "" ]; then
 			errMsg "--- NO OUTPUT SIZE SPECIFIED ---"
 		else
-			outfile=$1
+			outfile="$1"
 		fi
 	else
 		errMsg "--- INCONSISTENT NUMBER OF INPUT AND OUTPUT IMAGES SPECIFIED ---"
@@ -297,8 +321,9 @@ tmpA="$dir/starburst_$$.mpc"
 tmpB="$dir/starburst_$$.cache"
 tmp0="$dir/starburst_0_$$.miff"
 tmp1="$dir/starburst_1_$$.miff"
-trap "rm -f $tmpA $tmpB $tmp0 $tmp1; exit 0" 0
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1;" 0
 trap "rm -f $tmpA $tmpB $tmp0 $tmp1; exit 1" 1 2 3 15
+trap "rm -f $tmpA $tmpB $tmp0 $tmp1; exit 1" ERR
 
 # get im_version
 im_version=`convert -list configure | \
@@ -326,7 +351,7 @@ fi
 
 
 if [ "$infile" != "" ]; then
-	if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
+	if convert -quiet "$infile" +repage "$tmpA"
 		then
 		ww=`convert $tmpA -ping -format "%[fx:w]" info:`
 		hh=`convert $tmpA -ping -format "%[fx:h]" info:`
@@ -401,6 +426,11 @@ else
 	seed="-seed $newseed"
 fi
 
+if [ "$bcolor" = "none" -o "$bcolor" = "none" ]; then
+	channeling="-alpha set -channel rgba"
+else
+	channeling=""
+fi
 
 # create starburst pattern
 # L1: create random values in 1 row
@@ -412,7 +442,7 @@ fi
 # L6: convert from polar back to rectangular coords
 convert -size ${mwh}x1 xc: $seed +noise Random $setcspace -channel G -separate +channel \
 	$rot +level-colors $bcolor,$fcolor \
-	-size ${mwh}x${mwh1} xc:$bcolor -append -motion-blur ${rad}x65535-90 \
+	-size ${mwh}x${mwh1} xc:$bcolor -append $channeling -motion-blur ${rad}x65535-90 \
 	\( -size ${mwh}x${glow1}  gradient:$fcolor-$bcolor -evaluate cos .5 -negate -evaluate pow 1.5 \) \
 	-compose screen -composite \
 	-distort Polar -1 $tmp0
@@ -422,9 +452,9 @@ convert -size ${mwh}x1 xc: $seed +noise Random $setcspace -channel G -separate +
 if [ "$infile" = "" ]; then
 	convert \( -size ${ww}x${hh} xc:$bcolor \) \
 	\( $tmp0 -level ${loval},${hival}% $tint \) \
-		-geometry ${ox}${oy} -composite $outfile
+		-geometry ${ox}${oy} -composite "$outfile"
 else
-	convert $tmpA \( $tmp0 -level ${loval},${hival}% $tint +write 1tmp1.jpg \) \
-		-geometry ${ox}${oy} -compose screen -composite $outfile
+	convert $tmpA \( $tmp0 -level ${loval},${hival}% $tint \) \
+		-geometry ${ox}${oy} -compose screen -composite "$outfile"
 fi
 exit 0

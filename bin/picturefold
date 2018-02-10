@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 3/18/2013 .......... revised 6/13/2013
+# Developed by Fred Weinhaus 3/18/2013 .......... revised 9/28/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: picturefold [-n numfolds] [-a angle] [-h height] [-l location] 
 # [-y yoffset] [-s shading] [-t thickness] [-b bdcolor] [-B bgcolor] 
@@ -111,13 +135,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -288,8 +312,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -304,12 +328,17 @@ tmpA1="$dir/picturefold_1_$$.mpc"
 tmpB1="$dir/picturefold_1_$$.cache"
 tmpA2="$dir/picturefold_2_$$.mpc"
 tmpB2="$dir/picturefold_2_$$.cache"
-trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2;" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" ERR
 
 # read the input image into the temporary cached image and test if valid
-convert -quiet -regard-warnings "$infile" +repage "$tmpA1" ||
+convert -quiet "$infile" +repage "$tmpA1" ||
 	echo "--- 1 FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # get infile dimensions
 ww=`identify -ping -format "%w" $tmpA1`
@@ -348,7 +377,7 @@ shading="gray$shading"
 #echo "$shading"
 
 # center crop image to appropriate width
-#convert $tmpA1 -gravity center -crop ${ww2}x${hh}+0+$yoffset +repage $tmpA1
+convert $tmpA1 -gravity center -crop ${ww2}x${hh}+0+$yoffset +repage $tmpA1
 
 # set up alternating repeats for the following processing
 proc=""
@@ -367,7 +396,7 @@ fi
 # add alternate copies and append them all, scale to full height and center extend with black to input size
 # multiply mask by image
 convert \( -size ${ww3}x1 xc:white \) \( -size ${ww3}x1 xc:$shading \) \
-	$proc +append -scale ${ww2}x${hh}! -gravity center -background black -extent ${ww}x${hh} \
+	\( $proc \) +append -scale ${ww2}x${hh}! \
 	$tmpA1 -compose multiply -composite $tmpA1
 
 
@@ -385,15 +414,18 @@ fi
 # make a transparent image of the size of the 
 # composite the mask at the proper location in the transparent image
 # put the b/w mask as the alpha channel for the image and trim
-convert \( -size ${ww3}x${hh2} xc:white -background black -shear 0x-$angle \) \
-	\( +clone -flop \) $proc +append $maskwrite  \
+# add -alpha off after shear as it leaves an alpha channel that IM 7 thresholds to white as fully transparent (IM 7 change of behavior with alpha)
+# add -alpha off after -extent or IM 7 introduces transparency when it should not om border command below
+convert \( -size ${ww3}x${hh2} xc:white -background black -shear 0x-$angle -alpha off \) \
+	\( +clone -flop \) \( $proc \) +append -gravity center -background black -extent ${ww}x${hh} -alpha off $maskwrite \
 	\( -size ${ww2}x${hh} xc:black \) \
 	+swap -gravity $location -geometry $offsets -compose over -composite \
-	$tmpA1 +swap -alpha off -compose copy_opacity -composite -trim +repage $tmpA1
+	$tmpA1 +swap -alpha off -compose copy_opacity -composite $tmpA1
 
 
 
 # add border
+# note that borner in IM 7 will be slightly thinner than in IM 6
 if [ "$thick" != "0" ]; then
 fuzzval2=`convert xc: -format "%[fx:$fuzzval/2]" info:`
 # add border to image
@@ -405,12 +437,18 @@ convert $tmpA1 -background black -alpha background -alpha off -bordercolor black
 		-morphology edgeout octagon:$thick -blur 0x$blurval -level 0x50% \) \
 	\( -clone 1 -fuzz $fuzzval2% -fill "$bdcolor" -opaque white \) \
 	\( -clone 0 -clone 2 -clone 1 -compose over -composite \) \
-	-delete 0,1,2 -fuzz $fuzzval% -trim +repage $tmpA1
+	-delete 0,1,2 $tmpA1
 fi
 
+# set up floodfill
+if [ "$im_version" -ge "07000000" ]; then
+	matte_alpha="alpha"
+else
+	matte_alpha="matte"
+fi
+#echo "matte_alpha=$matte_alpha"
 
 # add shadow
-
 if [ "$opacity" != "0" ]; then
 	if [ "$thick" != "0" ]; then
 		# clone input, add black border
@@ -420,10 +458,10 @@ if [ "$opacity" != "0" ]; then
 		# create shadow
 		# composite shadow over input
 		convert $tmpA1 \( -clone 0 -bordercolor black -border $thick1 \
-			-fuzz $fuzzval% -fill none -draw "matte 0,0 floodfill" \
+			-fuzz $fuzzval% -fill none -draw "$matte_alpha 0,0 floodfill" \
 			-fill white +opaque none -fill black -opaque none -alpha off \
 			-blur 0x$blurval -level 50x100% -shave $thick1 \) \
-			-alpha off -compose copy_opacity -composite -trim +repage  \
+			-alpha off -compose copy_opacity -composite \
 			\( +clone -background black -shadow ${opacity}x${ramp}+${distance}+${distance} \) \
 			+swap -background none -compose over -layers merge +repage \
 			$tmpA1
@@ -433,7 +471,7 @@ if [ "$opacity" != "0" ]; then
 		# create shadow
 		# composite shadow over input
 		convert $tmpA1 \( $tmpA2 -blur 0x$blurval -level 50x100% \) \
-			-alpha off -compose copy_opacity -composite -trim +repage  \
+			-alpha off -compose copy_opacity -composite \
 			\( +clone -background black -shadow ${opacity}x${ramp}+${distance}+${distance} \) \
 			+swap -background none -compose over -layers merge +repage \
 			$tmpA1
@@ -441,14 +479,13 @@ if [ "$opacity" != "0" ]; then
 fi
 
 
-
 # add background color
 if [ "$thick" = "0" -o "$opacity" != "0" ]; then
-	convert $tmpA1 -background $bgcolor -flatten $outfile
+	convert $tmpA1 -background $bgcolor -flatten "$outfile"
 else
 	convert $tmpA1 -bordercolor black -border 2 \
-		-fuzz $fuzzval% -fill none -draw "matte 0,0 floodfill" \
-		-background $bgcolor -flatten $outfile
+		-fuzz $fuzzval% -fill none -draw "$matte_alpha 0,0 floodfill" \
+		-background $bgcolor -flatten "$outfile"
 fi
 
 exit 0

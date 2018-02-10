@@ -1,6 +1,6 @@
 #!/bin/bash
 # 
-# Developed by Fred Weinhaus and Dirk Lemstra 10/2/2015 .... revised 10/2/2015
+# Developed by Fred Weinhaus and Dirk Lemstra 10/2/2015 .... revised 10/18/2017
 #
 # ------------------------------------------------------------------------------
 # 
@@ -26,8 +26,8 @@
 # 
 ####
 #
-# USAGE: autotrim [-m mode] [-f fuzzval] [-c coords] [-l left] [-r right ] 
-# [-t top ] [-b bottom ] [-p preview] infile outfile
+# USAGE: autotrim [-m mode] [-f fuzzval] [-c coords] [-C color] [-l left] 
+# [-r right ] [-t top ] [-b bottom ] [-p preview] infile outfile
 # USAGE: autotrim [-h or -help]
 # 
 # OPTIONS:
@@ -40,7 +40,8 @@
 # -c              coords         pixel coordinate to extract color; may be 
 #                                expressed as gravity value (NorthWest, etc)
 #                                or as "x,y" value; default is NorthWest=(0,0)
-#                                0<=angle<=45 degrees (float)
+# -C              color          border color; any valid IM color is allowed, 
+#                                default is to use coords to get color
 # -l              left           pixel shift of left edge; +/- is right/left
 #                                default=0 (no change) 
 # -r              right          pixel shift of right edge; +/- is right/left
@@ -94,6 +95,9 @@
 # SouthWest or West) or as a pixel coordinate "x,y". The default is the 
 # upper left corner = NorthWest = "0,0".
 # 
+# -C color ... COLOR of border or background. Any valid IM color is allowed.
+# The default is to use coords to get color.
+#
 # -l left ... LEFT is the number of extra pixels to shift the trim of the left 
 # edge of the image. The trim is shifted right/left for +/- integer values.
 # The default=0.
@@ -126,6 +130,7 @@
 mode="outer"			# trim region 
 fuzzval=0				# fuzz threshold
 coords="NorthWest"		# coordinates to get color
+color=""				# color of background/border
 pad=1					# border pad size
 lt=0					# left edge shift of trim (+/- is right/left)
 rt=0					# right edge shift of trim (+/- is right/left)
@@ -177,7 +182,7 @@ if [ $# -eq 0 ]
 	echo ""
 	usage2
 	exit 0
-elif [ $# -gt 18 ]
+elif [ $# -gt 20 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -218,6 +223,10 @@ else
 				   checkMinus "$1"
 				   coords=$1
 				   # further testing done later
+				   ;;
+			-C)    # color
+				   shift  # to get the next parameter - coords
+				   color="$1"
 				   ;;
 			-l)    # left
 				   shift  # to get the next parameter - left
@@ -288,16 +297,13 @@ trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2; exit 0" 0
 trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2; exit 1" 1 2 3 15
 
 
-inname=`convert -ping "$infile" -format "%t" info:`
-suffix=`convert -ping "$infile" -format "%e" info:`
-
 # get im_version
 im_version=`convert -list configure | \
 	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 
 # read the input image into the temporary cached image and test if valid
-convert -quiet "$infile" +repage "$tmpA1" ||
+convert -quiet "$infile" +repage $tmpA1 ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
 
 # get image dimensions
@@ -377,20 +383,25 @@ dimensions $tmpA1
 rwidth=$width
 rheight=$height
 
-coords=`echo "$coords" | tr "[:upper:]" "[:lower:]"` 
-case "$coords" in
-	northwest)	coords="0,0" ;;
-	north)	coords="$midwidth,0" ;;
-	northeast)	coords="$widthm1,0" ;;
-	east)	coords="$widthm1,$midheight" ;;
-	southeast)	coords="$widthm1,$heightm1" ;;
-	south)	coords="$midwidth,$heightm1" ;;
-	southwest)	coords="0,$heightm1" ;;
-	west)	coords="0,$midheight" ;;
-	[0-9]*,[0-9]*)	coords=$coords ;;
-	*)	errMsg "--- INVALID COORDS ---" ;;
-esac
-color=`convert $tmpA1 -format "%[pixel:u.p{$coords}]" info:`
+# get color
+if [ "$color" = "" ]; then
+	coords=`echo "$coords" | tr "[:upper:]" "[:lower:]"` 
+	case "$coords" in
+		northwest)	coords="0,0" ;;
+		north)	coords="$midwidth,0" ;;
+		northeast)	coords="$widthm1,0" ;;
+		east)	coords="$widthm1,$midheight" ;;
+		southeast)	coords="$widthm1,$heightm1" ;;
+		south)	coords="$midwidth,$heightm1" ;;
+		southwest)	coords="0,$heightm1" ;;
+		west)	coords="0,$midheight" ;;
+		[0-9]*,[0-9]*)	coords=$coords ;;
+		*)	errMsg "--- INVALID COORDS ---" ;;
+	esac
+	color=`convert $tmpA1 -format "%[pixel:u.p{$coords}]" info:`
+else
+	coords="0,0"
+fi
 
 
 # set up floodfill
@@ -401,7 +412,7 @@ else
 fi
 
 if [ "$mode" = "outer" ]; then
-	trimbox=`convert $tmpA1 -bordercolor $color -border 1x1 \
+	trimbox=`convert $tmpA1 -bordercolor "$color" -border 1x1 \
 		-fuzz $fuzzval% -fill none -draw "$matte_alpha $coords floodfill" \
 		-shave 1x1 -alpha extract -format "%@" info:`
 	trimbox=`echo "$trimbox" | tr -cs "0-9\n" " "`
@@ -413,7 +424,7 @@ if [ "$mode" = "outer" ]; then
 	
 elif [ "$mode" = "inner" ]; then
 	# do floodfill to extract binary image of data and make red on black background
-	convert $tmpA1 -bordercolor $color -border 1x1 \
+	convert $tmpA1 -bordercolor "$color" -border 1x1 \
 		-fuzz $fuzzval% -fill none -draw "$matte_alpha $coords floodfill" \
 		-shave 1x1 -alpha extract -fill red -opaque white $tmpB1
 
@@ -452,7 +463,8 @@ elif [ "$mode" = "inner" ]; then
 
 	# test for negligible rotation
 	if [ "$topleftdiag" = "0,0" -o "$toprightdiag" = "$widthm1,0" -o "$bottomleftdiag" = "$widthm1,$heightm1" -o "$bottomleftdiag" = "0,$heightm1" ]; then
-		convert $tmpA1 -fill none -stroke red -draw "rectangle $topleftdiag $bottomrightdiag" show:
+		echo "--- WARNING: NEGLIGIBLE ROTATION ---"
+		#convert $tmpA1 -fill none -stroke red -draw "rectangle $topleftdiag $bottomrightdiag" show:
 		convert $tmpA1 result_r${ang}_${mode}_a${rarea}_w${rwidth}_h${rheight}.jpg
 		exit 0
 	fi
@@ -611,6 +623,12 @@ brx=$((xoff+ww-1))
 bry=$((yoff+hh-1))
 
 # generate preview image
+if [ "$preview" = "on" ]; then
+	inname=`convert -ping "$infile" -format "%t" info:`
+	suffix=`convert -ping "$infile" -format "%e" info:`
+fi
+
+
 if [ "$preview" = "view" -o "$preview" = "viewonly" ]; then
 	convert $tmpA1 -fill none -stroke red -draw "rectangle $xoff,$yoff $brx,$bry" show:
 elif [ "$preview" = "save" -o "$preview" = "saveonly" ]; then
@@ -623,6 +641,6 @@ if [ "$preview" != "viewonly" -a "$preview" != "saveonly" ]; then
 fi
 
 # list crop coordinates at terminal
-echo "crop box: ${ww}x${hh}+$xoff+$yoff"
+echo "Crop Box: ${ww}x${hh}+$xoff+$yoff"
 
 exit 0

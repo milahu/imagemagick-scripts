@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/18/2007 .......... revised 6/13/2013
+# Developed by Fred Weinhaus 8/18/2007 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # define usage function
 function usage
@@ -397,10 +421,10 @@ while [ $# -gt 0 ]
 done
 #
 # get infile and outfile
-infile=$1
+infile="$1"
 if [ "$p1" != "-st" -a "$p1" != "" ]
 	then
-	outfile=$2
+	outfile="$2"
 fi
 #
 # test if output file provide for appropriate case
@@ -429,12 +453,14 @@ gg="_graph"
 tmp3="$dir/$outname$gg.gif"
 if [ "$graph" = "view" ] 
 	then 
-	trap "rm -f $tmpA $tmpB $tmp00 $tmp0 $tmp1 $tmp2 $tmp1p $tmp2p $tmp3; exit 0" 0
+	trap "rm -f $tmpA $tmpB $tmp00 $tmp0 $tmp1 $tmp2 $tmp1p $tmp2p $tmp3;" 0
 	trap "rm -f $tmpA $tmpB $tmp00 $tmp0 $tmp1 $tmp2 $tmp1p $tmp2p $tmp3; exit 1" 1 2 3 15
+	trap "rm -f $tmpA $tmpB $tmp00 $tmp0 $tmp1 $tmp2 $tmp1p $tmp2p $tmp3; exit 1" ERR
 elif [ "$graph" = "save" ]
 	then
-	trap "rm -f $tmpA $tmpB $tmp00 $tmp0 $tmp1 $tmp2 $tmp1p $tmp2p; exit 0" 0
+	trap "rm -f $tmpA $tmpB $tmp00 $tmp0 $tmp1 $tmp2 $tmp1p $tmp2p;" 0
 	trap "rm -f $tmpA $tmpB $tmp00 $tmp0 $tmp1 $tmp2 $tmp1p $tmp2p; exit 1" 1 2 3 15
+	trap "rm -f $tmpA $tmpB $tmp00 $tmp0 $tmp1 $tmp2 $tmp1p $tmp2p; exit 1" ERR
 else
 	errMsg "--- NOT A VALID GRAPH DISPLAY OPTION ---"
 fi
@@ -477,7 +503,7 @@ fi
 
 
 
-if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
+if convert -quiet "$infile" +repage "$tmpA"
 	then
 		# get colorspace
 		colorspace=`identify -verbose $tmpA | sed -n 's/^.*Colorspace: \([^ ]*\).*$/\1/p'`
@@ -1068,7 +1094,7 @@ echo "Histogram Grayscale Value Mapped To White = $high ($high255 in range 0 - 2
 		convert $tmp2 -level $parms $tmp2p
 		convert $tmp2p $tmp00
 fi
-convert $tmp00 $outfile
+convert $tmp00 "$outfile"
 # display graph if option -g
 if [ "$display_graph" = "yes" -a `echo "$gamma == 1" | bc` -eq 1 ]
 	then
@@ -1134,7 +1160,7 @@ echo "Break Points = ${pairArray[*]}"
 			bpx2=${xArray[$n]}
 			bpy2=`echo "scale=3; ${yArray[$n]} / $yscale" | bc`
 			delx=`expr $bpx2 - $bpx1 + 1`
-			convert -size 10x$delx gradient: -rotate 90 -fx "$bpy1*(1-u) + $bpy2*u" +matte $tmp2
+			convert -size 10x$delx gradient: -rotate 90 -fx "$bpy1*(1-u) + $bpy2*u" -alpha off $tmp2
 			if [ $bpx1 -eq 0 ]
 				then
 					xstart=$bpx1

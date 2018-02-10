@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 12/26/2007 .......... revised 1/21/2008
+# Developed by Fred Weinhaus 12/26/2007 .......... revised 4/25/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: splitimage [-m mode] [-b begin] [-f final] [-i increment] [-d delay] [ -r resize] [-v] infile1 infile2 [outfile]
 # USAGE: splitimage [-h or -help]
@@ -116,13 +140,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 # function to report error messages
@@ -235,9 +259,9 @@ else
 	done
 	#
 	# get infile and outfile
-	infile1=$1
-	infile2=$2
-	outfile=$3
+	infile1="$1"
+	infile2="$2"
+	outfile="$3"
 fi
 
 : '
@@ -257,10 +281,11 @@ tmp1B="$dir/split_1_$$.cache"
 tmp2A="$dir/split_2_$$.mpc"
 tmp2B="$dir/split_2_$$.cache"
 tmp0="$dir/split_0_$$.miff"
-trap "rm -f $tmp1A $tmp1B $tmp2A $tmp2B $tmp0; exit 0" 0
+trap "rm -f $tmp1A $tmp1B $tmp2A $tmp2B $tmp0;" 0
 trap "rm -f $tmp1A $tmp1B $tmp2A $tmp2B $tmp0; exit 1" 1 2 3 15
+trap "rm -f $tmp1A $tmp1B $tmp2A $tmp2B $tmp0; exit 1" ERR
 
-if convert -quiet -regard-warnings "$infile1" $resize +repage "$tmp1A"
+if convert -quiet "$infile1" $resize +repage "$tmp1A"
 	then
 	width1=`identify -format %w $tmp1A`
 	height1=`identify -format %h $tmp1A`
@@ -396,7 +421,7 @@ echo "oy2=$oy2"
 '
 
 		convert $tmp1A[${wd1}x${ht1}+${ox1}+${oy1}] $tmp2A[${wd2}x${ht2}+${ox2}+${oy2}] \
-			$append miff:- | convert -delay $delay $tmp0 -page +0+0 - -page +0+0 +repage $tmp0
+			$append miff:- | convert -delay $delay $tmp0 - +repage $tmp0
 	done
 	}
 
@@ -484,7 +509,7 @@ convert $tmp1A[${wd1}x${ht1}+${ox1}+${oy1}] $tmp2A[${wd2}x${ht2}+${ox2}+${oy2}] 
 if [ $incr -eq 0 -a "$outfile" != "" ]
 	then
 	#single frame output
-	convert $tmp0 $outfile
+	convert $tmp0 "$outfile"
 
 	# display outfile
 	if [ "$view" = "yes" ]
@@ -526,7 +551,7 @@ else
 		echo ""
 		echo "Saving Output Animation"
 		echo ""
-		convert $tmp0 $outfile
+		convert $tmp0 "$outfile"
 	fi
 	
 	# display animation

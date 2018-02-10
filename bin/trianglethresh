@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 10/29/2008 .......... revised 6/14/2013
+# Developed by Fred Weinhaus 10/29/2008 .......... revised 11/3/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: trianglethresh [-g graph] infile outfile
 # USAGE: trianglethresh [-help]
@@ -68,13 +92,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -138,8 +162,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 fi
 
 # test that infile provided
@@ -150,7 +174,7 @@ fi
 
 # get outname from infile to use for graph
 inname=`convert $infile -format "%t" info:`
-histfile=${inname}_histog_triangle.gif
+histfile="${inname}_histog_triangle.gif"
 
 tmpA1="$dir/trianglethresh_1_$$.mpc"
 tmpA2="$dir/trianglethresh_1_$$.cache"
@@ -182,7 +206,7 @@ if [ "$im_version" -gt "06080504" ]; then
 fi
 
 
-if convert -quiet -regard-warnings "$infile" $setcspace -colorspace gray +repage "$tmpA1"
+if convert -quiet "$infile" $setcspace -colorspace gray +repage "$tmpA1"
 	then
 	: ' do nothing '
 else
@@ -195,91 +219,69 @@ height=`convert $tmpA1 -format "%h" info:`
 totpix=`echo "scale=0; $width * $height / 1" | bc`
 
 
-# function to convert IM histogram into two arrays, value and count
-getHistog()
-	{
-	echo "Generate Histogram"
-	img="$1"
-	# get lists of values and counts from histogram
-	# note that IM histograms are not well sorted (and have multiple bins with counts for the same values)
-	value=`convert $img -format %c -depth 8 -define histogram:unique-colors=true histogram:info: | sort -k 2 -b | sed -n 's/^ *[0-9]*: [(]\([0-9 ]*\).*$/\1/ p'`
-	count=`convert $img -format %c -depth 8 -define histogram:unique-colors=true histogram:info: | sort -k 2 -b | sed -n 's/^ *\([0-9]*\): [(].*$/\1/ p'`
+# separate IM histogram into two arrays, value and count, and fill out for empty bins and normalize
+
+	# get filled value array from IM histogram
+	nvalueArr=(`convert $tmpA1 -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- \
+	| tr -cs '0-9\012' ' ' | sed -n 's/[ ]*\([0-9]*\)[ ]*\([0-9]*\).*$/\1 \2/p' |\
+	awk '
+	# AWK 
+	{ vbin[$2] += $2;} 
+	END { for (i=0;i<256;i++) {print vbin[i]+0; } } '`)
+#	echo ${nvalueArr[*]}
+#	echo ${#nvalueArr[*]}
+	numvals=${#nvalueArr[*]}
 	
-	# put value and count into arrays
-	valueArr=($value)
-	countArr=($count)
+	# get filled and normalized count array from IM histogram
+	ncountArr=(`convert $tmpA1 -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- \
+	| tr -cs '0-9\012' ' ' | sed -n 's/[ ]*\([0-9]*\)[ ]*\([0-9]*\).*$/\1 \2/p' |\
+	awk -v totpix="$totpix" '
+	# AWK 
+	{ cbin[$2] += $1; } 
+	END { for (i=0;i<256;i++) {print (cbin[i]+0)/totpix; } } '`)
+#	echo ${ncountArr[*]}
+#	echo ${#ncountArr[*]}
+	numcounts=${#ncountArr[*]}
 	
-	# check if both arrays are the same size
-	if [ ${#valueArr[*]} -ne ${#countArr[*]} ]
-		then
-			errMsg "--- ARRAY SIZES DO NOT MATCH ---"
-			exit 1
-		else
-		numbins=${#valueArr[*]}
-	fi
-}
-
-
-# function to fill gaps and normalize histog
-getFilledNormlizedHistog()
-	{
-	echo "Fill & Normalize Histogram"
-	# fill in gaps in histogram and normalize counts by total pixels
-	# fill in bins with zero counts
-	i=0
-	while [ $i -lt 256 ]; do
-		if [ $numbins -lt 256 ]; then
-			nvalueArr[$i]=$i
-			ncountArr[$i]=0
-		else
-			nvalueArr[$i]=${valueArr[$i]}
-		fi
-		i=`expr $i + 1`
-	done
-
-	# normalize array
-	j=0
-	while [ $j -lt $numbins ]; do
-		k=${valueArr[$j]}
-		ncountArr[$k]=`echo "scale=10; ${countArr[$j]}/$totpix" | bc`
-		j=`expr $j + 1`
-	done
-
-	# reset numbins
-	orignumbins=$numbins
-	numbins=256
-	}
-
-# function to find start and end bins and bin with highest count
-findSpecialBins()
-	{
-	echo "Compute Parameters"
+	[ $numvals -ne $numcounts ] && errMsg "--- NUMBER OF COUNTS IS NOT THE SAME AS NUMBER OF VALUES ---"
 	
-	# get first and last non-zero bin
-	# get first bin
-	startbin=${valueArr[0]}
-	startbincount=${ncountArr[0]}
-#echo "startbin=$startbin; startbincount=$startbincount"
 
-	# get last bin
-	lastbin=`expr $orignumbins - 1`
-	endbin=${valueArr[$lastbin]}
-	endbincount=${ncountArr[$lastbin]}
-#echo "lastbin=$lastbin; endbin=$endbin; endbincount=$endbincount"
 
-	# get bin with highest count from unfilled/unnormalized histogram
-	i=0
-	maxbincount=0
-	while [ $i -lt $numbins ]; do
-		test=`echo "${ncountArr[$i]} > $maxbincount" | bc`
-		if [ $test -eq 1 ]; then
-			maxbincount=${ncountArr[$i]}
-			maxbin=$i
-		fi
-#echo "i=$i; count=${ncountArr[$i]}; maxbin=$maxbin; maxbincount=$maxbincount"
-		i=`expr $i + 1`
-	done
-#echo "maxbin=$maxbin; maxbincount=$maxbincount"
+	# find start bin (first one not zero)
+	startbin=`for ((i=0; i<256; i++)); do
+	echo "$i ${ncountArr[$i]}"
+	done |\
+	awk '
+	# AWK to find startbin
+	{ cbin[$1] = $2; } 
+	END { for (i=0;i<256;i++) { if (cbin[i]!=0) { print i; break; } } } '`
+	eval startbincount=${ncountArr[$startbin]}
+#	echo "startbin=$startbin; startbincount=$startbincount;"
+
+
+	# find end bin (last one not zero)
+	endbin=`for ((i=0; i<256; i++)); do
+	echo "$i ${ncountArr[$i]}"
+	done |\
+	awk '
+	# AWK to find startbin
+	{ cbin[$1] = $2; } 
+	END { for (i=255;i>=0;i--) { if (cbin[i]!=0) { print i; break; } } } '`
+	endbincount=${ncountArr[$endbin]}
+#	echo "endbin=$endbin; endbincount=$endbincount;"
+
+
+	# find max bin (bin with largest count)
+	maxbin=`for ((i=0; i<256; i++)); do
+	echo "$i ${ncountArr[$i]}"
+	done |\
+	awk '
+	# AWK to find startbin
+	{ cbin[$1] = $2; maxbincount = 0; maxbin = 0; } 
+	END { for (i=0;i<256;i++) { if (cbin[i] > maxbincount) { maxbincount=cbin[i]; maxbin=i; } } print maxbin } '`
+	maxbincount=${ncountArr[$maxbin]}
+#	echo "maxbin=$maxbin; maxbincount=$maxbincount;"
+
 
 	# set x1,y1 for bin with max count
 	y1=$maxbincount
@@ -295,12 +297,70 @@ findSpecialBins()
 		x2=$endbin
 		y2=0
 	fi
-#echo "x1=$x1; y1=$y1; x2=$x2; y2=$y2"
-	}
+#echo "lowdiff=$lowdiff; highdiff=$highdiff; x1=$x1; y1=$y1; x2=$x2; y2=$y2"
 
-# function to compute triangle lines for graphing
-getTriangleLines()
-	{
+
+# compute threshold
+
+# equation of line between x1,y1 and x2,y2 is Ax+By+C=0
+# where A=(y1-y2), B=(x2-x1), C=-(A*x1+B*y1)
+# Dist=abs(A*x1+B*y1+C)/sqrt(A^2+B^2+C^2)
+aa=`echo "scale=10; ($y1 - $y2)/1" | bc`
+bb=`echo "scale=10; ($x2 - $x1)/1" | bc`
+cc=`echo "scale=10; -($aa*$x1 + $bb*$y1)/1" | bc`
+ir=`echo "scale=10; 1/sqrt($aa*$aa + $bb*$bb + $cc*$cc)" | bc`
+#echo "aa=$aa; bb=$bb; cc=$cc; ir=$ir"
+
+
+# increment from appropriate end to bin with max count
+# and compute dist and save bin where dist is max
+
+if [ $x2 -eq $startbin ]; then
+
+	distbin=`for ((i=0; i<256; i++)); do
+	echo "$i ${ncountArr[$i]}"
+	done |\
+	awk -v startbin="$startbin" -v maxbin="$maxbin" -v aa="$aa" -v bb="$bb" -v cc="$cc" -v ir="$ir" '
+	# AWK to find threshold
+	{ x[$1] = $1; y[$1] = $2; dist=0; }
+	END { for (i=startbin;i<maxbin;i++) { dd = ir*(aa*x[i]+bb*y[i]+cc); ddabs = sqrt(dd*dd); 
+		if (ddabs>dist && dd>0) { distbin=i; dist=ddabs; } } print distbin } '`
+#	echo "$distbin"
+	
+else
+
+	distbin=`for ((i=0; i<256; i++)); do
+	echo "$i ${ncountArr[$i]}"
+	done |\
+	awk -v endbin="$endbin" -v maxbin="$maxbin" -v aa="$aa" -v bb="$bb" -v cc="$cc" -v ir="$ir" '
+	# AWK to find threshold
+	{ x[$1] = $1; y[$1] = $2; dist=0; }
+	END { for (i=endbin;i>maxbin;i--) { dd = ir*(aa*x[i]+bb*y[i]+cc); ddabs = sqrt(dd*dd); 
+		if (ddabs>dist && dd<0) { distbin=i; dist=ddabs; } } print distbin } '`
+#	echo "$distbin"
+fi
+
+
+# set threshold to value (0 to 255) of bin where dist is max
+x0=$distbin
+y0=${ncountArr[$distbin]}
+#echo "x0=$x0; y0=$y0"
+
+# convert threshold value to range 0 to 100
+threshpct=`convert xc: -format "%[fx:100*$x0/255]" info:`
+
+
+echo "Thresholding Image At $threshpct%"
+# threshold image
+convert $tmpA1 -threshold $threshpct% "$outfile"
+echo ""
+
+
+
+if [ "$graph" != "" ]; then
+
+# compute triangle lines for graphing
+
 	# histogram image scales maxbincount to 200 pixels
 	# counts need to be complemented with 200 
 	# as 0 is at image top and 200 at image bottom
@@ -333,80 +393,7 @@ getTriangleLines()
 
 #	echo "sl=$sl; il=$il; sp=$sp; ip=$ip; xx3=$xx3; yy3=$yy3"
 #	echo "xx0=$xx0; yy0=$yy0; xx3=$xx3; yy3=$yy3"
-	}
 
-
-
-# process image using k-means approach
-
-echo ""
-getHistog "$tmpA1"
-getFilledNormlizedHistog
-findSpecialBins
-
-
-echo "Compute Threshold"
-# equation of line between x1,y1 and x2,y2 is Ax+By+C=0
-# where A=(y1-y2), B=(x2-x1), C=-(A*x1+B*y1)
-# Dist=abs(A*x1+B*y1+C)/sqrt(A^2+B^2+C^2)
-aa=`echo "scale=10; ($y1 - $y2)/1" | bc`
-bb=`echo "scale=10; ($x2 - $x1)/1" | bc`
-cc=`echo "scale=10; -($aa*$x1 + $bb*$y1)/1" | bc`
-ir=`echo "scale=10; 1/sqrt($aa*$aa + $bb*$bb + $cc*$cc)" | bc`
-#echo "aa=$aa; bb=$bb; cc=$cc; ir=$ir"
-
-# increment from appropriate end to bin with max count
-# and compute dist and save bin where dist is max
-dist=0
-if [ $x2 -eq $startbin ]; then
-	i=$startbin
-	while [ $i -lt $maxbin ]; do
-		x0=$i
-		y0=${ncountArr[$i]}
-		dd=`echo "scale=10; $ir*($aa*$x0 + $bb*$y0 + $cc)" | bc`
-		ddabs=`echo "scale=10; sqrt($dd*$dd)" | bc`
-		test=`echo "$ddabs > $dist && $dd > 0" | bc`
-		if [ $test -eq 1 ]; then
-			distbin=$i
-			dist=$ddabs
-		fi
-#echo "x0=$x0; y0=$y0; distbin=$distbin; dd=$dd; ddabs=$ddabs; test=$test; dist=$dist"
-		i=`expr $i + 1`
-	done
-else
-	i=$endbin
-	while [ $i -gt $maxbin ]; do
-		x0=$i
-		y0=${ncountArr[$i]}
-		dd=`echo "scale=10; $ir*($aa*$x0 + $bb*$y0 + $cc)" | bc`
-		ddabs=`echo "scale=10; sqrt($dd*$dd)" | bc`
-		test=`echo "$ddabs > $dist && $dd < 0" | bc`
-		if [ $test -eq 1 ]; then
-			distbin=$i
-			dist=$ddabs
-		fi
-#echo "x0=$x0; y0=$y0; distbin=$distbin; dd=$dd; ddabs=$ddabs; test=$test; dist=$dist"
-		i=`expr $i - 1`
-	done
-fi
-
-# set threshold to value (0 to 255) of bin where dist is max
-x0=$distbin
-y0=${ncountArr[$distbin]}
-#echo "x0=$x0; y0=$y0"
-
-# convert threshold value to range 0 to 100
-threshpct=`convert xc: -format "%[fx:100*$x0/255]" info:`
-
-
-echo "Thresholding Image At $threshpct%"
-# threshold image
-convert $tmpA1 -threshold $threshpct% $outfile
-echo ""
-
-
-if [ "$graph" != "" ]; then
-	getTriangleLines
 	convert $tmpA1 -define histogram:unique-colors=false histogram:- | \
 		convert - -negate \
 		-stroke blue -strokewidth 1 -draw "line $xx1,$yy1 $xx2,$yy2" \
@@ -417,13 +404,13 @@ if [ "$graph" != "" ]; then
 		-font ArialB -pointsize 24 \
 		-draw "text 4,22 'threshold=$threshpct%'" -resize 50% \
 		-bordercolor gray50 -border 5 \
-		$histfile
+		"$histfile"
 fi
 
 
 if [ "$graph" = "view" ]; then
 	convert $histfile x:
-	rm -f $histfile
+	rm -f "$histfile"
 fi
 
 exit 0

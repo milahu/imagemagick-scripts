@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/18/2007 .......... revised 2/23/2017
+# Developed by Fred Weinhaus 8/18/2007 .......... revised 3/21/2017
 #
 # ------------------------------------------------------------------------------
 # 
@@ -363,8 +363,8 @@ function testFloat
 # get input image size
 function imagesize
 	{
-	width=`identify -format %w $tmpA`
-	height=`identify -format %h $tmpA`
+	width=`convert $tmpA -format %w info:`
+	height=`convert $tmpA -format %h info:`
 	}
 
 # test for correct number of arguments and get values

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 3/19/2008 .......... revised 4/25/2015
+# Developed by Fred Weinhaus 3/19/2008 .......... revised 12/8/2017
 #
 # ------------------------------------------------------------------------------
 # 
@@ -26,7 +26,7 @@
 # 
 ####
 #
-# USAGE: lupe [cenx,ceny] [-m mag] [-s shape] [-l lenx,leny] [-r round] [-b border] [-c color] [-d distort] infile outfile
+# USAGE: lupe [cenx,ceny] [-m mag] [-s shape] [-l lenx,leny] [-r round] [-b border] [-c color] [-d distort] [-p pcolor] infile outfile
 # USAGE: lupe [-h or -help]
 #
 # OPTIONS:
@@ -49,6 +49,10 @@
 # -c      color            border color for lupe; default=white
 # -d      distort          spherical distortion factor; float; 
 #                          distort>=0; default=0
+# -p      pcolor           color to use to pad the image so that 
+#                          zooms near the edges can be used; 
+#                          any valid IM color is allowed; default 
+#                          is no pad                      
 # 
 ###
 #
@@ -92,6 +96,9 @@
 # point numbers greater than or equal to 0. The default=0 (no distortion). When 
 # values are greater than 0, the distortion is applied using -fx. Therefore, the 
 # processing will be slower.
+# 
+# -p pcolor ... PCOLOR is the color to use to pad the image so that zooms near the 
+# edges can be used. Any valid IM color is allowed. The default is no pad.                    
 #
 # CAVEAT: No guarantee that this script will work on all platforms, 
 # nor that trapping of inconsistent parameters is complete and 
@@ -113,7 +120,7 @@ color2="black"
 shape="circle"
 centx="" 		# flag to use center of image for centx,centy
 centy="" 		# flag to use center of image for centx,centy
-
+pcolor=""
 
 # set directory for temporary files
 dir="."    # suggestions are dir="." or dir="/tmp"
@@ -161,7 +168,7 @@ if [ $# -eq 0 ]
    echo ""
    usage2
    exit 0
-elif [ $# -gt 17 ]
+elif [ $# -gt 19 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -228,6 +235,13 @@ else
 					   checkMinus "$1"
 					   color="$1"
 					   ;;
+				-p)    # get  pcolor
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID PAD COLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   pcolor="$1"
+					   ;;
 				-d)    # get  distort
 					   shift  # to get the next parameter
 					   # test if parameter starts with minus sign 
@@ -278,15 +292,19 @@ trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2;" 0
 trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2; exit 1" 1 2 3 15
 trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2; exit 1" ERR
 
-# process forward transform
 
-# process mag
-if convert -quiet "$infile" +repage "$tmpA"
-	then
-	: ' do nothing '	
+
+if [ "$pcolor" != "" ]; then
+	pproc="-bordercolor $pcolor -border ${lenx}x${leny}"
+	tproc="-trim +repage"
 else
-	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+	pproc=""
+	tproc=""
 fi
+
+
+convert -quiet "$infile" $pproc +repage "$tmpA" || \
+	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 
 
 # get width, height, center and bottom right pixel
@@ -298,6 +316,9 @@ if [ "$centx" = "" -o "$centy" = ""  ]
 	then
 	centx=`echo "scale=0; ($width-1) / 2" | bc`
 	centy=`echo "scale=0; ($height-1) / 2" | bc`
+elif [ "$pcolor" != "" ]; then
+	centx=$((centx+lenx))
+	centy=$((centy+leny))
 fi
 
 # get subsection
@@ -444,8 +465,8 @@ if [ $border -ne 0 ]
 	-fill none -draw "$shape1 $coordso" \
 	-stroke $color2 -strokewidth $border2 \
 	-fill none -draw "$shape1 $coordsi" \
-	"$outfile"
+	$tproc "$outfile"
 else
-	convert $tmp2 "$outfile"
+	convert $tmp2 $tproc "$outfile"
 fi
 exit 0

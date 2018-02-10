@@ -18,7 +18,7 @@
 #
 ################################################################################
 #
-# Developed by Fred Weinhaus and Nicolas Robidoux 3/8/2011 ... revised 8/20/2012
+# Developed by Fred Weinhaus and Nicolas Robidoux 3/8/2011 ... revised 4/25/2015
 #
 # USAGE: randomblob [-n numpts] [-l linewidth] [-i isize] [-o osize]
 # [-s shape] [-b blur] [-t threshold] [-k kind] [-g gsigma] [-c constrain]
@@ -655,10 +655,10 @@ else
 	#
 	# get maskfile and outfile
 	if [ $# -eq 2 ]; then
-		maskfile=$1
-		outfile=$2
+		maskfile="$1"
+		outfile="$2"
 	elif [ $# -eq 1 ]; then
-		outfile=$1
+		outfile="$1"
 	else
 		errMsg "--- INCONSISTENT NUMBER OF MASKFILE AND OUTPUT IMAGES SPECIFIED ---"
 	fi
@@ -681,11 +681,12 @@ if [ "$maskfile" != "" ]; then
 	# setup temporary Images
 	tmpM1="$dMr/blob_M_$$.mpc"
 	tmpM2="$dMr/blob_M_$$.cache"
-	trap "rm -f $tmpM1 $tmpM2; exit 0" 0
+	trap "rm -f $tmpM1 $tmpM2;" 0
 	trap "rm -f $tmpM1 $tmpM2; exit 1" 1 2 3 15
+	trap "rm -f $tmpM1 $tmpM2; exit 1" ERR
 
 	# read the mask image into the temp files and test validity.
-	convert -quiet -regard-warnings "$maskfile" +repage "$tmpM1" ||
+	convert -quiet "$maskfile" +repage "$tmpM1" ||
 		errMsg "--- FILE $maskfile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 	iwidth=`convert $tmpM1 -ping -format "%w" info:`

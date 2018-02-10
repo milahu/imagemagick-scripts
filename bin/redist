@@ -1,7 +1,31 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/27/2007 .......... revised 7/3/2013
+# Developed by Fred Weinhaus 8/27/2007 .......... revised 10/20/2017
 # Contrast limiting technique by Alan Gibson (user snibgo) ... 7/3/2013
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: redist [-s shape] [-m colormodel] [-c channel] [-g graytype] 
 # [-f factor] [-G] [-L] [mean[,lo[,hi]]] infile outfile
@@ -15,7 +39,7 @@
 #                    default -> see below
 # -g   graytype      type of grayscale image to use when colormodel=RGB;
 #                    choices are: gray, rec601, rec709, lightness, brightness, 
-#                    ave, demodhsl, demodhcl. default=gray
+#                    ave, demodhsl, demodhcl; default=gray
 # -f   factor        factor the contrast gain limiting factor; smaller values  
 #                    will limit contrast gain more; values above about 3 will 
 #                    produce no contrast limit; float>=0; 
@@ -92,7 +116,8 @@
 # -g  GRAYTYPE defines the type of grayscale image to use when colormodel=RGB.
 # The choices are: gray (same as rec609luma; YUV, YIQ, YCbCr channel 1;  
 # HCL channel 2), rec709 (which is rec709luma), lightness (from HSL channel 2),  
-# brightness (from HSB channel 2) and ave (from OHTA channel 1). The 
+# brightness (from HSB channel 2), ave (from OHTA channel 1), luminance (from LAB 
+# channel 0), demodhsl (demodulate in HSL) and demodhcl (demodulate in HCL). The 
 # default=gray. Note that gray is the same as rec601luma prior to IM 6.8.5.5 
 # and is the same as rec709luma for IM 6.8.5.5 forward.
 #
@@ -171,13 +196,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  5,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  5,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -398,6 +423,7 @@ else
 							LIGHTNESS) ;;
 							BRIGHTNESS) ;;
 							AVE) ;;
+							LUMINANCE) ;;
 							DEMODHSL) ;;
 							DEMODHCL) ;;
 							*) errMsg "--- GRAYTYPE=$graytype IS NOT A VALID VALUE ---" ;;
@@ -459,8 +485,8 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	outfile=$2
+	infile="$1"
+	outfile="$2"
 	#
 	# if nothing supplied for mean,lo,hi then set to defaults
 	[ "$mean" = "" ] && mean=$dmean
@@ -485,12 +511,14 @@ hg="_histgraph"
 tmp4="$dir/$outname$hg.gif"
 if [ "$graph" = "view" ] 
 	then 
-	trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2 $tmpP $tmp3 $tmp4; exit 0" 0
+	trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2 $tmpP $tmp3 $tmp4;" 0
 	trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2 $tmpP $tmp3 $tmp4; exit 1" 1 2 3 15
+	trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2 $tmpP $tmp3 $tmp4; exit 1" ERR
 elif [ "$graph" = "save" ]
 	then
-	trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2 $tmpP $tmp3; exit 0" 0
+	trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2 $tmpP $tmp3;" 0
 	trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2 $tmpP $tmp3; exit 1" 1 2 3 15
+	trap "rm -f $tmpA $tmpB $tmp0 $tmp1 $tmp2 $tmpP $tmp3; exit 1" ERR
 else
 	errMsg "--- NOT A VALID GRAPH DISPLAY OPTION ---"
 fi
@@ -533,7 +561,7 @@ fi
 
 
 # now do processing
-if convert -quiet -regard-warnings "$infile" -strip +repage "$tmpA"
+if convert -quiet "$infile" -strip +repage "$tmpA"
 	then
 		# get colorspace and type
 		colorspace=`identify -ping -verbose $tmpA | sed -n 's/^.*Colorspace: \([^ ]*\).*$/\1/p'`
@@ -584,7 +612,10 @@ if convert -quiet -regard-warnings "$infile" -strip +repage "$tmpA"
 		elif [ "$colorspace" != "Gray" -a "$colormodel" = "RGB" -a "$graytype" = "AVE" -a "$channel" = "" ]
 			then
 			 	convert $tmpA $setcspace -colorspace OHTA -channel R -separate $tmp2
-		elif [ "$colorspace" != "Gray" -a "$colormodel" = "RGB" -a "$graytype" = "DEMODHSL" -a "$channel" = "" ]
+		elif [ "$colorspace" != "Gray" -a "$colormodel" = "RGB" -a "$graytype" = "AVE" -a "$channel" = "" ]
+			then
+			 	convert $tmpA $setcspace -colorspace LAB -channel R -separate $tmp2
+		elif [ "$colorspace" != "Gray" -a "$colormodel" = "RGB" -a "$graytype" = "LAB" -a "$channel" = "" ]
 			then
 			 	convert $tmpA -define modulate:colorspace=HSL -modulate 100,0,100 $tmp2
 		elif [ "$colorspace" != "Gray" -a "$colormodel" = "RGB" -a "$graytype" = "DEMODHCL" -a "$channel" = "" ]
@@ -681,16 +712,16 @@ if [ "$colorspace" != "Gray" -a "$channel" != "" ]
 			then
 			convert $tmpA $tmp3 -clut $outfile
 		else
-			convert $tmpA $tmp3 -fx 'v.p{u*v.w,0}' $outfile
+			convert $tmpA $tmp3 -fx 'v.p{u*v.w,0}' "$outfile"
 		fi
  elif [ "$colorspace" != "Gray" -a "$colormodel" = "GLOBAL" -a "$channel" = "" ]
 	then
 		# process RGB together
 		if [ "$im_version" -ge "06030507" ]
 			then
-			convert $tmpA $tmp3 -clut $outfile
+			convert $tmpA $tmp3 -clut "$outfile"
 		else
-			convert $tmpA $tmp3 -fx 'v.p{u*v.w,0}' $outfile
+			convert $tmpA $tmp3 -fx 'v.p{u*v.w,0}' "$outfile"
 		fi
 else
 		# process Grayscale
@@ -700,7 +731,7 @@ else
 		else
 			convert $tmp2 $tmp3 $setcspace -fx 'v.p{u*v.w,0}' $tmpP
 		fi
-		convert $tmpP $outfile
+		convert $tmpP "$outfile"
 fi
 
 

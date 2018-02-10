@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 4/30/2011 .......... 6/14/2013
+# Developed by Fred Weinhaus 4/30/2011 .......... 8/12/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: texturize [-d dimensions] [-n newseed] [-t threshold] [-b blur] 
 # [-w widen] [-s spread] [-g gnoise] [-f format] [-m mix] [-c contrast] 
@@ -117,13 +141,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -272,10 +296,10 @@ else
 	#
 	# get infile and outfile
 	if [ $# -eq 2 ]; then
-		infile=$1
-		outfile=$2
+		infile="$1"
+		outfile="$2"
 	elif [ $# -eq 1 ]; then
-		outfile=$1
+		outfile="$1"
 		infile=""
 	else
 		errMsg "--- INCONSISTENT NUMBER OF INPUT AND OUTPUT IMAGES SPECIFIED ---"
@@ -290,8 +314,9 @@ tmpA1="$dir/texturize_1_$$.mpc"
 tmpB1="$dir/texturize_1_$$.cache"
 tmpA2="$dir/texturize_2_$$.mpc"
 tmpB2="$dir/texturize_2_$$.cache"
-trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2;" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" ERR
 
 # get im_version
 im_version=`convert -list configure | \
@@ -322,7 +347,7 @@ fi
 
 if [ "$infile" != "" ]; then
 	# read the input image and filter image into the temp files and test validity.
-	convert -quiet -regard-warnings "$infile" +repage "$tmpA1" ||
+	convert -quiet "$infile" +repage "$tmpA1" ||
 		errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 	# get image size
@@ -348,14 +373,14 @@ if [ "$gnoise" = "0" ]; then
 	addnoise=""
 else
 	gnoise=`convert xc: -format "%[fx:$gnoise/5]" info:`
-	addnoise="-evaluate GaussianNoise $gnoise"
+	addnoise="-evaluate GaussianNoise $gnoise -clamp"
 fi
 
 # set up spread
 if [ "$spread" = "0" ]; then
 	spreading=""
 else
-	spreading="-spread $spread"
+	spreading="-interpolate bilinear -spread $spread"
 fi
 
 # set up format
@@ -377,8 +402,8 @@ fi
 convert -size ${ww}x${hh} xc:gray -seed $newseed +noise random \
 	$setcspace -channel g -separate +channel \
 	-white-threshold $thresh% $widening \
-	\( -clone 0 -virtual-pixel mirror -morphology Convolve Blur:0x${blur} +write 1tmp1.jpg \) \
-	\( -clone 0 -virtual-pixel mirror -morphology Convolve Blur:0x${blur},90 +write 1tmp2.jpg \) \
+	\( -clone 0 -virtual-pixel mirror -morphology Convolve Blur:0x${blur} \) \
+	\( -clone 0 -virtual-pixel mirror -morphology Convolve Blur:0x${blur},90 \) \
 	-delete 0 -compose multiply -composite -auto-level \
 	$addnoise -channel g -separate +channel \
 	$spreading $shading \
@@ -387,9 +412,9 @@ convert -size ${ww}x${hh} xc:gray -seed $newseed +noise random \
 
 if [ "$infile" != "" ]; then
 	convert -respect-parenthesis \( $tmpA1 $contr \) $tmpA2 \
-		-compose blend -define compose:args=$mix% -composite $outfile
+		-compose blend -define compose:args=$mix% -composite "$outfile"
 else
-	convert $tmpA2 $outfile
+	convert $tmpA2 "$outfile"
 fi
 
 exit 0

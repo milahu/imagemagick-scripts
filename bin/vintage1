@@ -1,7 +1,31 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 2/25/2013 .......... revised 6/21/2013
+# Developed by Fred Weinhaus 2/25/2013 .......... revised 8/12/2015
+#
+# ------------------------------------------------------------------------------
 # 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
 # USAGE: vintage1 [-b brightness] [-c contrast] [-s vignetteshape] 
 # [-r vignetterounding] [-l vignettelighten] [-N noiseamount] 
 # [-L verticallines] [-B verticalbands] [-S backgroundmix] [-T bordertype] 
@@ -166,13 +190,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -373,12 +397,12 @@ else
 	#
 	# get infile and outfile
 	if [ $# -eq 3 ]; then
-		infile=$1
-		backgroundfile=$2
-		outfile=$3
+		infile="$1"
+		backgroundfile="$2"
+		outfile="$3"
 	elif [ $# -eq 2 ]; then
-		infile=$1
-		outfile=$2
+		infile="$1"
+		outfile="$2"
 		backgroundfile=""
 	else
 		backgroundfile=""
@@ -396,8 +420,9 @@ tmpA1="$dir/vintage1_1_$$.mpc"
 tmpB1="$dir/vintage1_1_$$.cache"
 tmpA2="$dir/vintage1_2_$$.mpc"
 tmpB2="$dir/vintage1_2_$$.cache"
-trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 0" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2;" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" ERR
 
 # get im_version
 im_version=`convert -list configure | \
@@ -423,14 +448,17 @@ fi
 # also correct for -tint
 if [ "$im_version" -gt "06080504" ]; then
 	setcspace="-intensity rec601luma"
+	setcspace2="-set colorspace sRGB"
 	graycorrect="-intensity rec601luma"
 else
+	setcspace=""
+	setcspace2=""
 	graycorrect=""
 fi
 
 
 # test input image
-convert -quiet -regard-warnings "$infile" -auto-level +repage "$tmpA1" ||
+convert -quiet "$infile" -auto-level +repage "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 
 ww=`identify -ping -format "%w" $tmpA1`
@@ -465,7 +493,7 @@ if [ "$verticalnoiseamt" != "0" ]; then
 	# could have used gray50, but decided to keep gray(50%) and add -colorspoce sRGB
 	# which does not seem to alter results prior to 6.7.7.7
 	convert $tmpA1 \
-		\( -size ${ww}x1 xc:"gray(50%)" -set colorspace sRGB \
+		\( -size ${ww}x1 xc:"gray(50%)" $setcspace2 \
 			-seed $vertnoiseseed -attenuate 15 +noise uniform \
 			$setcspace -colorspace gray -resize ${ww}x${hh}\! \
 			-alpha set -channel A -evaluate set $verticalnoiseamt% +channel \) \
@@ -533,12 +561,12 @@ if [ "$bordertype" = "torn" ]; then
 		\( -clone 0 -fill "$bordercolor" -colorize 100% \) \
 		\( -clone 0 -fill white -colorize 100% -shave ${psize}x${psize} -bordercolor black -border $psize \) \
 		\( -clone 0 -seed $tornseed +noise Random -blur 0x$torncurviness \
-			$setcspace -colorspace gray -auto-level \
+			$setcspace -colorspace gray -auto-level $setcspace2 \
 			-channel R -evaluate sine $torndensity \
 			-channel G -evaluate cosine $torndensity \
 			-channel RG -separate -clone 2 -insert 0 \
 			-define compose:args=${borderwidth}x${borderwidth} \
-			-compose displace -composite -spread $tornroughness -blur 0x0.7 \) \
+			-compose displace -composite -interpolate bilinear -spread $tornroughness -blur 0x0.7 \) \
 		-delete 2 -swap 0,1 -compose over -composite -trim +repage \
 		-gravity center -background "$bordercolor" -extent ${ww}x${hh} \
 		$tmpA1
@@ -559,14 +587,14 @@ elif [ "$bordertype" = "round" ]; then
 		\( mpr:arc -flip \) -gravity southwest -composite \
 		\( mpr:arc -flop \) -gravity northeast -composite \
 		\( mpr:arc -rotate 180 \) -gravity southeast -composite \) \
-		-clone 0 -clone 1 -alpha off -compose copy_opacity -composite \
+		\( -clone 0 -clone 1 -alpha off -compose copy_opacity -composite \
 		-background "$bordercolor" -compose over -flatten \
-		-bordercolor "$bordercolor" -border $borderwidth \
-		$tmpA1
+		-compose over -bordercolor "$bordercolor" -border $borderwidth \) \
+		-delete 0,1 $tmpA1
 
 fi
 
 
-convert $tmpA1 $outfile
+convert $tmpA1 "$outfile"
 
 exit 0

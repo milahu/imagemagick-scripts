@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 10/08/2007 .......... revised 6/14/2013
+# Developed by Fred Weinhaus 10/08/2007 .......... revised 5/4/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: space [-m mix] [-b bri] [-c con] [-s sat] [-w wn ] [-g mg ] infile outfile
 # USAGE: space [-st] infile
@@ -136,13 +160,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 #
 # function to report error messages
@@ -170,7 +194,7 @@ if [ $# -eq 0 ]
 	echo ""
 	usage2
 	exit 0
-elif [ $# -eq 3 -o $# -eq 5 -o $# -eq 7 -o $# -eq 9 -o $# -eq 11 -o $# -eq 13 -o $# -gt 14 ]
+elif [ $# -gt 14 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -259,7 +283,7 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
+	infile="$1"
 	[ "$stats" = "false" ] && outfile=$2
 fi
 
@@ -271,6 +295,20 @@ fi
 if [ "$stats" = "false" ]
 	then
 	[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+fi
+
+
+# get im version
+im_version=`convert -list configure | \
+sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+
+# test for hdri enabled
+# NOTE: must put grep before trap using ERR in case it does not find a match
+if [ "$im_version" -ge "07000000" ]; then
+	hdri_on=`convert -version | grep "HDRI"`	
+else
+	hdri_on=`convert -list configure | grep "enable-hdri"`
 fi
 
 
@@ -291,12 +329,9 @@ tmp1="$dir/space_1_$$.pfm"
 tmp2="$dir/space_2_$$.pfm"
 tmp3="$dir/space_3_$$.pfm"
 
-trap "rm -f $tmpA $tmpB $tmpM $tmpM2 $tmpS $tmpS2 $tmpME $tmpME2 $tmpSE $tmpSE2 $tmp0 $tmp1 $tmp2 $tmp3; exit 0" 0
+trap "rm -f $tmpA $tmpB $tmpM $tmpM2 $tmpS $tmpS2 $tmpME $tmpME2 $tmpSE $tmpSE2 $tmp0 $tmp1 $tmp2 $tmp3;" 0
 trap "rm -f $tmpA $tmpB $tmpM $tmpM2 $tmpS $tmpS2 $tmpME $tmpME2 $tmpSE $tmpSE2 $tmp0 $tmp1 $tmp2 $tmp3; exit 1" 1 2 3 15
-
-# get im_version
-im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+trap "rm -f $tmpA $tmpB $tmpM $tmpM2 $tmpS $tmpS2 $tmpME $tmpME2 $tmpSE $tmpSE2 $tmp0 $tmp1 $tmp2 $tmp3; exit 1" ERR
 
 # colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
 # though probably not resolved until the latter
@@ -324,9 +359,6 @@ if [ "$im_version" -gt "06080504" ]; then
 	cspace="sRGB"
 fi
 
-
-# test for hdri enabled
-hdri_on=`convert -list configure | grep "enable-hdri"`
 
 # function to get min, max, mean, std from Brightness channel (or Graylevel image)
 function imagestats
@@ -366,7 +398,7 @@ else
 		echo "Please Wait - This May Take Some Time"
 		echo ""
 	fi
-	if convert -quiet -regard-warnings "$infile" +repage "$tmpA"
+	if convert -quiet "$infile" +repage "$tmpA"
 		then
 		: 'do nothing special'
 		else
@@ -381,10 +413,10 @@ else
 	convert $tmpA -filter box -resize $wn% $tmpM
 	
 	# get std = sqrt( ave(x^2) - ave(x)^2 )
-	# -gamma 2 is equivalent to sqrt
+	# -evaluate pow 0.5 is equivalent to sqrt
 	convert \( $tmpA $tmpA -compose multiply -composite -filter box -resize $wn% \) \
 		\( $tmpM $tmpM -compose multiply -composite \) +swap \
-		-compose minus -composite -gamma 2 $tmpS
+		-compose minus -composite -evaluate pow 0.5 $tmpS
 		
 	# expand mean and std images
 	dim=`convert $tmpA -format "%wx%h" info:`
@@ -393,7 +425,6 @@ else
 	
 
 if [ "$hdri_on" = "" ]; then
-echo "got here"
 	# get gain image and process output
 	dmean=`echo "scale=5; $bri * $mean / 100" | bc`
 	dstd=`echo "scale=5; $con * $std / 100" | bc`
@@ -421,9 +452,9 @@ else
 	convert $tmpA $tmpME $tmpSE \
 	\( -clone 1 -evaluate multiply $bfmfm1 -evaluate add $fdmean% \) \
 	\( -clone 2 -evaluate add $dsdmg% \) \
-	\( -clone 0 -clone 1 +swap -compose minus -composite -evaluate multiply $dstd \) \
-	\(  -clone 5 -clone 4 +swap -compose divide -composite \) \
-	-delete 0,1,2,4,5 -compose plus -composite $tmp3
+	\( -clone 0 -clone 1 +swap -define compose:clamp=off -compose minus -composite -evaluate multiply $dstd \) \
+	\(  -clone 5 -clone 4 +swap -define compose:clamp=off -compose divide -composite \) \
+	-delete 0,1,2,4,5 -define compose:clamp=off -compose plus -composite $tmp3
 fi
 
 	
@@ -440,6 +471,6 @@ fi
 			$tmp2 -compose CopyBlue -composite \
 			-colorspace $cspace $tmp3
 		fi
-	convert $tmp3 $outfile
+	convert $tmp3 "$outfile"
 fi
 exit 0

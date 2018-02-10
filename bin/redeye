@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 9/28/2011 .......... revised 6/13/2013
+# Developed by Fred Weinhaus 9/28/2011 .......... revised 3/10/2016
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: redeye [-k kind] [-l light] [-s sat] [-f fuzz] [-i inc] [-b begin] 
 # [-e end] [-d dilate] [-t type] [-r rad] "x1,y1 x2,y2 ..." infile outfile
@@ -141,13 +165,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 # function to report error messages, usage and exit
@@ -430,7 +454,7 @@ fi
 
 
 # test input image
-convert -quiet -regard-warnings "$infile" +repage "$tmpA1" ||
+convert -quiet "$infile" +repage "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 
 # create desaturated image
@@ -497,7 +521,7 @@ fi
 convert $tmpA5 -fuzz $fuzz% -fill none -draw "$proc" \
 	-fill "rgba(255,255,255,1)" +opaque "rgba(0,0,0,0)" \
 	-fill "rgba(0,0,0,1)" -opaque "rgba(0,0,0,0)" \
-	-alpha off -negate +write 1tmp1.gif $tmpA3
+	-alpha off -negate $tmpA3
 
 # set up dilation
 if [ "$dilate" = 0 ]; then
@@ -541,7 +565,7 @@ elif [ "$type" = "remove" ]; then
 		
 	# combine previous desaturated image with diff mask and color
 	convert $tmpA2 \( -clone 0 -fill $newcolor -colorize 100 \) $tmpA4 \
-		-compose over -composite $outfile
+		-compose over -composite "$outfile"
 fi
 
 exit 0

@@ -1,7 +1,31 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 9/31/2009 .......... revised 6/13/2013
+# Developed by Fred Weinhaus 9/31/2009 .......... revised 8/29/2015
+#
+# ------------------------------------------------------------------------------
 # 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+#
 # USAGE: perlin widthxheight [-s startlevel] [-e endlevel] [-b base] [-a attenuation] [-n noise] [-r reseed] [-f filter] [-m mode] outfile
 # USAGE: perlin [-h or -help]
 # 
@@ -120,13 +144,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -261,7 +285,7 @@ else
 	done
 	#
 	# get outfile
-	outfile=$1
+	outfile="$1"
 fi
 
 # test that outfile provided
@@ -270,8 +294,9 @@ fi
 # set temporary file
 tmpA1="$dir/perlin_A_$$.mpc"
 tmpA2="$dir/perlin_A_$$.cache"
-trap "rm -f $tmpA1 $tmpA2; exit 0" 0
+trap "rm -f $tmpA1 $tmpA2;" 0
 trap "rm -f $tmpA1 $tmpA2; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpA2; exit 1" ERR
 
 # get im_version
 im_version=`convert -list configure | \
@@ -291,11 +316,11 @@ im_version=`convert -list configure | \
 if [ "$im_version" -lt "06070607" -o "$im_version" -gt "06070707" ]; then
 	setcspace="-set colorspace RGB"
 else
-	setcspace=""
+	setcspace="-set colorspace sRGB"
 fi
-# no need for setcspace for grayscale or channels after 6.8.5.4
+# need this so that mode=color works
 if [ "$im_version" -gt "06080504" ]; then
-	setcspace=""
+	setcspace="-set colorspace sRGB"
 fi
 
 
@@ -353,8 +378,10 @@ until [ $dim -gt $maxwh ]; do
 	fi
 	amp2=`convert xc: -format "%[fx:-0.5*$amp]" info:`		
 	echo "Processing Octave Level: $i and Amplitude=$amp"
+	# need gray(50%) so that noise other than random will work on gray background
+	# need $setcspace so that color works for noise other than random
 	convert $tmpA1 \
-		\( -size ${dim}x${dim} xc: $seeding +noise $noise $setgray \
+		\( -size ${dim}x${dim} xc:"gray(50%)" $setcspace $seeding +noise $noise $setgray \
 		$filtering -resize ${maxdim}x${maxdim}! \) \
 		+swap -compose mathematics \
 		-set option:compose:args "0,1,$amp,$amp2" -composite \
@@ -367,7 +394,7 @@ until [ $dim -gt $maxwh ]; do
 done
 
 convert $tmpA1 -gravity center -crop ${width}x${height}+0+0 +repage \
-	$setcolor -auto-level $outfile
+	$setcolor -auto-level "$outfile"
 
 exit 0
 

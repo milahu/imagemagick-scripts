@@ -1,6 +1,30 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 6/1/2008 .......... revised 6/4/2008
+# Developed by Fred Weinhaus 6/1/2008 .......... revised 6/2/2015
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
 #
 # USAGE: variableblur [-m maxblur] [-n numblurs] infile maskfile outfile
 # USAGE: variableblur [-h or -help]
@@ -58,13 +82,13 @@ usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^###/q;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 usage2() 
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
-	sed >&2 -n '/^######/q;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
 
 
@@ -140,9 +164,9 @@ else
 	done
 	#
 	# get infile and outfile
-	infile=$1
-	maskfile=$2
-	outfile=$3
+	infile="$1"
+	maskfile="$2"
+	outfile="$3"
 fi
 
 # test that infile provided
@@ -178,18 +202,19 @@ for ((i=0;i<=$numblurs;i++))
 done
 tmpM="$tmpdir/varblur_M_$.miff"
 # remove tmpdir and all file contained in it
-trap "rm -rf $tmpdir; exit 0" 0
+trap "rm -rf $tmpdir;" 0
 trap "rm -rf $tmpdir; exit 1" 1 2 3 15
+trap "rm -rf $tmpdir; exit 1" ERR
 
 
-if convert -quiet -regard-warnings "$infile" +repage "$tmp0"
+if convert -quiet "$infile" +repage "$tmp0"
 	then
 	: ' Do Nothing '
 else
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 fi
 
-if convert -quiet -regard-warnings "$maskfile" +repage "$tmpM"
+if convert -quiet "$maskfile" +repage "$tmpM"
 	then
 	: ' Do Nothing '
 else
@@ -235,7 +260,7 @@ count1=`expr $j + 1`
 
 # blend blurred versions
 convert $images -monitor \
-	-fx "aa=$count*u[$count1]; xx=floor(aa); ff=aa-xx; yy=xx+1; u[xx]+ff*(u[yy]-u[xx])" $outfile
+	-fx "aa=$count*u[$count1]; xx=floor(aa); ff=aa-xx; yy=xx+1; u[xx]+ff*(u[yy]-u[xx])" "$outfile"
 exit 0
 
 

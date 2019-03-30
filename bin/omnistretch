@@ -1180,4 +1180,4 @@ echo "Break Points = ${pairArray[*]}"
 	convert -respect-parenthesis $tmp3 \( -background white -fill black -font Arial -pointsize 10 -gravity center label:'o \nu \nt \np \nu \nt ' -trim \) -geometry +10+20 -compose over -composite $tmp3
 	display $tmp3
 fi
-exit 0
+exit 00

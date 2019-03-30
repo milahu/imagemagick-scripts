@@ -498,3 +498,4 @@ fi
 convert $tmp1 $gamma $modulate "$outfile"
 
 exit 0
+

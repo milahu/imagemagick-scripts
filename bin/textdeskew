@@ -531,3 +531,10 @@ exit 0
 
 
 
+ation $trimming $padding "$outfile1"
+[ "$outfile2" != "" ] && convert $dir/tmpS.mpc "$outfile2"
+
+exit 0
+
+
+

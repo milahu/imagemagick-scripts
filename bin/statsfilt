@@ -685,3 +685,4 @@ case "$statistic" in
 		;;
 esac
 exit 0
+

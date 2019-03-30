@@ -558,3 +558,60 @@ exit 0
 
 
 
+errMsg "--- TOO MANY OBJECTS DETECTED ---"
+fi
+
+echo ""
+k=0
+for ((i=0; i<num; i++)); do
+	color="${colorArr[$i]}"
+	if [ "$color" != "gray(0)" ]; then
+		echo "Processing Image $k"
+		kk=`printf "%03d" "$k"`
+		wh=`echo "${bboxArr[$i]}" | cut -d+ -f1`
+		offx=`echo "${bboxArr[$i]}" | cut -d+ -f2`
+		offy=`echo "${bboxArr[$i]}" | cut -d+ -f3`
+		wd=`echo "$wh" | cut -dx -f1`
+		ht=`echo "$wh" | cut -dx -f2`
+		if [ "$resize" != "" ]; then
+				wd=`convert xc: -format "%[fx:round($wd*100/$resize)+2*$extend]" info:`
+				ht=`convert xc: -format "%[fx:round($ht*100/$resize)+2*$extend]" info:`
+				offx=`convert xc: -format "%[fx:round($offx*100/$resize)-$extend]" info:`
+				offy=`convert xc: -format "%[fx:round($offy*100/$resize)-$extend]" info:`
+			img=$tmpA4
+		else
+			wd=$((wd+2*extend))
+			ht=$((ht+2*extend))
+			offx=$((offx-extend))
+			offy=$((offy-extend))
+			img=$tmpA1
+		fi
+		echo "Initial Crop Box: ${wd}x${ht}+${offx}+${offy}"
+		echo ""
+		if [ $unrotate -eq 3 ]; then
+			convert $img -crop ${wd}x${ht}+${offx}+${offy} +repage $tmpA3
+		elif [ $unrotate -eq 1 ]; then
+			convert $img -crop ${wd}x${ht}+${offx}+${offy} +repage $derotate \
+				-bordercolor "$bcolor" -border 2 -fuzz ${fuzzval}% -trim +repage $tmpA3
+		elif [ $unrotate -eq 2 ]; then
+			convert $img -crop ${wd}x${ht}+${offx}+${offy} +repage \
+				-fuzz ${fuzzval}% -trim miff:- | \
+				unrotate -C "$bcolor" -f ${fuzzval}% - $tmpA3
+		fi
+		if [ "$innertrim" = "yes" ]; then
+			mextend=-$extend
+			autotrim -m inner -f $fuzzval -C "$bcolor" -l $mextend -t $mextend \
+				-r $extend -b $extend $tmpA3 ${outname}-${kk}.${suffix}
+			echo ""
+		else
+			convert $tmpA3 ${outname}-${kk}.${suffix}
+		fi
+		k=$((k+1))
+	fi
+done
+echo ""
+
+exit 0
+
+
+

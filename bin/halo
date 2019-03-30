@@ -511,4 +511,4 @@ convert $tmp1 -distort polar -1,0,$cx,$cy $tmp1
 # composite image with halo
 convert $tmpA1 $tmp1 $setcspace3 -compose over -composite "$outfile"
 
-exit 0
+exit 00

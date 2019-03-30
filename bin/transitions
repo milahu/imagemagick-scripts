@@ -374,4 +374,4 @@ if [ "$outfile" != "" ]
 else
 	animate $tmp0
 fi
-exit 0
+exit 00

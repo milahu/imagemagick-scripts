@@ -433,3 +433,10 @@ elif [ "$colormode" = "rgb" ]; then
 fi
 
 exit 0
+al "$GA $GB" \) \
+		\( $dir/tmpRGB1.mpc[2] -function polynomial "$BA $BB" \) \
+		-combine \
+		"$outfile"
+fi
+
+exit 0

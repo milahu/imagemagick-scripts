@@ -652,3 +652,11 @@ else
 fi
 
 exit 0
+tract -format "%[fx:mean]" info:`
+if [ "$alphamean" != 1 ]; then
+	convert \( $tmpA1 -alpha copy -channel A -negate +channel \) $tmpA2 -clut "$outfile"
+else
+	convert $tmpA1 $tmpA2 -clut "$outfile"
+fi
+
+exit 0

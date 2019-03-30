@@ -498,3 +498,4 @@ elif [ "$colormode" = "sl" ]; then
 fi
 exit 0
 
+

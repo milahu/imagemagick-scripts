@@ -257,4 +257,4 @@ if [ "$mode" = "last" -o "$mode" = "both" ]; then
 fi
 
 echo ""
-exit 0
+exit 00

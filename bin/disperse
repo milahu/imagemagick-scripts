@@ -309,3 +309,4 @@ convert $tmpA1 $tmp0 -monitor \
 	"$outfile"
 fi
 exit 0
+0

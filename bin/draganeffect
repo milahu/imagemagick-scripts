@@ -274,3 +274,4 @@ convert $tmpA1 $brightening $contrasting -modulate 100,$saturation,100 \
 
 exit 0
 
+

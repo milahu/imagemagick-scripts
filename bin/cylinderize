@@ -960,3 +960,25 @@ echo "compose=\"$compose\""
 fi
 
 exit 0
+width=\"$width\""
+echo "height=\"$height\""
+echo "length2=\"$length2\""
+echo "pwidth=\"$pwidth\""
+echo "pheight=\"$pheight\""
+echo "width1=\"$width1\""
+echo "height1=\"$height1\""
+echo "width12=\"$width12\""
+echo "height12=\"$height12\""
+echo "xc=\"$xc\""
+echo "yc=\"$yc\""
+echo "radius2=\"$radius2\""
+echo "coords=\"$coords\""
+echo "offsets=\"$offsets\""
+echo "rotation=\"$rotation\""
+echo "wbg=\"$wbg\""
+echo "hbg=\"$hbg\""
+echo "pad=\"$pad\""
+echo "compose=\"$compose\""
+fi
+
+exit 0

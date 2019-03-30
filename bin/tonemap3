@@ -564,4 +564,4 @@ elif [ "$type" = "space" -o "$type" = "retinex" ]; then
 		"$outfile"
 fi
 
-exit 0
+exit 00

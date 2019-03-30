@@ -399,3 +399,4 @@ convert $tmpA1 -gravity center -crop ${width}x${height}+0+0 +repage \
 exit 0
 
 
+

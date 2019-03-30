@@ -266,4 +266,4 @@ convert $tmpA1 -colorspace LAB \
 	-colorspace sRGB \
 	"$outfile"
 
-exit 0
+exit 00

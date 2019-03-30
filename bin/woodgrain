@@ -526,4 +526,4 @@ convert $tmpA1 $tmpB1 -compose plus -composite \
 
 fi
 
-exit 0
+exit 00

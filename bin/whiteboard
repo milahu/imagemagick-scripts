@@ -711,3 +711,4 @@ else
 	errMsg = "--- INVALID SITUATION ---"
 fi
 exit 0
+

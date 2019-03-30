@@ -528,4 +528,4 @@ convert $tmpA1 \
 \( +clone -flip \) -append \
 $resizing "$outfile"
 
-exit 0
+exit 00

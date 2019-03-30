@@ -432,3 +432,4 @@ elif [ "$mode" = "polar" ]
 	fi	
 fi
 exit 0
+

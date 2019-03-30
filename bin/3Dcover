@@ -984,3 +984,49 @@ fi
 exit 0
 
 
+ tx for xshift
+		bx=$((bx+xshift))
+		tx=$((tx+xshift))
+		xoff=`echo "$xyoffset" | cut -d, -f 1`
+		yoff=`echo "$xyoffset" | cut -d, -f 2`
+		if [ "$im_version" -ge "06080400" ]; then
+			pageax=$((tx-2-xshift-xoff+6))
+			pageay=$((-yoff))
+			penumbra=$((penumbra+1))
+		else
+			pageax=$((tx-2-xshift-xoff))
+			pageay=$((-yoff))
+		fi
+		pagesx=0
+		pagesy=$((hh-ht-hl))
+		pageshadow=`printf "%+d%+d"  ${pagesx} ${pagesy}`
+		pageimage=`printf "%+d%+d"  ${pageax} ${pageay}`
+#		echo "pagesx=$pagesx; pagesy=$pagesy; pageax=$pageax; pageay=$pageay;"
+	fi
+#echo "wd=$wd; xshift=$xshift; ht=$ht; bx=$bx; by=$by; mx=$mx; my=$my; tx=$tx; ty=$ty; umbra=$umbra; penumbra=$penumbra;"
+
+		# draw shadow triangle
+		convert -size $((wd+$xshift))x${ht} xc:"rgba(255,255,255,0)" -fill "gray($umbra%)" \
+			-draw "polygon $bx,$by $mx,$my $tx,$ty" -flip \
+			-channel rgba -bordercolor "rgba(255,255,255,0)" -border ${penumbra} \
+			-background "rgba(255,255,255,0)" -alpha background $aproc1 -blur ${penumbra}x65000 $aproc2 \
+			-level 0x100% -gravity south +repage $tmpS1
+
+		# merge shadow and image and background color
+#		echo "wl=$wl; hh=$hh; hl=$hl; pagesx=$pagesx; pagesy=$pagesy; pageax=$pageax; pageay=$pageay"
+		if [ "$im_version" -ge "07000000" ]; then
+			convert $setcspace \( -page $pageshadow $tmpS1 \) \
+				\( -page $pageimage $tmpA1 \) \
+				-background none -layers merge +repage $coloring -fuzz $fuzzval% -trim +repage \
+				$resizing $padding "$outfile"
+		else
+			convert $setcspace -page $pageshadow $tmpS1 \
+				-page $pageimage $tmpA1 \
+				-background none -layers merge +repage $coloring -fuzz $fuzzval% -trim +repage \
+				$resizing $padding "$outfile"
+		fi
+fi
+
+exit 0
+
+

@@ -287,3 +287,20 @@ exit;
 echo "P2 $wd $ht 255 ${Arr[*]}" | convert - $tmpL -clut "$outfile"
 
 exit 0
+*y < 4.0 && n<255)
+            {
+            x_new = x*x - y*y + c_re;
+            y_new = 2*x*y + c_im;
+            x = x_new;
+            y = y_new;
+            n++;
+            }
+        print n;
+        }
+    print 0;
+    }
+exit;
+}'`)
+echo "P2 $wd $ht 255 ${Arr[*]}" | convert - $tmpL -clut "$outfile"
+
+exit 0

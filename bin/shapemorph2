@@ -337,4 +337,4 @@ else
   convert $dir/result.miff -loop 0 "$outfile"
 fi
 
-exit 0
+exit 00

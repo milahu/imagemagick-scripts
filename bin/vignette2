@@ -350,4 +350,4 @@ convert $tmpA1 \
 	$setcspace -compose $method -composite "$outfile"
 fi
 
-exit 0
+exit 00

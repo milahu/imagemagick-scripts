@@ -375,4 +375,4 @@ elif [ "$channels" = "all" -a $format -eq 3 ]; then
 	convert $tmpGreen $trans $flip "$outfile_gb"
 	convert $tmpBlue $trans $flip "$outfile_br"
 fi
-exit 0
+exit 00

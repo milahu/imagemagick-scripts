@@ -494,4 +494,4 @@ if [ "$show" = "yes" ]; then
 	showSwatch "$color"
 fi
 
-exit 0
+exit 00

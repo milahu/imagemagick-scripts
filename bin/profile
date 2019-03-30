@@ -519,4 +519,4 @@ fi
 convert $tmp4 "$outfile"
 
 echo ""
-exit 0
+exit 0 0

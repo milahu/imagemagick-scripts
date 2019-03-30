@@ -691,4 +691,4 @@ else
 	convert $tmpA1 "$outfile"
 fi
 
-exit 0
+exit 00

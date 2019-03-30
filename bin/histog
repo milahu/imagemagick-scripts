@@ -410,4 +410,4 @@ if [ $num_labels -eq 4 -o "$labels" = "4" ]
 else
 	convert $tmp0 $tmp1 $tmp2 -append -resize 50x50% "$outfile"
 fi
-exit 0
+exit 00

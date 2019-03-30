@@ -379,3 +379,4 @@ fi
 	-fx "yd=j-$oyc; v.p{i,(180*$shl/(pi*$vrange))*atan($pfocinv*yd)+$iyc}" +monitor \
 	"$outfile"
 exit 0
+

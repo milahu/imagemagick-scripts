@@ -284,4 +284,4 @@ elif [ "$mode" = "vertical" ]; then
 	convert $infilelist -gravity $gravity -background $bgcolor \
 		-extent ${maxw}x -set colorspace $cspace -append "$outfile"
 fi
-exit 0
+exit 00

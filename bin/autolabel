@@ -435,3 +435,4 @@ convert $tmpA1 $tmpA2 -geometry +${xxmp}+${yymp} \
 
 exit
 
+

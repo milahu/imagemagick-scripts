@@ -267,4 +267,4 @@ elif [ "$mode" = "std" ]; then
 	convert $tmp0 -gamma 2 $stretch "$outfile"
 fi
 
-exit 0
+exit 00

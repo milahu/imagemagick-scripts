@@ -473,4 +473,4 @@ fi
 		fi
 	convert $tmp3 "$outfile"
 fi
-exit 0
+exit 00

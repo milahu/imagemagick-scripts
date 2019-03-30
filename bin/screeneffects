@@ -355,4 +355,4 @@ elif [ "$type" = "displace" -a "$method" = "3" ]; then
 	fi
 
 fi
-exit 0
+exit 00

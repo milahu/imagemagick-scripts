@@ -727,3 +727,4 @@ convert \( $tmp2A[0] $tmp3A -compose multiply -composite \) $tmp2A[1] \
 
 exit 0
 
+

@@ -20,7 +20,7 @@ anglegradient --- Creates a gradient effect at a specific orientation angle.
 
 aspect --- Resizes an image to a specific size allowing either cropping or padding to deal with the aspect ratio change.
 
-aspectpad --- Crops an image to a specified aspect ratio.
+aspectcrop --- Crops an image to a specified aspect ratio.
 
 aspectpad --- Pads an image with a color to a specified aspect ratio and orientation.
 
@@ -105,6 +105,8 @@ colorconverter --- To convert any valid ImageMagick color specification to the o
 colorcoords --- Locates in the image the first location and/or last location for the closest pixel within the fuzz value to the color specified.
 
 colorfilter --- Applies a photographic color filter to an image.
+
+colorfulness --- Computes a metric that represents the colorfulness of an image.
 
 colorglow --- Applies a color glow effect to an image.
 
@@ -228,6 +230,8 @@ grid --- Superimposes a set of horizontal and/or vertical grid lines on an image
 
 halo --- Applies a circular halo to an image.
 
+hamming --- Computes the percent hamming distance between two binary string perceptual hashes.
+
 hexagons --- Creates a hexagonal grid of the randomly rotated input image.
 
 histcompare --- Computes one of several metrics characterizing the difference between the histograms of two images.
@@ -271,8 +275,6 @@ kneemap --- Creates a symmetric soft knee-shaped curved mapping look up table an
 kuwahara --- Applies a Kuwahara type edge preserving noise reduction filter to an image.
 
 laplacian --- Applies a laplacian filter to an image.
-
-lenswarp --- simulates the effect of looking at a picture through a one side curved and one side flat lens sitting with the flat side against the picture.
 
 levelcolors --- Applies a color level transformation to an image channel-by-channel.
 
@@ -380,11 +382,13 @@ perforations --- Applies film-like perforations to two opposite edges of an imag
 
 perlin --- Creates an image composed of Perlin type noise.
 
-phase --- Computes the phase correlation surface to find where a small image best matches within a larger image.
+phasecorr --- Computes the phase correlation surface to find where a small image best matches within a larger image.
 
 phashcompare --- Compares two 168 digit phash strings to compute a phash metric.
 
 phashconvert --- Converts the 42 phash float values for an image to a string of 168 digits.
+
+phashes --- Computes and stores one or more perceptual hashes for all provided images.
 
 picframe --- Adds a picture frame around an image.
 
@@ -407,6 +411,8 @@ plot3D --- Generates a 3D plot of a single channel or grayscale image.
 polar --- Applies either a rectangular (cartesian) to polar transformation or a polar to rectangular (cartesian) transformation on an image.
 
 polarblur --- Applies a polar blur to an image.
+
+polyring --- Creates a polygon ring image from one or more images.
 
 popart --- Creates a pop art style image.
 
@@ -446,6 +452,8 @@ replacecolor --- Changes one color to another color in an image.
 
 retinex --- Enhances detail and color in an image using the multiscale retinex algorithm.
 
+rgbdots --- Transforms an image into dots in primary and secondary colors.
+
 ripples --- Applies various circular ripple effects to an image.
 
 rmsecorr --- Computes the root mean squared correlation surface to find where a small image best matches within a larger image.
@@ -456,15 +464,21 @@ sahoothresh --- Automatically thresholds an image to binary (b/w) format using S
 
 saturation --- Changes the color saturation in an image.
 
+scalescroll --- Creates a scaled scrolling animation.
+
 scatter --- Generates a channel-by-channel scatter diagram between two images.
 
 scatterchannels --- Generates a scatter diagram between channels of an image.
 
 screeneffects --- Applies screen-like effects to an image.
 
+scriptbatch --- Runs another script over a folder of images.
+
 separate --- Identifies each separate white shape in a binary image.
 
 shadowhighlight --- Adjusts the tone in shadow and highlight areas of an image.
+
+shadows --- Applies drop shadows to an image that has an alpha channel.
 
 shapecluster --- Creates a division of the image into 5 separated rectangular regions.
 
@@ -476,17 +490,23 @@ sharp --- Adaptively sharpens an image or extract edges.
 
 sharpedge --- Adaptively sharpens (or blurs) an image near edges.
 
+shimmer --- Creates a reflected heat shimmering effect animation.
+
 shuffle --- Randomly shuffles positions of square sized tiles in an image.
 
 sigmoidal --- Applies a sigmoidal brightness and/or contrast adjustment to an image.
 
 similar --- Computes the normalized cross correlation similarity metric between two equal dimensioned images.
 
+sinescrollimage --- Creates a sinusoidal curved scrolling image banner animation.
+
+sinescrolltext --- Creates a sinusoidal curved scrolling text banner animation.
+
 sketch --- Applies a sketch effect to an image.
 
 sketcher --- Applies a sketch effect to an image.
 
-sketchetech --- Creates an etch-like sketch from an image.
+sketchetch --- Creates an etch-like sketch from an image.
 
 sketching --- Applies a sketch effect to an image.
 
@@ -516,7 +536,7 @@ sphere --- Creates a colored sphere with a combination of diffuse and specular i
 
 sphericalpano2cube --- Transforms a spherical panorama into a cubical representation.
 
-sphericalpano2cube --- Generate a perspective (rectilinear) image from a region of a spherical panorama image.
+sphericalpano2rect --- Generate a perspective (rectilinear) image from a region of a spherical panorama image.
 
 spherize ---  Warps an image onto a (hemi-)sphere.
 
@@ -553,6 +573,8 @@ stretch --- Modifies an image to automatically stretch the dynamic range between
 striations --- Applies radial or circular striations to image.
 
 stutter --- Creates a 'stuttered' offset-like effect in an image.
+
+surroundblur --- Creates a blurred background region around the input image.
 
 textcleaner --- Processes a scanned document of text to clean the text background.
 
@@ -604,6 +626,8 @@ trianglethresh --- Automatically thresholds an image to binary (b/w) format usin
 
 tricolorize --- Smoothly colorizes a grayscale image with either one, two or three different colors.
 
+trim2rect --- Automatically trims the sides of an image until no outer row or column contains the background color.
+
 trimcorners --- Automatically crops the image to removed rounded corners.
 
 trimmer --- Trims the background from any number of specified sides of an image.
@@ -616,7 +640,7 @@ tshirtwarper --- Transforms an image to place it in a region of a tshirt image u
 
 tunnelize --- Creates a tunnel-like effect on an image.
 
-turbulences --- Applies a turbulence-like warping of the image.
+turbulence --- Applies a turbulence-like warping of the image.
 
 turn --- Simultaneously rotates and crops an image to eliminate any background.
 
@@ -631,6 +655,10 @@ variableblur --- Applies a variable blur to an image based upon a mask image.
 vibrance --- Applies a non-linear change to the saturation of an image.
 
 vibrance2 --- Applies a non-linear change to the chroma channel of an image.
+
+vibrance3 --- Applies a non-linear change to the chroma channel of an image.
+
+videoglitch --- Applies a video glitch effect to an image.
 
 vignette --- Applies a vignette effect to a picture.
 
@@ -654,13 +682,23 @@ whitebalance --- Transform an image's overall color balance according to a desir
 
 whiteboard --- Processes a picture of a whiteboard to clean up the background and correct the perspective.
 
+wiggle --- Creates a sinusoidal wiggling animation.
+
+woodbrand --- Creates a branded effect in a wood grain image using a binary image as the brand.
+
 woodcut --- Applies a woodcut effect to an image.
 
 woodgrain --- Simulates a woodgrain texture.
 
+xpand --- Applies a non-uniform outward stretch of the image in one direction.
+
 xposure --- Changes the exposure level of an image by photographic stops.
+
+xtract --- Uses Hough lines to extract and rectify a quadrilateral area from an image.
 
 zerocrossing --- Applies a zero crossing edge detector to an image.
 
 zoomblur --- Applies a radial or zoom blur to an image.
+
+zoomrotatetext --- Creates a zoomed rotating text animation.
 

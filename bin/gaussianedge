@@ -370,3 +370,4 @@ else
 	convert $tmp1 "$outfile"
 fi
 exit 0
+

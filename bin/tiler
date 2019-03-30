@@ -299,4 +299,4 @@ elif [ $method -eq 2 ]; then
 		"$outfile"
 fi
 
-exit 0
+exit 00

@@ -386,4 +386,4 @@ fi
 convert \( -size ${ww}x${hh} xc:"$bgcolor" \) $tmpA1 $tmp2 \
 	-compose over -composite \
 	-trim +repage -gravity center -background "$bgcolor" -extent ${ww}x${hh} "$outfile"
-exit 0
+exit 00

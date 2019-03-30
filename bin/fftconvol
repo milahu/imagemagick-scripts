@@ -307,3 +307,4 @@ convert \( $tmpA2 $setcspace -roll -${cx}-${cy} -virtual-pixel $vp +fft -evaluat
 	-crop ${width}x${height}+0+0 +repage $addalpha $setcspace2 "$outfile"
 
 exit 0
+

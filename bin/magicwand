@@ -363,4 +363,4 @@ elif [ "$format" = "image"  -a "$mask" = "layer" ]
 	fi
 fi
 convert $tmp0 "$outfile"
-exit 0
+exit 00

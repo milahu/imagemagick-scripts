@@ -197,3 +197,4 @@ fi
 convert $tmpA1 $operation "$outfile"
 
 exit 0
+

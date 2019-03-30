@@ -505,4 +505,4 @@ convert $tmpA4 \( -size ${ww}x${hh} xc:white \
 	-alpha off -compose copy_opacity -composite \
 	-compose over $back -flatten "$outfile"
 
-exit 0
+exit 00

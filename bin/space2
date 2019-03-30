@@ -521,4 +521,4 @@ fi
 # write output
 convert $dir/tmp3.mpc "$outfile"
 
-exit 0
+exit 00

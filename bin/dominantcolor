@@ -320,3 +320,27 @@ fi
 
 
 exit 0
+lor" -scale 5000% $action
+	fi
+elif [ "$print" = "all" ]; then
+	echo "dominant colors:"
+	echo "count,hexcolor"
+	echo "$sortedfinalcolors"
+	if [ "$swatches" != "" ]; then
+		swatch_list=""
+		for item in $sortedfinalcolors; do
+			color=`echo "$item" | cut -d, -f2`
+			pixel="xc:'$color'"
+			swatch_list="$swatch_list $pixel"
+		done
+		if [ "$swatches" = "view" ]; then
+			action="show:"
+		elif [ "$swatches" = "save" ]; then
+			action="${inname}_swatches.gif"
+		fi
+		eval 'convert '$swatch_list' +append -scale 5000% $action'
+	fi
+fi
+
+
+exit 0

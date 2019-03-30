@@ -411,3 +411,4 @@ fi
 eval 'convert -respect-parentheses \( $tmpA1 -set page +0+0 \)' $proc_list '-flatten "$outfile"'
 
 exit 0
+ 0

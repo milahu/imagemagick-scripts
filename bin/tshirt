@@ -834,4 +834,165 @@ if [ "$export" = "yes" -a "$directory" != "" ]; then
 	echo "compose=\"$compose\"" >> $directory/tshirtdata.txt
 fi
 
+exit 0000" ]; then
+	identifying="magick identify"
+else
+	identifying="identify"
+fi
+
+# test if tshirt/bgfile has alpha. If so remove and save for later.
+is_alpha=`$identifying -verbose $dir/tmpT.mpc | grep "Alpha" | head -n 1`
+[ "$is_alpha" != "" ] && convert $dir/tmpT.mpc -alpha extract -blur 0x$antialias -level 50x100% $dir/tmpA.mpc
+
+# convert tshirt/bgfile to grayscale and compute amount to add/subtract to change mean to 50%
+# use bounding box before any additional rotation as good approximation of region
+diff=`convert $dir/tmpT.mpc -alpha off -colorspace gray -write $dir/tmpTG.mpc \
+	-crop ${wd}x${ht}+${minx}+${miny} +repage -format "%[fx:100*mean-50]" info:`
+#echo "diff=$diff"	
+
+
+# set up lighting
+# test for sign of lighting
+test=`convert xc: -format "%[fx:($lighting>0)?1:0]" info:`
+if [ "$lighting" = "0" ]; then
+	lproc=""
+elif [ $test -eq 1 ]; then
+	cont=`convert xc: -format "%[fx:$lighting/3]" info:`
+	lproc="-sigmoidal-contrast $cont,50%"
+elif [ $test -eq 0 ]; then
+	cont=`convert xc: -format "%[fx:abs($lighting)/3]" info:`
+	lproc="+sigmoidal-contrast $cont,50%"
+fi
+#echo "lproc=$lproc"
+
+# set up blurring of the displacement image to soften texture
+if [ "$blur" != "0" ]; then
+	bproc="-blur 0x$blur"
+else
+	bproc=""
+fi
+
+# set up blurring of the bgimage image to soften texture
+if [ "$attenuate" != "0" ]; then
+	aproc="-blur 0x$attenuate"
+else
+	aproc=""
+fi
+#echo "aproc=$aproc"
+
+
+# convert grayscale tshirt to 50% mean, then to lighting image and displacement image
+convert \( $dir/tmpTG.mpc -evaluate subtract $diff% \) \
+	\( -clone 0 $aproc $lproc -write $dir/tmpL.mpc \) +delete \
+	$bproc $dir/tmpD.mpc
+
+# check if export directory exists.
+if [ "$export" = "yes" -a "$directory" != "" ]; then
+	# remove trailing \
+	if [ ! -d "$directory" ]; then 
+		mkdir "$directory" || {
+  		echo >&2 "UNABLE TO CREATE DIRECTORY \"$directory\" -- ABORTING"
+  		exit 10
+  		}
+  	fi
+	# remove trailing \
+  	directory=`echo "$directory" | sed 's/[/]*$//'`
+	convert $dir/tmpL.mpc $directory/lighting.png
+	convert $dir/tmpD.mpc -alpha set $directory/displace.png
+elif [ "$export" = "yes" -a "$directory" = "" ]; then
+	convert $dir/tmpL.mpc lighting.png
+	convert $dir/tmpD.mpc -alpha set displace.png
+fi
+
+
+# set up sharpening of overlay image in perspective
+if [ "$sharpen" != "0" ]; then
+	sproc="-unsharp 0x$sharpen -clamp"
+else
+	sproc=""
+fi
+#echo "sproc=$sproc"
+
+
+# set up cropping
+cropping=""
+if [ "$fit" = "crop" ]; then
+	hc=$((yo3+1))
+	test=`convert xc: -format "%[fx:($hh>$hc)?1:0]" info:`
+	if [ $test -eq 1 ]; then
+		cropping="-gravity $gravity -crop ${ww}x${hc}+0+0 +repage"
+	fi
+fi
+#echo "hh=$hh; hc=$hc; cropping=$cropping"
+
+# set up swapping for -C over
+if [ "$compose" = "over" ]; then
+	swapping="+swap"
+else
+	swapping=""
+fi
+
+# set up for opacity
+if [ "$opacity" != "100" ]; then
+	opacity=`convert xc: -format "%[fx:$opacity/100]" info:`
+	oproc="-alpha on -channel a -evaluate multiply $opacity +channel"
+else
+	oproc=""
+fi
+	
+# line2 1-4:  process overlay image to perspective transform with transparent
+#             background the size of the tshirt image and sharpen
+# lines 5-7:  apply lighting image and make tshirt background from lighting image 
+#			  transparent using alpha of previous steps
+# lines 8-10: apply displacement image
+convert -respect-parenthesis \( $dir/tmpTG.mpc -alpha transparent \) \
+	\( $dir/tmpI.mpc $cropping -virtual-pixel none +distort perspective \
+	"$xo1,$yo1 $x1,$y1   $xo2,$yo2 $x2,$y2   $xo3,$yo3 $x3,$y3   $xo4,$yo4 $x4,$y4" $sproc \) \
+	-background none -layers merge +repage \
+	\
+	\( -clone 0 -alpha extract \) \
+	\( -clone 0 $oproc \( $dir/tmpL.mpc \) $swapping -compose $compose -composite \) \
+	-delete 0 +swap -compose over -alpha off -compose copy_opacity -composite \
+	\
+	$dir/tmpD.mpc \
+	-define compose:args=-$displace,-$displace -compose displace -composite \
+	$dir/tmpITD.mpc
+
+
+if [ "$maskfile" != "" ]; then
+	mask="$dir/tmpM.mpc"
+else
+	mask=""
+fi
+
+# composite distorted overlay onto tshirt
+if [ "$is_alpha" != "" ]; then
+	convert $dir/tmpT.mpc $dir/tmpITD.mpc $mask -compose over -composite \
+		$dir/tmpA.mpc -alpha off -compose copy_opacity -composite "$outfile"
+else
+	convert $dir/tmpT.mpc $dir/tmpITD.mpc $mask -compose over -composite "$outfile"
+fi
+
+if [ "$export" = "yes" ]; then
+	# show arguments to terminal
+	echo "coordinates=\"$xo1,$yo1 $x1,$y1 $xo2,$yo2 $x2,$y2 $xo3,$yo3 $x3,$y3 $xo4,$yo4 $x4,$y4\""
+	echo "antialias=\"$antialias\""
+	echo "sharpen=\"$sharpen\""
+	echo "displace=\"$displace\""
+	echo "modulating=\"$modulating\""
+	echo "compose=\"$compose\""
+	echo "opacity=\"$opacity\""
+fi
+
+if [ "$export" = "yes" -a "$directory" != "" ]; then
+	# save arguments to textfile
+	echo "coordinates=\"$xo1,$yo1 $x1,$y1 $xo2,$yo2 $x2,$y2 $xo3,$yo3 $x3,$y3 $xo4,$yo4 $x4,$y4\"" > $directory/tshirtdata.txt
+	echo "antialias=\"$antialias\"" >> $directory/tshirtdata.txt
+	echo "sharpen=\"$sharpen\"" >> $directory/tshirtdata.txt
+	echo "displace=\"$displace\"" >> $directory/tshirtdata.txt
+	echo "modulating=\"$modulating\"" >> $directory/tshirtdata.txt
+	echo "compose=\"$compose\"" >> $directory/tshirtdata.txt
+	echo "opacity=\"$opacity\"" >> $directory/tshirtdata.txt
+fi
+
 exit 0

@@ -296,3 +296,4 @@ if [ "$outfile" != "" ]; then
 fi
 
 exit 0
+ 0

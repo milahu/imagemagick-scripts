@@ -441,3 +441,4 @@ convert \( $tmpA1 $colorizing -alpha set -channel A -evaluate set $mix% -channel
 
 
 exit 0
+0

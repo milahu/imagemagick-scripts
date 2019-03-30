@@ -469,4 +469,4 @@ if [ $border -ne 0 ]
 else
 	convert $tmp2 $tproc "$outfile"
 fi
-exit 0
+exit 00

@@ -416,3 +416,4 @@ convert $tmp0 -scale ${columns}x${rows}! "$outfile"
 
 exit 0
 
+

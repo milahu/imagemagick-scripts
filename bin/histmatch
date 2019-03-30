@@ -500,4 +500,4 @@ fi
 
 [ "$savelut" = "yes" ] && convert $tmpL histmatch_lut.png
 
-exit 0
+exit 00

@@ -218,3 +218,4 @@ while [ $i -le $iter ]
 done
 convert $tmpA "$outfile"
 exit 0
+

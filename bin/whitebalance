@@ -267,3 +267,4 @@ convert $tmpA $process "$redfrac 0 0 0 $greenfrac 0 0 0 $bluefrac" "$outfile"
 exit 0
 
 
+

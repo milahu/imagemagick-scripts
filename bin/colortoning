@@ -491,4 +491,4 @@ fi
 
 convert $dir/tmpP.mpc "$outfile"
 
-exit 0
+exit 00

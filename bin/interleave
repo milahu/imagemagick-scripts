@@ -399,4 +399,4 @@ else
 	errMsg "--- TOO FEW INPUT IMAGES PROVIDED ---"
 fi
 
-exit 0
+exit 00

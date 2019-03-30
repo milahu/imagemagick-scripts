@@ -331,3 +331,4 @@ convert \( $tmpA1 -auto-level \) \
 $bricon $modulation $sharpening "$outfile"
 
 exit 0
+

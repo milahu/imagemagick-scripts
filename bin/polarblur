@@ -232,3 +232,4 @@ convert $tmpA1 -virtual-pixel edge -distort DePolar -1 \( +clone \) \( +clone \)
 fi
 
 exit 0
+

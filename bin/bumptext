@@ -462,3 +462,4 @@ composite -watermark $intensity \
 fi
 
 exit 0
+

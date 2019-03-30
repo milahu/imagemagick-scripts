@@ -308,3 +308,7 @@ convert -size ${dim}x${dim} xc:"$bgcolor" -fill none -strokewidth $width -draw "
 
 
 exit 0
+$outfile"
+
+
+exit 0

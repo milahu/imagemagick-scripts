@@ -477,3 +477,4 @@ elif [ "$imagechannels" = "rgba" -o "$imagechannels" = "ga" ]; then
 		$tmpAl -alpha off -compose copy_opacity -composite "$outfile"
 fi
 exit 0
+

@@ -212,3 +212,4 @@ if convert -quiet "$infile" +repage "$tmpA"
 fi
 exit 0
 
+

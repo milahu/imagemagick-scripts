@@ -404,3 +404,41 @@ exit 0
 
 
 
+nst*(v+$eps)/(1-v+$eps)+$gain)" +monitor \) \
+			-delete 0-2 -set colorspace sRGB -combine -colorspace sRGB $negating \
+			"$outfile"
+
+	else
+		convert $tmpA1 -colorspace $colormode -separate \
+			\( -clone $channel \( +clone -blur 0x$sigma \) -monitor -fx "pow(u,$const*(v+$eps)/(1-v+$eps)+$gain)" +monitor \) \
+			-swap ${channel},3 +delete -set colorspace $colormode -combine -colorspace sRGB $negating \
+			"$outfile"
+	fi
+	
+
+elif [ "$type" = "hybrid" ]; then
+
+	if [ "$colormode" = "gray" ]; then
+		convert $tmpA1 \( +clone -colorspace $colormode -blur 0x$sigma \) -monitor \
+		-fx "pow(u,$mix*($const*(v+$eps)/(1-v+$eps)+$gain)+(1-$mix)*pow($base,2*v-1))" +monitor $negating "$outfile"
+
+	elif [ "$colormode" = "srgb" ]; then
+		convert $tmpA1 -colorspace sRGB -separate \
+			\( -clone 0 \( +clone -blur 0x$sigma \) -monitor -fx "pow(u,$mix*($const*(v+$eps)/(1-v+$eps)+$gain)+(1-$mix)*pow($base,2*v-1))" +monitor \) \
+			\( -clone 1 \( +clone -blur 0x$sigma \) -monitor -fx "pow(u,$mix*($const*(v+$eps)/(1-v+$eps)+$gain)+(1-$mix)*pow($base,2*v-1))" +monitor \) \
+			\( -clone 2 \( +clone -blur 0x$sigma \) -monitor -fx "pow(u,$mix*($const*(v+$eps)/(1-v+$eps)+$gain)+(1-$mix)*pow($base,2*v-1))" +monitor \) \
+			-delete 0-2 -set colorspace sRGB -combine -colorspace sRGB $negating \
+			"$outfile"
+
+	else
+		convert $tmpA1 -colorspace $colormode -separate \
+			\( -clone $channel \( +clone -blur 0x$sigma \) -monitor -fx "pow(u,$mix*($const*(v+$eps)/(1-v+$eps)+$gain)+(1-$mix)*pow($base,2*v-1))" +monitor \) \
+			-swap ${channel},3 +delete -set colorspace $colormode -combine -colorspace sRGB $negating \
+			"$outfile"
+	fi
+
+fi
+
+exit 0
+
+

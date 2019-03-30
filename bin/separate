@@ -514,3 +514,4 @@ if [ $mode -gt 3 -a "$trim" = "yes" -a "$vc" = "yes" -a "$list" = "yes" ]; then
 	echo ""
 fi
 exit 0
+0

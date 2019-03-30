@@ -408,4 +408,4 @@ else
 		-gravity center -compose over -composite $trimming "$outfile"
 fi
 
-exit 0
+exit 00

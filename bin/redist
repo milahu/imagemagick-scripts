@@ -770,4 +770,6 @@ fi
 
 [ "$savelut" = "yes" ] && convert $tmp3 redist_lut.png
 
+exit 0st_lut.png
+
 exit 0

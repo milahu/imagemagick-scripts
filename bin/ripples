@@ -382,4 +382,4 @@ convert $tmpA1 $tmp1 \
 	-fx "(v-0.5)+(0.5*u)" "$outfile"
 fi
 
-exit 0
+exit 00

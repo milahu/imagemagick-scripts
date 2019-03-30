@@ -612,3 +612,56 @@ exit 0
 
 
 
+und($offy*100/$resize)-$extend]" info:`
+				img=$tmpA6
+			else
+				wd=$((wd+2*extend))
+				ht=$((ht+2*extend))
+				offx=$((offx-extend))
+				offy=$((offy-extend))
+				img=$tmpA1
+			fi
+#			echo "Size: ${wd}x${ht}"  
+#			echo "Page Geometry: $pg"
+#			echo "offx=$offx; offy=$offy;"
+			echo "Initial Crop Box: ${wd}x${ht}+${offx}+${offy}"
+			echo ""
+			# Composite the black and white mask onto the original scan.
+			# Then trim and deskew/unrotate to make the output.
+			if [ $unrotate -eq 3 ]; then
+				convert $img -crop ${wd}x${ht}+${offx}+${offy} +repage $tmpA5
+			elif [ $unrotate -eq 1 ]; then
+				convert $img -crop ${wd}x${ht}+${offx}+${offy} +repage $derotate \
+					-bordercolor "$bcolor" -border 2 -fuzz ${fuzzval}% -trim +repage $tmpA5
+			elif [ $unrotate -eq 2 ]; then
+				convert $img -crop ${wd}x${ht}+${offx}+${offy} +repage \
+					-fuzz ${fuzzval}% -trim miff:- | \
+					unrotate -C "$bcolor" -f ${fuzzval}% - $tmpA5
+			fi
+			if [ "$innertrim" = "yes" ]; then
+				mextend=-$extend
+				autotrim -m inner -f $fuzzval -C "$bcolor" -l $mextend -t $mextend \
+					-r $extend -b $extend $tmpA5 ${outname}-${kk}.${suffix}
+			else
+				convert $tmpA5 ${outname}-${kk}.${suffix}
+			fi
+
+			# Fill the selected photo area in the red/none mask with none 
+			# for use with next coordinate so that it does not find it again.
+			convert $tmpA3 -channel rgba -alpha on -fill none -opaque white $tmpA2
+			if [ "$discard" = "" ]; then
+				k=$(($k + 1))
+			elif [ $wd -lt $discard -o $ht -lt $discard ]; then 
+				rm -f ${outname}-${kk}.${suffix}
+				echo "Discarding Image $k"
+			else
+				k=$(($k + 1))
+			fi
+		fi
+	done
+done
+echo ""
+exit 0
+
+
+

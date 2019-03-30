@@ -281,3 +281,4 @@ elif [ "$kind" = "edge" ]
 	convert $tmpA \( $tmpA -blur 0x$width \) -compose minus +swap -composite $setcspace -normalize "$outfile"
 fi
 exit 0
+

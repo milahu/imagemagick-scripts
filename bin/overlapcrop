@@ -483,3 +483,16 @@ if [ "$mode" != "frames" -a "$mode" != "animation" -a "$montage" = "yes" ]; then
 fi
 
 exit 0
+t"
+	else
+		labeling=""
+	fi
+	$montaging $labeling $filelist -tile $((n-initnum))x$((m-initnum)) \
+		-frame $frame -geometry +${spacing}+${spacing} \
+		"${outname}_montage.$suffix"
+	if [ "$remove" = "yes" ]; then
+		rm $filelist
+	fi
+fi
+
+exit 0

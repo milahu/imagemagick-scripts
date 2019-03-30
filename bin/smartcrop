@@ -489,4 +489,4 @@ fi
 
 echo "${width}x${height}+${xoff}+${yoff}"
 
-exit 0
+exit 00

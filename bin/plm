@@ -400,3 +400,57 @@ echo "Break Points = $points"
 	display $tmp1
 fi
 exit 0
+fo:`
+hh=`convert xc: -format "%[fx:$yscale+1]" info:`
+convert $tmpA \
+	\( -size ${ww}x${hh} xc:black -fill white \
+	-draw "polygon $plistnew" \
+	-crop ${ww}x${yscale}+0+1 +repage \
+	-scale ${ww}x1! \) \
+	$cproc1 $proc $cproc2 "$outfile"
+
+# display graph if option -g
+if [ "$display_graph" = "yes" ]
+	then
+	# create pair array
+	pairArray=($plist)
+	numpairs=${#pairArray[*]}
+	
+	# get xArray and yArray
+	i=0
+	while [ $i -lt $numpairs ]
+		do
+		xArray[$i]=`echo "${pairArray[$i]}" | cut -d, -f1`
+		yArray[$i]=`echo "${pairArray[$i]}" | cut -d, -f2`
+		i=`expr $i + 1`
+	done
+	
+	# scale xArray and yArray
+	i=0
+	while [ $i -lt $numpairs ]
+		do
+		xArray[$i]=`echo "scale=$decimal; 100 * ${xArray[$i]} / $xscale" | bc`
+		yArray[$i]=`echo "scale=$decimal; 100 * ${yArray[$i]} / $yscale" | bc`
+		i=`expr $i + 1`
+	done
+	
+	# regenerate scaled pairArray
+	i=0
+	while [ $i -lt $numpairs ]
+		do
+		pairArray[$i]=${xArray[$i]},${yArray[$i]}
+		i=`expr $i + 1`
+	done
+		
+	# regenerate scaled list
+	points=${pairArray[*]}
+	
+	# create and display graph
+echo "Break Points = $points"
+	convert -size 150x150 xc: -fill white -stroke black -draw "rectangle 40,10 141,112" $tmp1
+	convert $tmp1 \( -size 100x101 xc: -stroke red -fill white -draw "polyline $points" -flip \) -compose over -geometry 100x101+41+11 -composite $tmp1
+	convert $tmp1 -font Arial -pointsize 10 -draw "text 30,122 '0' text 20,17 '100' text 20,17 '100' text 40,60 '_' text 27,65 '50' text 90,112 '|' text 85,125 '50' text 70,140 'i n p u t'" $tmp1
+	convert -respect-parenthesis $tmp1 \( -background white -fill black -font Arial -pointsize 10 -gravity center label:'o \nu \nt \np \nu \nt ' -trim \) -geometry +10+20 -compose over -composite $tmp1
+	display $tmp1
+fi
+exit 0

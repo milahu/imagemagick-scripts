@@ -458,3 +458,4 @@ else
 		-geometry ${ox}${oy} -compose screen -composite "$outfile"
 fi
 exit 0
+

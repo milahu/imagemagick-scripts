@@ -270,3 +270,4 @@ convert $tmpB1 -function sinusoid "$cb,$pb" $tmpB1
 convert $tmpR1 $tmpG1 $tmpB1 -set colorspace $cspace -combine -colorspace $cspace "$outfile"
 
 exit 0
+

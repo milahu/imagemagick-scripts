@@ -1119,3 +1119,13 @@ fi
 
 exit 0
 
+ rgb 'blue'
+EOF
+
+	convert $tmpR $tmpG $tmpB -trim +repage -bordercolor white -border 4 -append "$outfile"
+
+
+fi
+
+exit 0
+

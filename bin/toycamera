@@ -543,4 +543,4 @@ convert \( $tmpA1 \( $rolling1 \) $rolling2 $contrasting $iblurring $sharpening 
 	-delete 0-2 +swap -clamp -compose multiply -composite $rolling3 "$outfile"
 
 
-exit 0
+exit 00

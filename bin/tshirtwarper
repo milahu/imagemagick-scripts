@@ -834,4 +834,31 @@ else
 fi
 
 
+exit 0   background the size of the tshirt image and sharpen
+# lines 5-7:  apply lighting image and make tshirt background from lighting image 
+#			  transparent using alpha of previous steps
+# lines 8-10: apply displacement image
+convert -respect-parenthesis \( $dir/tmpT.mpc -alpha transparent \) \
+	\( $dir/tmpI.mpc $cropping -virtual-pixel none +distort perspective \
+	"$xo1,$yo1 $x1,$y1 $xo2,$yo2 $x2,$y2 $xo3,$yo3 $x3,$y3 $xo4,$yo4 $x4,$y4" $sproc \) \
+	-background none -layers merge +repage \
+	\
+	\( -clone 0 -alpha extract \) \
+	\( -clone 0 $oproc \( $dir/tmpL.mpc \) $swapping -compose $compose -composite \) \
+	-delete 0 +swap -compose over -alpha off -compose copy_opacity -composite \
+	\
+	$dir/tmpD.mpc \
+	-define compose:args=-$displace,-$displace -compose displace -composite \
+	$dir/tmpITD.mpc
+
+
+# composite distorted overlay onto tshirt
+if [ "$is_alpha" != "" ]; then
+	convert $dir/tmpT.mpc $dir/tmpITD.mpc -compose over -composite \
+		$dir/tmpA.mpc -alpha off -compose copy_opacity -composite "$outfile"
+else
+	convert $dir/tmpT.mpc $dir/tmpITD.mpc -compose over -composite "$outfile"
+fi
+
+
 exit 0

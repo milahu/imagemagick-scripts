@@ -707,3 +707,14 @@ exit 0
 
 
 
+mpI.mpc -unsharp 0x${sharp}+${feedback} $dir/tmpI.mpc
+fi
+
+
+# Save to Output
+convert $dir/tmpI.mpc "$outfile"
+
+exit 0
+
+
+

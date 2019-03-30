@@ -582,3 +582,58 @@ else
 fi
 
 exit 0
+if [ "$view" = "swatches" -o "$view" = "all" ]; then
+			swatch_list=""
+			for item in $sortedfinalcolors; do
+				color=`echo "$item" | cut -d, -f2`
+				pixel="xc:'$color'"
+				swatch_list="$swatch_list $pixel"
+				echo "swatch_list=$swatch_list"
+			done
+			eval 'convert '$swatch_list' +append -scale 5000% show:'
+		fi
+	fi
+
+else
+
+	# separate colorized images to form final layered images
+	if [ "$type" = "layered" ]; then
+		for ((i=0; i<numcolors; i++)); do
+		# odd that need -fuzz 1% to match colors
+		#convert $dir/tmpI.miff -alpha off -set colorspace $colorspace -colorspace sRGB -depth 8 -fuzz 1% +transparent "${colorArr[$i]}" $dir/tmpS$i.miff
+		convert $imagelist "$outfile"
+		done
+	else
+		# flatten images
+		convert $imagelist -set colorspace $colorspace -colorspace sRGB -depth 8 -flatten $dir/tmpI.miff
+		if [ "$last_char" = "a" ]; then
+			convert $dir/tmpI.miff $dir/tmpA.miff -alpha off -compose copy_opacity -composite "$outfile"
+		else
+			convert $dir/tmpI.miff "$outfile"
+		fi
+	fi
+
+
+	# show final colors
+	sortedfinalcolors=`convert $dir/tmpI.miff -depth 8 -format "%c" histogram:info: | sed -n 's/^[ ]*\(.*\):.*[#]\([0-9a-fA-F]*\) .*$/\1,#\2/p' | sort -r -n -k 1 -t ","`
+	if [ "$view" = "dominant" ]; then
+		dominantcolor=`echo "$sortedfinalcolors" | head -n 1 | cut -d, -f2`
+		echo "$dominantcolor"
+	else
+		echo "final colors:"
+		echo "count,hexcolor"
+		echo "$sortedfinalcolors"
+	fi
+	if [ "$view" = "swatches" -o "$view" = "all" ]; then
+		swatch_list=""
+		for item in $sortedfinalcolors; do
+			color=`echo "$item" | cut -d, -f2`
+			pixel="xc:'$color'"
+			swatch_list="$swatch_list $pixel"
+		done
+		eval 'convert '$swatch_list' +append -scale 5000% show:'
+	fi
+			
+fi
+
+exit 0

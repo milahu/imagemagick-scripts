@@ -355,4 +355,4 @@ echo "Percentage Of Matching Pixels = $percent%"
 echo ""
 
 convert $tmp1A $tmp2A -alpha off -compose copy_opacity -composite "$outfile"
-exit 0
+exit 00

@@ -414,4 +414,4 @@ echo "Break Points = $points"
 	convert -respect-parenthesis $tmp4 \( -background white -fill black -font Arial -pointsize 10 -gravity center label:'o \nu \nt \np \nu \nt ' -trim \) -geometry +10+20 -compose over -composite $tmp4
 	display $tmp4
 fi
-exit 0
+exit 00

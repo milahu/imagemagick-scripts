@@ -480,3 +480,94 @@ else
 		"$outfile"
 fi
 exit 0
+$method;"
+
+# set up for erode
+if [ $erode -ne 0 ]; then
+	eroding="-morphology erode disk:$erode"
+else
+	eroding=""
+fi
+
+# set up for view of ccl information
+if [ "$view" = "yes" ]; then
+	viewing="-define connected-components:verbose=true"
+else
+	viewing=""
+fi
+
+# set up for connected-components
+if [ "$area" != "0" ]; then
+	cclproc="$viewing -define connected-components:area-threshold=$area -define connected-components:mean-color=true -connected-components 4"
+elif [ "$area" = "0" ]; then
+	cclproc="$viewing -define connected-components:mean-color=true -connected-components 4"
+fi
+
+
+# process image
+if [ "$alpha_channel" = "no" -a "$maskfile" = "" -a "$method" = "floodfill" ]; then
+	# floodfill needs an extra border=1 to allow for floodfill to go all around
+	convert \
+		\( $tmpA1 -bordercolor "$icolor" -border 1 $preproc1 "$preproc2" \
+			-fuzz $tolerance -trim +repage \
+			-bordercolor none -border 50 \
+			-background white -alpha background \
+			-alpha off -write mpr:img -alpha on \
+			-alpha extract \
+			-morphology dilate disk:$dilate \
+			$eroding \
+			$cclproc \
+			-blur 0x1 -level 0x50% -write mpr:msk1 +delete \) \
+		\( mpr:msk1 -negate -fill "gray($shadow%)" -opaque black \
+			-fill "$ocolor" -opaque white \
+			-blur 0x$ramping -write mpr:msk2 +delete \) \
+		\( mpr:msk1 -morphology edgein diamond:1 -negate -write mpr:edg +delete  \) \
+		mpr:img mpr:msk1 -alpha off -compose copy_opacity -composite \
+		mpr:msk2 -reverse -compose over -composite \
+		$highlighting \
+		"$outfile"
+		
+elif [ "$alpha_channel" = "no" -a "$maskfile" = "" -a "$method" = "recolor" ]; then
+	# recolor using -transparent
+	convert \
+		\( $tmpA1 $preproc1 \
+			-fuzz $tolerance -trim +repage \
+			-bordercolor none -border 50 \
+			-background white -alpha background \
+			-alpha off -write mpr:img -alpha on \
+			-alpha extract \
+			-morphology dilate disk:$dilate \
+			$eroding \
+			$cclproc \
+			-blur 0x1 -level 0x50% -write mpr:msk1 +delete \) \
+		\( mpr:msk1 -negate -fill "gray($shadow%)" -opaque black \
+			-fill "$ocolor" -opaque white \
+			-blur 0x$ramping -write mpr:msk2 +delete \) \
+		\( mpr:msk1 -morphology edgein diamond:1 -negate -write mpr:edg +delete  \) \
+		mpr:img mpr:msk1 -alpha off -compose copy_opacity -composite \
+		mpr:msk2 -reverse -compose over -composite \
+		$highlighting \
+		"$outfile"
+else
+	# image has alpha channel or mask present
+	convert \
+		\( $tmpA1 $preproc1 \
+			-fuzz $tolerance -trim +repage \
+			-bordercolor none -border 50 \
+			-background white -alpha background \
+			-alpha off -write mpr:img -alpha on \
+			-alpha extract \
+			-morphology dilate disk:$dilate \
+			$eroding \
+			$cclproc \
+			-blur 0x1 -level 0x50% -write mpr:msk1 +delete \) \
+		\( mpr:msk1 -negate -fill "gray($shadow%)" -opaque black \
+			-fill "$ocolor" -opaque white \
+			-blur 0x$ramping -write mpr:msk2 +delete \) \
+		\( mpr:msk1 -morphology edgein diamond:1 -negate -write mpr:edg +delete  \) \
+		mpr:img mpr:msk1 -alpha off -compose copy_opacity -composite \
+		mpr:msk2 -reverse -compose over -composite \
+		$highlighting \
+		"$outfile"
+fi
+exit 0

@@ -367,3 +367,4 @@ frames=$((thick*2))
 	) | convert -delay $delay - $coloring -loop 0 "$outfile"
 
 exit 0
+

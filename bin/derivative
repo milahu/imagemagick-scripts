@@ -460,3 +460,4 @@ convert $infile $proc "$kernIM" $threshoption $tmp0
 convert $tmp0 "$outfile"
 exit 0
 
+

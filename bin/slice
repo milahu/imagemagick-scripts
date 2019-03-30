@@ -428,3 +428,4 @@ elif [ "$ecolor" = "image" ]; then
 fi
 
 exit 0
+

@@ -348,4 +348,4 @@ convert $tmpA -size ${wd}x${ht} xc:"gray(50%)" \
 -delete 1 $setcspace -compose $type -composite \
 "$outfile"
 
-exit 0
+exit 00

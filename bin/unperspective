@@ -1774,3 +1774,11 @@ convert $dir/tmpA.mpc  \
 
 exit 0
 
+z ${fuzzval}% -trim +repage \
+	$rotation \
+	"$outfile"
+
+
+
+exit 0
+

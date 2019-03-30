@@ -450,4 +450,8 @@ if [ "$satmode" != "" ]; then
 else
 	convert $tmpA2 $outfile
 fi
+exit 0100,${satpct} "$outfile"
+else
+	convert $tmpA2 $outfile
+fi
 exit 0

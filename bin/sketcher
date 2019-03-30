@@ -284,4 +284,4 @@ convert $dir/tmpI.mpc $graying \
 	"$outfile"
 
 
-exit 0
+exit 00

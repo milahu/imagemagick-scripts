@@ -398,3 +398,4 @@ fi
 convert $infile -convolve "$kernIM" $threshoption "$outfile"
 exit 0
 
+

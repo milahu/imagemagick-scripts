@@ -644,3 +644,10 @@ fi
 echo "Crop Box: ${ww}x${hh}+$xoff+$yoff"
 
 exit 0
+[${ww}x${hh}+${xoff}+${yoff}] "$outfile"
+fi
+
+# list crop coordinates at terminal
+echo "Crop Box: ${ww}x${hh}+$xoff+$yoff"
+
+exit 0

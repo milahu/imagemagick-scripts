@@ -283,4 +283,4 @@ convert -background $color $tmpA1 \
 	+channel -compose over -flatten  "$outfile"
 
 
-exit 0
+exit 00

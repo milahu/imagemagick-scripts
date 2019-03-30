@@ -321,3 +321,35 @@ exit 0
 
 
 
+`convert xc: -format "%[fx:$cropw/2]" info:`
+	centy=`convert xc: -format "%[fx:$croph/2]" info:`
+	radx=`convert xc: -format "%[fx:$diameterx*$centx/100]" info:`
+	rady=`convert xc: -format "%[fx:$diametery*$centy/100]" info:`
+	convert -size ${cropw}x${croph} xc:white -fill black \
+		-draw "translate $centx,$centy ellipse 0,0 $radx,$rady 0,360" -alpha off \
+		-crop ${cellw}x${cellh} +repage $tmpM1
+	#echo "centx=$centx; centy=$centy; radx=$radx; rady=$rady;"
+
+	(
+	for ((i=0; i<num; i++)); do
+	seed1=$((i+seed1))
+	rr=`convert xc: -seed $seed1 -format "%[fx:random()]" info:`
+	factor=`convert xc: -format "%[fx:$rr>$coverage?$rr:0]" info:`
+	seed2=$((2*i+seed2))
+	hue=`convert xc: -seed $seed2 -format "%[fx:round(100+$factor*random()*200)]" info:`
+	#echo >&2 "factor=$factor; hue=$hue;"
+	convert $tmpI1[$i] $gproc \
+		\( $tmpM1[$i] -scale 1x1! -negate -threshold 0 -negate -scale ${cellw}x${cellx}! \) \
+		-evaluate-sequence max -modulate 100,100,$hue miff:-
+	done
+	) | convert - -background none -layers merge +repage "$outfile"
+
+fi
+
+exit 0
+
+
+
+
+
+

@@ -1,0 +1,7 @@
+{
+    "name": "chexov/fmwconcepts-imagemagicktools",
+    "description": "Mirror of Fred's ImageMagick Scripts",
+    "version": "1.0.0",
+    "type": "library",
+    "require": {}
+}

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 1/22/2008 .......... revised 4/25/2015
+# Developed by Fred Weinhaus 1/22/2008 .......... revised 11/5/2018
 #
 # ------------------------------------------------------------------------------
 # 
@@ -26,7 +26,6 @@
 # 
 ####
 #
-# USAGE: splittone1 [-sc shadowcolor] [-sa shadowamt] [-hc highlightcolor] 
 # USAGE: squareup [-s size] [-m mode] [-c color] [-g gravity] [-f filter] infile outfile
 # USAGE: squareup [-h or -help]
 #

@@ -216,7 +216,7 @@ convert -quiet "$infile" +repage "$tmpA1" ||
 
 # get im version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # set up darkness
 darkness=`convert xc: -format "%[fx:3/$darkness]" info:`
@@ -273,5 +273,4 @@ convert $tmpA1 $brightening $contrasting -modulate 100,$saturation,100 \
 
 
 exit 0
-
 

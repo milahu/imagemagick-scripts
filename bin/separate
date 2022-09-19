@@ -262,7 +262,7 @@ trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
 
 # get im_version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
 # though probably not resolved until the latter
@@ -300,7 +300,7 @@ uniquecolors=`convert $tmpA1 -format "%k" info:`
 
 # get IM version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # get im version where -subimage-search introduced for compare
 if [ "$im_version" -ge "06060305" ]; then
@@ -514,4 +514,3 @@ if [ $mode -gt 3 -a "$trim" = "yes" -a "$vc" = "yes" -a "$list" = "yes" ]; then
 	echo ""
 fi
 exit 0
-0

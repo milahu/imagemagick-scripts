@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/18/2009 .......... revised 7/28/2015
+# Developed by Fred Weinhaus 8/18/2009 .......... revised 5/12/2019
 #
 # USAGE: fftdeconvol [-n noise] infile filtfile outfile
 # USAGE: fftdeconvol [-h or -help]
@@ -203,7 +203,7 @@ trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpP $tmpF $tmpR $tmpI $tmpA; exit 1" E
 
 # test for valid version of IM
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 [ "$im_version" -lt "06050407" ] && errMsg "--- REQUIRES IM VERSION 6.5.4-7 OR HIGHER ---"
 
 # test for hdri enabled
@@ -226,10 +226,15 @@ convert -quiet "$infile" +repage "$tmpA1" ||
 convert -quiet "$filtfile" -alpha off +repage "$tmpA2" ||
 	errMsg "--- FILE $filtfile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
+if [ "$im_version" -ge "07000000" ]; then
+	identifying="magick identify"
+else
+	identifying="identify"
+fi
 
 # get image dimensions for later cropping as inputs are padded to square, even dimensions
-width=`identify -ping -format "%w" $tmpA1`
-height=`identify -ping -format "%h" $tmpA1`
+width=`$identifying -ping -format "%w" $tmpA1`
+height=`$identifying -ping -format "%h" $tmpA1`
 
 # get center point adjusted for padding an odd dimension to even
 cx=`convert xc: -format "%[fx:floor(($width+1)/2)]" info:`
@@ -260,7 +265,7 @@ fi
 
 
 # test if image has alpha and set up copy to output
-is_alpha=`identify -ping -verbose $tmpA1 | grep "Alpha" | head -n 1`
+is_alpha=`$identifying -ping -verbose $tmpA1 | grep "Alpha" | head -n 1`
 if [ "$is_alpha" != "" ]; then
 	convert $tmpA1 -alpha extract $tmpA 
 	addalpha="$tmpA -compose copy_opacity -composite"
@@ -364,7 +369,6 @@ convert \( $tmpA2 $setcspace -roll -${cx}-${cy} -virtual-pixel $vp +fft -evaluat
 	-crop ${width}x${height}+0+0 +repage $addalpha $setcspace2 "$outfile"
 
 exit 0
-
 
 
 

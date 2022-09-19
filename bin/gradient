@@ -346,7 +346,7 @@ fi
 
 # get im version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # setup auto-level
 if [ "$im_version" -lt "06050501" ]; then
@@ -428,5 +428,4 @@ fi
 convert $tmp0A "$outfile"
 
 exit 0
-
 

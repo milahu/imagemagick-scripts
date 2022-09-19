@@ -1,6 +1,6 @@
 #!/bin/bash
 # 
-# Developed by Fred Weinhaus 5/14/2009 .......... revised 5/3/2015
+# Developed by Fred Weinhaus 5/14/2009 .......... revised 9/5/2019
 #
 # ------------------------------------------------------------------------------
 # 
@@ -51,7 +51,7 @@
 #  
 # PURPOSE: To trim the background from any number of specified sides of an image.
 # 
-# DESCRIPTION: UNROTATE trims the background from any number of specified sides 
+# DESCRIPTION: TRIMMER trims the background from any number of specified sides 
 # of an image. The user may specify from one to four sides as a comma delimited list 
 # that is enclosed in quotes. A fuzz value may be specified if the background is not 
 # a constant color.
@@ -79,6 +79,9 @@
 # as either the complement of the background color, black or white whichever is 
 # furthest from the background color. There is no guarantee that this will be 
 # accurate. So if it does not work, then you will need to supply the guard color.
+# 
+# NOTE: This script will not trim more than half way in any dimension. Also for 
+# images with transparency, you will have to provide a guard color.
 # 
 # CAVEAT: No guarantee that this script will work on all platforms, 
 # nor that trapping of inconsistent parameters is complete and 
@@ -407,4 +410,3 @@ convert $tmpA \
 	"$outfile"
 
 exit 0
-

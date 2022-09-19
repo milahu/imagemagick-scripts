@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 3/31/2010 .......... revised 6/22/2015
+# Developed by Fred Weinhaus 3/31/2010 .......... revised 11/22/2020
 #
 # ------------------------------------------------------------------------------
 # 
@@ -338,7 +338,7 @@ trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3; exit 1" ERR
 
 # get im version
 im_version=`convert -list configure | \
-sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+sed '/^LIB_VERSION_NUMBER */!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
 # though probably not resolved until the latter
@@ -534,9 +534,9 @@ echo "Width x Height: ${width}x${height}"
 
 # generate ouput image
 if [ "$mode" = "crop" ]; then
-	convert $infile[${width}x${height}+${xa}+${ya}] "$outfile"
+	convert "$infile[${width}x${height}+${xa}+${ya}]" "$outfile"
 elif [ "$mode" = "box" ]; then
-	convert $infile -fill none -stroke "$gcolor" -strokewidth "$swidth" \
+	convert "$infile" -fill none -stroke "$gcolor" -strokewidth "$swidth" \
 		-draw "rectangle $xa,$ya $xb,$yb" "$outfile"
 fi
 
@@ -561,7 +561,6 @@ fi
 echo ""
 
 exit 0
-
 
 
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/23/2007 .......... revised 4/25/2015
+# Developed by Fred Weinhaus 8/23/2007 .......... revised 6/22/2022
 #
 # ------------------------------------------------------------------------------
 # 
@@ -516,7 +516,7 @@ tmpB="$dir/spline_$$.cache"
 # remove temporaries
 trap "rm -f $tmpA $tmpB;" 0
 trap "rm -f $tmpA $tmpB; exit 1" 1 2 3 15
-trap "rm -f $tmpA $tmpB; exit 1" ERR
+#trap "rm -f $tmpA $tmpB; exit 1" ERR
 
 # test that infile provided
 [ "$dimension" = "" -a "$infile" = "" ] && errMsg "--- NO INPUT FILE SPECIFIED ---"
@@ -668,13 +668,13 @@ fi
 
 bezier()
 	{
-	a3=`convert xc: -format "%[fx:(-$x0+3*$x1-3*$x2+$x3)]" info:`
-	a2=`convert xc: -format "%[fx:(3*$x0-6*$x1+3*$x2)]" info:`
-	a1=`convert xc: -format "%[fx:(-3*$x0+3*$x1)]" info:`
+	a3=`convert xc: -format "%[fx:(-($x0)+3*$x1-(3*$x2)+$x3)]" info:`
+	a2=`convert xc: -format "%[fx:(3*$x0-(6*$x1)+3*$x2)]" info:`
+	a1=`convert xc: -format "%[fx:(-(3*$x0)+3*$x1)]" info:`
 	a0=$x0
-	b3=`convert xc: -format "%[fx:(-$y0+3*$y1-3*$y2+$y3)]" info:`
-	b2=`convert xc: -format "%[fx:(3*$y0-6*$y1+3*$y2)]" info:`
-	b1=`convert xc: -format "%[fx:(-3*$y0+3*$y1)]" info:`
+	b3=`convert xc: -format "%[fx:(-($y0)+3*$y1-(3*$y2)+$y3)]" info:`
+	b2=`convert xc: -format "%[fx:(3*$y0-(6*$y1)+3*$y2)]" info:`
+	b1=`convert xc: -format "%[fx:(-(3*$y0)+3*$y1)]" info:`
 	b0=$y0
 	#swap P0->P1; P3->P2 as need to interpolate between P0 and P3
 	x1=$x0
@@ -685,35 +685,35 @@ bezier()
 	
 bspline()
 	{
-	a3=`convert xc: -format "%[fx:(-$x0+3*$x1-3*$x2+$x3)/6]" info:`
-	a2=`convert xc: -format "%[fx:(3*$x0-6*$x1+3*$x2)/6]" info:`
-	a1=`convert xc: -format "%[fx:(-$x0+$x2)/2]" info:`
+	a3=`convert xc: -format "%[fx:(-($x0)+3*$x1-(3*$x2)+$x3)/6]" info:`
+	a2=`convert xc: -format "%[fx:(3*$x0-(6*$x1)+3*$x2)/6]" info:`
+	a1=`convert xc: -format "%[fx:(-($x0)+$x2)/2]" info:`
 	a0=`convert xc: -format "%[fx:($x0+4*$x1+$x2)/6]" info:`
-	b3=`convert xc: -format "%[fx:(-$y0+3*$y1-3*$y2+$y3)/6]" info:`
-	b2=`convert xc: -format "%[fx:(3*$y0-6*$y1+3*$y2)/6]" info:`
-	b1=`convert xc: -format "%[fx:(-$y0+$y2)/2]" info:`
+	b3=`convert xc: -format "%[fx:(-($y0)+3*$y1-(3*$y2)+$y3)/6]" info:`
+	b2=`convert xc: -format "%[fx:(3*$y0-(6*$y1)+3*$y2)/6]" info:`
+	b1=`convert xc: -format "%[fx:(-($y0)+$y2)/2]" info:`
 	b0=`convert xc: -format "%[fx:($y0+4*$y1+$y2)/6]" info:`
 	}
 
 cubic()
 	{
-	a3=`convert xc: -format "%[fx:$x3-$x2-$x0+$x1]" info:`
-	a2=`convert xc: -format "%[fx:$x0-$x1-$a3]" info:`
-	a1=`convert xc: -format "%[fx:$x2-$x0]" info:`
+	a3=`convert xc: -format "%[fx:($x3-($x2)-($x0)+$x1)]" info:`
+	a2=`convert xc: -format "%[fx:($x0-($x1)-($a3))]" info:`
+	a1=`convert xc: -format "%[fx:($x2-($x0))]" info:`
 	a0=$x1
-	b3=`convert xc: -format "%[fx:$y3-$y2-$y0+$y1]" info:`
-	b2=`convert xc: -format "%[fx:$y0-$y1-$b3]" info:`
-	b1=`convert xc: -format "%[fx:$y2-$y0]" info:`
+	b3=`convert xc: -format "%[fx:($y3-($y2)-($y0)+$y1)]" info:`
+	b2=`convert xc: -format "%[fx:($y0-($y1)-($b3))]" info:`
+	b1=`convert xc: -format "%[fx:($y2-($y0))]" info:`
 	b0=$y1
 	}
 
 hermite()
 	{
 	# V=(K0 K1 K2 K3) is supplied, but we need V=(K0 K1 T0 T1)
-	t1x=`convert xc: -format "%[fx:($x1-$x0)]" info:`
-	t1y=`convert xc: -format "%[fx:($y1-$y0)]" info:`
-	t2x=`convert xc: -format "%[fx:($x3-$x2)]" info:`
-	t2y=`convert xc: -format "%[fx:($y3-$y2)]" info:`
+	t1x=`convert xc: -format "%[fx:($x1-($x0))]" info:`
+	t1y=`convert xc: -format "%[fx:($y1-($y0))]" info:`
+	t2x=`convert xc: -format "%[fx:($x3-($x2))]" info:`
+	t2y=`convert xc: -format "%[fx:($y3-($y2))]" info:`
 	# replace p0 with p1 and p1 with p2
 	x0=$x1
 	y0=$y1
@@ -724,12 +724,12 @@ hermite()
 	y2=$t1y
 	x3=$t2x
 	y3=$t2y
-	a3=`convert xc: -format "%[fx:(2*$x0-2*$x1+$x2+$x3)]" info:`
-	a2=`convert xc: -format "%[fx:(-3*$x0+3*$x1-2*$x2-$x3)]" info:`
+	a3=`convert xc: -format "%[fx:(2*$x0-(2*$x1)+$x2+$x3)]" info:`
+	a2=`convert xc: -format "%[fx:(-(3*$x0)+3*$x1-(2*$x2)-($x3))]" info:`
 	a1=$x2
 	a0=$x0
-	b3=`convert xc: -format "%[fx:(2*$y0-2*$y1+$y2+$y3)]" info:`
-	b2=`convert xc: -format "%[fx:(-3*$y0+3*$y1-2*$y2-$y3)]" info:`
+	b3=`convert xc: -format "%[fx:(2*$y0-(2*$y1)+$y2+$y3)]" info:`
+	b2=`convert xc: -format "%[fx:(-(3*$y0)+3*$y1-(2*$y2)-($y3))]" info:`
 	b1=$y2
 	b0=$y0
 	}
@@ -737,10 +737,10 @@ hermite()
 kbs()
 	{
 	# V=(K0 K1 K2 K3) is supplied, but we need V=(K0 K1 T0 T1)
-	t1x=`convert xc: -format "%[fx:(1-$tension)*(1-$bias)*($x2-$x1)/2 + (1-$tension)*(1+$bias)*($x1-$x0)/2]" info:`
-	t1y=`convert xc: -format "%[fx:(1-$tension)*(1-$bias)*($y2-$y1)/2 + (1-$tension)*(1+$bias)*($y1-$y0)/2]" info:`
-	t2x=`convert xc: -format "%[fx:(1-$tension)*(1-$bias)*($x3-$x2)/2 + (1-$tension)*(1+$bias)*($x2-$x1)/2]" info:`
-	t2y=`convert xc: -format "%[fx:(1-$tension)*(1-$bias)*($y3-$y2)/2 + (1-$tension)*(1+$bias)*($y2-$y1)/2]" info:`
+	t1x=`convert xc: -format "%[fx:(1-$tension)*(1-$bias)*($x2-($x1))/2 + (1-$tension)*(1+$bias)*($x1-($x0))/2]" info:`
+	t1y=`convert xc: -format "%[fx:(1-$tension)*(1-$bias)*($y2-($y1))/2 + (1-$tension)*(1+$bias)*($y1-($y0))/2]" info:`
+	t2x=`convert xc: -format "%[fx:(1-$tension)*(1-$bias)*($x3-($x2))/2 + (1-$tension)*(1+$bias)*($x2-($x1))/2]" info:`
+	t2y=`convert xc: -format "%[fx:(1-$tension)*(1-$bias)*($y3-($y2))/2 + (1-$tension)*(1+$bias)*($y2-($y1))/2]" info:`
 	# replace p0 with p1 and p1 with p2
 	x0=$x1
 	y0=$y1
@@ -751,12 +751,12 @@ kbs()
 	y2=$t1y
 	x3=$t2x
 	y3=$t2y
-	a3=`convert xc: -format "%[fx:(2*$x0-2*$x1+$x2+$x3)]" info:`
-	a2=`convert xc: -format "%[fx:(-3*$x0+3*$x1-2*$x2-$x3)]" info:`
+	a3=`convert xc: -format "%[fx:(2*$x0-(2*$x1)+$x2+$x3)]" info:`
+	a2=`convert xc: -format "%[fx:(-(3*$x0)+3*$x1-(2*$x2)-($x3))]" info:`
 	a1=$x2
 	a0=$x0
-	b3=`convert xc: -format "%[fx:(2*$y0-2*$y1+$y2+$y3)]" info:`
-	b2=`convert xc: -format "%[fx:(-3*$y0+3*$y1-2*$y2-$y3)]" info:`
+	b3=`convert xc: -format "%[fx:(2*$y0-(2*$y1)+$y2+$y3)]" info:`
+	b2=`convert xc: -format "%[fx:(-(3*$y0)+3*$y1-(2*$y2)-($y3))]" info:`
 	b1=$y2
 	b0=$y0
 	}
@@ -780,7 +780,7 @@ spline_interp()
 
 	#set range as distance in pixels between points over which to interpolate 
 	# and convert to integer counts (numinc) and float pixinc so ends exactly on knot
-	range=`convert xc: -format "%[fx:hypot($x2-$x1,$y2-$y1)]" info:`
+	range=`convert xc: -format "%[fx:hypot($x2-($x1),$y2-($y1))]" info:`
 	numinc=`convert xc: -format "%[fx:floor($range/$pinc)]" info:`
 	pinc=`convert xc: -format "%[fx:$range/$numinc]" info:`
 	

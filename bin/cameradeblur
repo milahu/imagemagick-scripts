@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/22/2009 .......... revised 11/20/2015
+# Developed by Fred Weinhaus 8/22/2009 .......... revised 12/23/2021
 #
 # ------------------------------------------------------------------------------
 # 
@@ -246,7 +246,7 @@ convert -quiet "$infile" +repage "$tmpI1" ||
 
 # test for valid version of IM
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 [ "$im_version" -lt "06040403" ] && errMsg "--- REQUIRES IM VERSION 6.5.4-3 OR HIGHER ---"
 
 # test for hdri enabled
@@ -257,9 +257,15 @@ else
 fi
 [ "$hdri_on" = "" ] && errMsg "--- REQUIRES HDRI ENABLED IN IM COMPILE ---"
 
+if [ "$im_version" -ge "07000000" ]; then
+	identifying="magick identify"
+else
+	identifying="identify"
+fi
+
 # get image dimensions for later cropping as input is padded to square, even dimensions
-width=`identify -ping -format "%w" $tmpI1`
-height=`identify -ping -format "%h" $tmpI1`
+width=`$identifying -ping -format "%w" $tmpI1`
+height=`$identifying -ping -format "%h" $tmpI1`
 
 # compute padded to even dimensions
 w1=`convert xc: -format "%[fx:($width%2)==0?$width:($width+1)]" info:`
@@ -283,7 +289,7 @@ cyd=`convert xc: -format "%[fx:sqrt(2)*$cy]" info:`
 qnoise=`convert xc: -format "%[fx:quantumrange*$noise]" info:`
 
 # test if image has alpha and set up copy to output
-is_alpha=`identify -ping -verbose $tmpI1 | grep "Alpha" | head -n 1`
+is_alpha=`$identifying -ping -verbose $tmpI1 | grep "Alpha" | head -n 1`
 if [ "$is_alpha" != "" ]; then
 	convert $tmpI1 -alpha extract $tmpA1 
 	addalpha="$tmpI1 -compose copy_opacity -composite"
@@ -407,8 +413,8 @@ elif [ "$type" = "defocus" ]; then
 		fyd=`convert xc: -format "%[fx:$amount/$h1]" info:`
 
 		convert \
-		\( -size ${w1}x1 xc: -fx "$fxd*(i-$cx))" -scale ${w1}x${h1}! -evaluate pow 2 \) \
-		\( -size 1x${h1} xc: -fx "$fyd*(j-$cy))" -scale ${w1}x${h1}! -evaluate pow 2 \) \
+		\( -size ${w1}x1 xc: -fx "$fxd*(i-$cx)" -scale ${w1}x${h1}! -evaluate pow 2 \) \
+		\( -size 1x${h1} xc: -fx "$fyd*(j-$cy)" -scale ${w1}x${h1}! -evaluate pow 2 \) \
 		-define compose:clamp=false -compose plus -composite -evaluate pow 0.5 -fx "jinc(u)" \
 		$tmpF1
 		
@@ -470,7 +476,6 @@ convert \( $tmpI1 -alpha off +fft $setcspace \) \( $tmpF1 $setcspace \) \
 
 
 exit 0
-
 
 
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 1/4/2018 .......... revised 1/5/2018
+# Developed by Fred Weinhaus 1/4/2018 .......... revised 9/3/2020
 #
 # ------------------------------------------------------------------------------
 # 
@@ -571,7 +571,7 @@ fi
 # compute average graylevel of bgfile (outfit file)
 color=`convert \( $dir/tmpB.mpc $flattening +write $dir/tmpBF.mpc \) \
 	$dir/tmpM.mpc -alpha off -compose copy_opacity -composite \
-	-scale 1x1! -alpha off -type grayscale -format "%[pixel:u.p{0,0}]" info: | \
+	-scale 1x1! -alpha off -type grayscale -depth 8 -format "%[pixel:u.p{0,0}]" info: | \
  	tr -cs "0-9*\n" " " | sed 's/[ ]*//g'`
 diff_light=`convert xc: -format "%[fx:($lightval-100*($color/255))]" info:`
 diff_displace=`convert xc: -format "%[fx:(50-100*($color/255))]" info:`

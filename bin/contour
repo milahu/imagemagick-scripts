@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 4/1/2017 .......... revised 4/3/2017
+# Developed by Fred Weinhaus 4/1/2017 .......... revised 4/21/2022
 #
 # ------------------------------------------------------------------------------
 # 
@@ -26,9 +26,9 @@
 # 
 ####
 #
-# USAGE: contour [-t trim] [-T tolerance] [-d distance] [-p pad] [-i icolor] 
+# USAGE: contour [-t trim] [-T tolerance] [-d dilate] [-e erode][-p pad] [-i icolor] 
 # [-o ocolor] [-s shadow] [-r ramping] [-h highlight] [-m method] [-f fuzzval] 
-# [-c coords] infile [maskfile] outfile
+# [-c coords] [-a area] [-v view] infile [maskfile] outfile
 # 
 # USAGE: contour [-help]
 #
@@ -38,7 +38,8 @@
 #                      yes or no; default=yes
 # -T     tolerance     preprocessing trim tolerance percent (fuzz value); 
 #                      0<=integer<=100; default=2
-# -d     distance      contour distance in pixels; integer>=0; default=20
+# -d     dilate        contour dilate distance in pixels; integer>=0; default=20
+# -e     erode         contour erode distance in pixels; integer>=0; default=0
 # -p     pad           image pad after trimming; integer>=0; default is twice 
 #                      the contour distance to allow room for the shadow
 # -i     icolor        input image existing background color, which should be 
@@ -63,6 +64,9 @@
 # -c     coords        coordinates to start the floodfill; comma separate pair 
 #                      of x,y values; default=0,0 (upper left corner of the 
 #                      input image)
+# -a     area          area of gaps to fill with connected-components; either 
+#                      integer pixels>=0 or integer percents>=0; default=1%
+# -v     view          view connected-components information; yes or no; default=no
 #
 ###
 #
@@ -84,8 +88,13 @@
 # -T tolerance ... TOLERANCE is the preprocessing trim tolerance percent 
 # (i.e., fuzz value). Values are 0<=integer<=100. The default=2.
 # 
-# -d distance ... DISTANCE is the contour distance in pixels. Values are 
-# integer>=0. The default=20.
+# -d dilate ... DILATE distance is the contour dilate distance in pixels. Values are 
+# integer>=0. The default=20. The actual distance will be the difference between the 
+# dilate distance and the erode distance. Larger values for dilate help fill gaps.
+# 
+# -e erode ... ERODE distance is the contour erode distance in pixels. Values are 
+# integer>=0. The default=0. The actual distance will be the difference between the 
+# dilate distance and the erode distance.
 # 
 # -p pad ... PAD is the image pad amount after trimming. Value are  integer>=0. 
 # The default is twice the contour distance to allow room for the shadow.
@@ -119,6 +128,12 @@
 # a comma separate pair of x,y values. The default=0,0 (upper left corner of  
 # the input image).
 # 
+# -a area ... AREA of gaps to fill with connected-components. Values are 
+# integer pixels counts>=0 or integer percents>=0. The default=1%.
+# 
+# -v view ... VIEW connected-components information. Choices are: yes or no. 
+# The default=no.
+# 
 # CAVEAT: No guarantee that this script will work on all platforms, 
 # nor that trapping of inconsistent parameters is complete and 
 # foolproof. Use At Your Own Risk. 
@@ -129,7 +144,8 @@
 # set default values
 trim="yes"			# preprocessing trim to bounding box
 tolerance="2"		# preprocessing trim tolerance (fuzz value)
-distance=20			# contour distance
+dilate=20			# contour dilate distance
+erode=0				# contour erode distance
 pad=""				# pad amount default = 2*distance; pad color = icolor
 icolor="white"		# color of input image background; needed if no alpha channel and no mask
 ocolor="white"		# color of output image desired background
@@ -138,6 +154,7 @@ ramping="10"		# shadow ramping amount (-blur sigma)
 highlight="on"		# show black highlight edge; on or off
 method="floodfill"	# method of generating transparency when no alpha channel and no mask; recolor or floodfill
 fuzzval="2"			# fuzz value for generating transparency
+area="1%"			# area of gaps to fill
 coords="0,0"		# floodfill coordinates
 
 # set directory for temporary files
@@ -186,7 +203,7 @@ if [ $# -eq 0 ]
    echo ""
    usage2
    exit 0
-elif [ $# -gt 27 ]
+elif [ $# -gt 33 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -221,13 +238,21 @@ else
 					   test=`echo "$tolerance > 100" | bc`
 					   [ $test -eq 1 ] && errMsg "--- TOLERANCE=$tolerance MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
 					   ;;
-				-d)    # get distance
+				-d)    # get dilate
 					   shift  # to get the next parameter
 					   # test if parameter starts with minus sign 
-					   errorMsg="--- INVALID DISTANCE SPECIFICATION ---"
+					   errorMsg="--- INVALID DILATE SPECIFICATION ---"
 					   checkMinus "$1"
-					   distance=`expr "$1" : '\([0-9]*\)'`
-					   [ "$distance" = "" ] && errMsg "--- DISTANCE=$distance MUST BE A NON-NEGATIVE INTEGER ---"
+					   dilate=`expr "$1" : '\([0-9]*\)'`
+					   [ "$dilate" = "" ] && errMsg "--- DILATE=$dilate MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-e)    # get erode
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID ERODE SPECIFICATION ---"
+					   checkMinus "$1"
+					   erode=`expr "$1" : '\([0-9]*\)'`
+					   [ "$erode" = "" ] && errMsg "--- ERODE=$erode MUST BE A NON-NEGATIVE INTEGER ---"
 					   ;;
 				-p)    # get pad
 					   shift  # to get the next parameter
@@ -313,6 +338,26 @@ else
 					   coords=`expr "$1" : '\([0-9]*,[0-9]*\)'`
 					   [ "$coords" = "" ] && errMsg "--- COORDS=$coords MUST BE A PAIR OF NON-NEGATIVE INTEGERS SEPARATED BY A COMMA ---"
 					   ;;
+				-a)    # get area
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID AREA SPECIFICATION ---"
+					   checkMinus "$1"
+					   area=`expr "$1" : '\([0-9]*%*\)'`
+					   [ "$area" = "" ] && errMsg "--- AREA=$area MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
+				-v)    # get view
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID VIEW SPECIFICATION ---"
+					   checkMinus "$1"
+					   VIEW="$1"
+					   case "$VIEW" in
+							 yes|y) view=yes ;;
+							 no|n) view=no ;;
+							*)  errMsg "--- VIEW=$VIEW IS NOT A VALID VALUE ---" ;;
+					   esac
+					   ;;
 				 -)    # STDIN and end of arguments
 					   break
 					   ;;
@@ -362,21 +407,32 @@ if [ "$maskfile" != "" ]; then
 		echo "--- 1 FILE $maskfile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
 fi
 
+# get area of image and ccl area converted to pixel counts
+img_area=`convert $tmpA1 -format "%[fx:w*h]" info:`
+test=`echo "$area" | grep "%"`
+if [ "$test" != "" ]; then
+area=`echo "$area" | sed 's/[%]*$//'`
+area=`convert xc: -format "%[fx:round($img_area*$area/100)]" info:`
+fi
+#echo "img_area=$img_area; area=$area;"
+
 # get IM version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g'`
+	sed '/^LIB_VERSION_NUMBER */!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g'`
 
 # setup for disabling alpha channel
 if [ "$im_version" -ge "07000000" ]; then
-	alpha_disable="-alpha discrete"
+	alpha_enable="-alpha activate"
+	alpha_disable="-alpha deactivate"
 	matte_alpha="alpha"
 else
+	alpha_enable="-alpha on"
 	alpha_disable="-alpha off"
 	matte_alpha="matte"
 fi
 
 # set up pad
-[ "$pad" = "" ] && pad=$((2*distance))
+[ "$pad" = "" ] && pad=$((2*(dilate-erode)))
 
 # test if image has non-opaque alpha channel when no mask file
 alpha_channel="no"
@@ -414,73 +470,13 @@ elif [ "$maskfile" != "" ]; then
 elif [ "$alpha_channel" = "no" -a "$maskfile" = "" ]; then
 	# alpha file exists and is not fully opaque and no maskfile
 	if [ "$method" = "floodfill" ]; then
-		preproc1="-alpha off -fuzz $fuzzval% -fill none -draw"
+		preproc1="$alpha_disable -fuzz $fuzzval% -fill none -draw"
 		preproc2="$matte_alpha $coords floodfill"
 	elif [ "$method" = "recolor" ]; then
-		preproc1="-alpha off -fuzz $fuzzval% -transparent $icolor"
+		preproc1="$alpha_disable -fuzz $fuzzval% -transparent $icolor"
 	fi
 fi
 #echo "preproc1=$preproc1; preproc2=$preproc2; method=$method;"
-
-# process image
-if [ "$alpha_channel" = "no" -a "$maskfile" = "" -a "$method" = "floodfill" ]; then
-	# floodfill needs an extra border=1 to allow for floodfill to go all around
-	convert \
-		\( $tmpA1 -bordercolor "$icolor" -border 1 $preproc1 "$preproc2" \
-			-fuzz $tolerance -trim +repage \
-			-bordercolor none -border 50 \
-			-background white -alpha background \
-			-alpha off -write mpr:img -alpha on \
-			-alpha extract -morphology dilate disk:$distance \
-			-blur 0x1 -level 0x50% -write mpr:msk1 +delete \) \
-		\( mpr:msk1 -negate -fill "gray($shadow%)" -opaque black \
-			-fill "$ocolor" -opaque white \
-			-blur 0x$ramping -write mpr:msk2 +delete \) \
-		\( mpr:msk1 -morphology edgein diamond:1 -negate -write mpr:edg +delete  \) \
-		mpr:img mpr:msk1 -alpha off -compose copy_opacity -composite \
-		mpr:msk2 -reverse -compose over -composite \
-		$highlighting \
-		"$outfile"
-		
-elif [ "$alpha_channel" = "no" -a "$maskfile" = "" -a "$method" = "recolor" ]; then
-	# recolor using -transparent
-	convert \
-		\( $tmpA1 $preproc1 \
-			-fuzz $tolerance -trim +repage \
-			-bordercolor none -border 50 \
-			-background white -alpha background \
-			-alpha off -write mpr:img -alpha on \
-			-alpha extract -morphology dilate disk:$distance \
-			-blur 0x1 -level 0x50% -write mpr:msk1 +delete \) \
-		\( mpr:msk1 -negate -fill "gray($shadow%)" -opaque black \
-			-fill "$ocolor" -opaque white \
-			-blur 0x$ramping -write mpr:msk2 +delete \) \
-		\( mpr:msk1 -morphology edgein diamond:1 -negate -write mpr:edg +delete  \) \
-		mpr:img mpr:msk1 -alpha off -compose copy_opacity -composite \
-		mpr:msk2 -reverse -compose over -composite \
-		$highlighting \
-		"$outfile"
-else
-	# image has alpha channel or mask present
-	convert \
-		\( $tmpA1 $preproc1 \
-			-fuzz $tolerance -trim +repage \
-			-bordercolor none -border 50 \
-			-background white -alpha background \
-			-alpha off -write mpr:img -alpha on \
-			-alpha extract -morphology dilate disk:$distance \
-			-blur 0x1 -level 0x50% -write mpr:msk1 +delete \) \
-		\( mpr:msk1 -negate -fill "gray($shadow%)" -opaque black \
-			-fill "$ocolor" -opaque white \
-			-blur 0x$ramping -write mpr:msk2 +delete \) \
-		\( mpr:msk1 -morphology edgein diamond:1 -negate -write mpr:edg +delete  \) \
-		mpr:img mpr:msk1 -alpha off -compose copy_opacity -composite \
-		mpr:msk2 -reverse -compose over -composite \
-		$highlighting \
-		"$outfile"
-fi
-exit 0
-$method;"
 
 # set up for erode
 if [ $erode -ne 0 ]; then
@@ -503,19 +499,27 @@ elif [ "$area" = "0" ]; then
 	cclproc="$viewing -define connected-components:mean-color=true -connected-components 4"
 fi
 
+if [ "$trim" = "yes" ]; then
+	trimming="-fuzz $tolerance% -trim +repage"
+else
+	trimming=""
+fi
 
 # process image
 if [ "$alpha_channel" = "no" -a "$maskfile" = "" -a "$method" = "floodfill" ]; then
 	# floodfill needs an extra border=1 to allow for floodfill to go all around
+	# dilate needs an extra black border=1 to permit erode to process without result extending oddly
 	convert \
 		\( $tmpA1 -bordercolor "$icolor" -border 1 $preproc1 "$preproc2" \
-			-fuzz $tolerance -trim +repage \
+			$trimming \
 			-bordercolor none -border 50 \
 			-background white -alpha background \
-			-alpha off -write mpr:img -alpha on \
+			$alpha_disable -write mpr:img $alpha_enable \
 			-alpha extract \
 			-morphology dilate disk:$dilate \
+			-bordercolor black -border 1 \
 			$eroding \
+			-shave 1x1 \
 			$cclproc \
 			-blur 0x1 -level 0x50% -write mpr:msk1 +delete \) \
 		\( mpr:msk1 -negate -fill "gray($shadow%)" -opaque black \
@@ -531,13 +535,15 @@ elif [ "$alpha_channel" = "no" -a "$maskfile" = "" -a "$method" = "recolor" ]; t
 	# recolor using -transparent
 	convert \
 		\( $tmpA1 $preproc1 \
-			-fuzz $tolerance -trim +repage \
+			$trimming \
 			-bordercolor none -border 50 \
 			-background white -alpha background \
-			-alpha off -write mpr:img -alpha on \
+			$alpha_disable -write mpr:img $alpha_enable \
 			-alpha extract \
 			-morphology dilate disk:$dilate \
+			-bordercolor black -border 1 \
 			$eroding \
+			-shave 1x1 \
 			$cclproc \
 			-blur 0x1 -level 0x50% -write mpr:msk1 +delete \) \
 		\( mpr:msk1 -negate -fill "gray($shadow%)" -opaque black \
@@ -552,13 +558,15 @@ else
 	# image has alpha channel or mask present
 	convert \
 		\( $tmpA1 $preproc1 \
-			-fuzz $tolerance -trim +repage \
+			$trimming \
 			-bordercolor none -border 50 \
 			-background white -alpha background \
-			-alpha off -write mpr:img -alpha on \
+			$alpha_disable -write mpr:img $alpha_enable \
 			-alpha extract \
 			-morphology dilate disk:$dilate \
+			-bordercolor black -border 1 \
 			$eroding \
+			-shave 1x1 \
 			$cclproc \
 			-blur 0x1 -level 0x50% -write mpr:msk1 +delete \) \
 		\( mpr:msk1 -negate -fill "gray($shadow%)" -opaque black \

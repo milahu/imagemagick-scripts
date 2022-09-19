@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 4/8/2013 .......... revised 4/25/2015
+# Developed by Fred Weinhaus 4/8/2013 .......... revised 2/6/2019
 #
 # ------------------------------------------------------------------------------
 # 
@@ -83,7 +83,7 @@
 number=8			# number of perforations
 size=6				# size of perforation as percent of smaller image dimension
 position=""			# TB or LR; default=longer sides of image
-border="black"		# border type: black, faded, burned, none
+border="black"		# border type: black, faded, aged, none
 
 # internal arguments
 ratio=0.71			# width to height ratio of perforation ( Kodak =1.981/2.794 )
@@ -317,7 +317,7 @@ fi
 
 # get im version
 im_version=`convert -list configure | \
-sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+sed '/^LIB_VERSION_NUMBER */!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # need to change blurring image (for use in alpha channel) from gamma=1 to gamma=0.4545 for IM prior to 6.7.7.8
 # note: neither -set colorspace RGB nor -colorspace RGB seems to change the gamma value for older systems

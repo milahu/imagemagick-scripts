@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 1/14/2016 .......... revised 9/12/2017
+# Developed by Fred Weinhaus 1/14/2016 .......... revised 7/2/2020
 #
 # ------------------------------------------------------------------------------
 # 
@@ -55,10 +55,9 @@
 # equal sized images and its complement structural dissimilarity metric
 # (DSSIM). The DSSIM=(1-SSIM). An optional output image may be specified which
 # can show the SSIM or DSSIM image. The latter is just the -negate of the
-# former. The SSIM process first converts the images to Luma space and then
-# computes the ssim metric within 11x11 local regions at every pixel with
-# Gaussian weighting. Then it computes the average ssim value across the
-# resulting ssim image and reports that value.
+# former. The SSIM process computes the ssim metric within 11x11 local regions at 
+# every pixel with Gaussian weighting. Then it computes the average ssim value across 
+# the resulting ssim image and all channels and reports that value.
 # 
 # Arguments: 
 # 
@@ -283,7 +282,7 @@ convert -quiet -regard-warnings "$infile2" -alpha off +repage $dir/tmpI2.mpc ||
 
 # get im_version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # test for HDRI
 if [ "$im_version" -ge "07000000" ]; then
@@ -294,8 +293,8 @@ fi
 
 
 # validate that the two images are the same size
-size1=`convert -ping $dir/tmpI1.mpc -format "%wx$h" info:`
-size2=`convert -ping $dir/tmpI2.mpc -format "%wx$h" info:`
+size1=`convert -ping $dir/tmpI1.mpc -format "%wx%h" info:`
+size2=`convert -ping $dir/tmpI2.mpc -format "%wx%h" info:`
 w1=`echo "$size1" | cut -dx -f1`
 h1=`echo "$size1" | cut -dx -f2`
 w2=`echo "$size2" | cut -dx -f1`

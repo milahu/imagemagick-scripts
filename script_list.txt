@@ -58,6 +58,8 @@ binomial --- Generates high pass or low pass filtered images based upon convolut
 
 binomialedge --- Sharpens (or blurs) an image near edges using a Binomial shaped filter.
 
+bokeh --- Applies a bokeh blurring effect to an image.
+
 bordereffects --- Creates various dispersion-like effects in the border of an image.
 
 bordergrid --- Creates various grid effects in the border of an image.
@@ -129,6 +131,8 @@ cosinebell --- Creates a cosine-bell-shaped tapered alpha channel in an image an
 crosshatch --- Applies a crosshatch effect to an image.
 
 crossprocess --- Applies a color crossprocessing effect to an image.
+
+crystallize --- Creates random crystal-like regions in an image.
 
 cube2sphericalpano --- Transforms 6 cube face images into a spherical panorama image.
 
@@ -226,6 +230,8 @@ gradient --- Applies a gradient filter to an image.
 
 graytoning --- Mixes color channels from an image into a grayscale image and optionally tints it.
 
+greenscreen --- Removes background green color in a green screen image.
+
 grid --- Superimposes a set of horizontal and/or vertical grid lines on an image.
 
 halo --- Applies a circular halo to an image.
@@ -288,6 +294,10 @@ localthresh --- Automatically thresholds an image to binary (b/w) format using a
 
 locatecolors --- Modifies an image showing only those pixels which are within the specified color range.
 
+logpolar --- Applies either a rectangular (cartesian) to log-polar transformation or a log-polar to rectangular (cartesian) transformation on an image.
+
+lomography --- Applies a lomographic effect to an image.
+
 lucisarteffect --- Applies a LucisArt-like effect to an image.
 
 lupe --- Applies a magnifying glass effect in a local area of an image.
@@ -315,6 +325,8 @@ melt --- Creates a melting-like blur effect in an image.
 meshwarp --- Warps an image according to a user supplied triangular mesh.
 
 mesmerize --- Creates a mesmerizing animation from an image.
+
+midgradient --- Creates a two-color gradient with adjustable mid-color location.
 
 midtonebalance --- Color balances an image in the midtones in a manner similar to Photoshop.
 
@@ -416,6 +428,8 @@ polyring --- Creates a polygon ring image from one or more images.
 
 popart --- Creates a pop art style image.
 
+position --- Positions (aligns) one image relative to another image.
+
 postagestamp --- Applies a perforated postage stamp like border around an image.
 
 posteredges --- Applies posterized edges to an image.
@@ -435,6 +449,8 @@ radialgrid --- Superimposes circular grid lines on an image.
 randomblob --- Creates an image composed of a moderate sized black random blob shape on a white background.
 
 randomclipart --- Randomly distributes clip art over the image.
+
+rangethresh --- Converts an image to binary using range values for each channel of the input.
 
 recursion --- Creates a recursive affine composite effect in an image.
 
@@ -481,6 +497,8 @@ shadowhighlight --- Adjusts the tone in shadow and highlight areas of an image.
 shadows --- Applies drop shadows to an image that has an alpha channel.
 
 shapecluster --- Creates a division of the image into 5 separated rectangular regions.
+
+shapecompare --- Compares two images' shapes using metrics computed from Hu image moments.
 
 shapemorph --- Create a shape morphing animation sequence between two images.
 
@@ -572,6 +590,8 @@ stretch --- Modifies an image to automatically stretch the dynamic range between
 
 striations --- Applies radial or circular striations to image.
 
+stripes --- Adds a striped border to an image.
+
 stutter --- Creates a 'stuttered' offset-like effect in an image.
 
 surroundblur --- Creates a blurred background region around the input image.
@@ -585,6 +605,10 @@ textdistort --- Distorts repeated text to warp it to the shape of the image cont
 texteffect --- Convert text to an image after applying various effects, styling and color.
 
 texteffect2 --- Converts large size text to an image with color, effects and styling.
+
+textetch --- Adds text to an image to simulate etching on glass.
+
+textglow --- Adds glowing text to an image or some background color.
 
 texturize --- Creates a texture pattern and optionally applies it to the background of an input image.
 
@@ -626,6 +650,8 @@ trianglethresh --- Automatically thresholds an image to binary (b/w) format usin
 
 tricolorize --- Smoothly colorizes a grayscale image with either one, two or three different colors.
 
+trim2detail --- Trims an image to the bounding rectangle about the image's main content.
+
 trim2rect --- Automatically trims the sides of an image until no outer row or column contains the background color.
 
 trimcorners --- Automatically crops the image to removed rounded corners.
@@ -644,9 +670,17 @@ turbulence --- Applies a turbulence-like warping of the image.
 
 turn --- Simultaneously rotates and crops an image to eliminate any background.
 
+typewriter --- Creates a typewriter style text animation.
+
 unperspective --- Automatically removes pespective distortion from an image. 
 
 unrotate --- Automatically unrotates a rotated image and trims the surrounding border.
+
+unrotate2 --- Automatically unrotates a rotated image and trims the surrounding border.
+
+unrotate3 --- Automatically unrotates a rotated image and trims the surrounding border.
+
+unsaturatehue --- Desaturates a given hue (range) in an image.
 
 uwcorrect --- Corrects the color balance for red light attenuation in pictures taken underwater.
 
@@ -672,13 +706,21 @@ vintage2 --- Applies a colorful vintage effect to an image.
 
 vintage3 --- Applies an old, heritage style vintage effect to an image.
 
+vividize --- Enhances the colors in an image.
+
 warholeffect --- Creates an Andy Warhol style colorization image.
+
+warplog --- Resizes an image according to a logarithmic transformation.
 
 watercolor --- Applies a watercolor effect to an image.
 
 wavemap --- Transforms the graylevels in each RGB channel according to a sinusoidal wave function.
 
+weave --- Applies an irregular linear weave-like distortion to an image.
+
 whitebalance --- Transform an image's overall color balance according to a desired change in a specified white point color.
+
+whitebalancing --- Applies white balancing to an image according to a gray world method in LAB colorspace.
 
 whiteboard --- Processes a picture of a whiteboard to clean up the background and correct the perspective.
 

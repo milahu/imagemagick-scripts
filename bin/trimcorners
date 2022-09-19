@@ -61,12 +61,13 @@
 #  
 # PURPOSE: To crop the image to removed rounded corners.
 # 
-# DESCRIPTION: TRIMCORNERS crops the image to removed rounded corners. A fuzz value is 
-# specified to floodfill the corner regions to make a binary mask from the image. The 
-# mask will be black in the corners and white elsewhere. From this mask the diagonals 
-# of the image are extracted and search from the ends to find the first occurrences of 
-# white. The coordinates extracted are then used to create the crop dimensions and the 
-# image cropped to form the output.
+# DESCRIPTION: TRIMCORNERS automatically crops the image to removed rounded
+# corners. A fuzz value is specified to floodfill the corner regions to make a
+# binary mask from the image. The mask will be black in the corners and white
+# elsewhere. From this mask the diagonals of the image are extracted and search
+# from the ends to find the first occurrences of white. The coordinates extracted
+# are then used to create the crop dimensions and the image cropped to form the
+# output.
 # 
 # 
 # Arguments: 
@@ -275,7 +276,7 @@ convert -quiet -regard-warnings "$infile" +repage $tmpA1 ||
 
 # get im_version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 
 # get image dimensions
@@ -402,12 +403,6 @@ if [ "$graphic" = "yes" ]; then
 		\( -clone 0 -fill black -colorize 100 -fill white -draw "polygon $polygon" -morphology edgein octagon:$thick \) \
 		-compose over -composite ${outname}_box.$suffix
 fi
-
-
-exit 0
-
-
-
 
 
 exit 0

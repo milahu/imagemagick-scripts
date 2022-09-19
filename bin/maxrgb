@@ -33,8 +33,7 @@
 #
 # NAME: MAXRGB
 # 
-# PURPOSE: To generate an image that keeps only the channel with the maximum 
-# value at each pixel.
+# PURPOSE: Converts an RGB image to keep only the channel with the maximum value at each pixel.
 # 
 # DESCRIPTION: MAXRGB generate a new image that for each pixel keeps the 
 # maximum value of each of the RGB channels of an RGB image and zeroes the 

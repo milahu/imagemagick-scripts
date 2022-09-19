@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 12/3/2016 .......... revised 12/3/2016
+# Developed by Fred Weinhaus 12/5/2016 .......... revised 12/5/2016
 #
 # ------------------------------------------------------------------------------
 # 
@@ -72,11 +72,18 @@
 # -C colors ... COLORS is the list of space delimited colors that makes up 
 # the horizontal 1D color map. At least two colors must be provided. The 
 # default="white blueviolet blue cyan green1 yellow orange red". Any valid 
-# IM (opaque) colors are allowed.
+# IM (opaque) colors are allowed. The colors will be interpolated to form a 
+# 1024x1 color lookup table image applied via -clut.
 # 
 # NOTE: this script may be slow due to having to iterate up to 255 times at 
 # each pixels. Time run from a couple of seconds up to about 15 seconds for 
 # for a 400x400 sized image. The larger the zoom, the slower it will be.
+# 
+# REFERENCES:
+# http://jonisalonen.com/2013/lets-draw-the-mandelbrot-set/
+# https://rosettacode.org/wiki/Mandelbrot_set
+# https://en.wikipedia.org/wiki/Mandelbrot_set
+# http://lodev.org/cgtutor/juliamandelbrot.html
 # 
 # CAVEAT: No guarantee that this script will work on all platforms, 
 # nor that trapping of inconsistent parameters is complete and 
@@ -271,23 +278,6 @@ for (row=0;row<height;row++)
         y = 0;
         n = 0;
         while (x*x+y*y < 4.0 && n<255)
-            {
-            x_new = x*x - y*y + c_re;
-            y_new = 2*x*y + c_im;
-            x = x_new;
-            y = y_new;
-            n++;
-            }
-        print n;
-        }
-    print 0;
-    }
-exit;
-}'`)
-echo "P2 $wd $ht 255 ${Arr[*]}" | convert - $tmpL -clut "$outfile"
-
-exit 0
-*y < 4.0 && n<255)
             {
             x_new = x*x - y*y + c_re;
             y_new = 2*x*y + c_im;

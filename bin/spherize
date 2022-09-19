@@ -261,7 +261,7 @@ convert -quiet "$infile" +repage "$tmpA1" ||
 # test for minimum IM version required
 # IM 6.5.3.9 or higher to conform to new -compose distort
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 [ "$im_version" -lt "06050309" ] && errMsg "--- REQUIRES IM VERSION 6.5.3-9 OR HIGHER ---"
 
 # get image dimensions
@@ -408,4 +408,4 @@ else
 		-gravity center -compose over -composite $trimming "$outfile"
 fi
 
-exit 00
+exit 0

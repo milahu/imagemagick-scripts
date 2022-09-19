@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 5/2/2018 .......... revised 5/2/2018
+# Developed by Fred Weinhaus 5/2/2018 .......... revised 1/29/2022
 #
 # ------------------------------------------------------------------------------
 # 
@@ -370,8 +370,6 @@ trap "rm -f $tmpA1 $tmpB1;" 0
 trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
 #trap "rm -f $tmpA1 $tmpB1; exit 1" ERR
 
-
-
 # get array of methods
 # change any commas or spaces to a single space
 # remove any potential leading or trailing spaces
@@ -385,7 +383,6 @@ for ((l=0; l<num_methods; l++)); do
 	[ "$method" != "bmh" -a "$method" != "bdh" -a "$method" != "avh" -a "$method" != "pfh" ] && \
 			errMsg "--- METHOD $method IS NOT A VALID VALUE  ---"
 done
-
 
 # get array of images
 if [ $num_images -eq 0 ]; then
@@ -435,7 +432,7 @@ if [ $num_images -eq 1 -a $num_methods -eq 1 ]; then
 	img="${imgArr[0]}"
 	
 	# get image filename with extension from path
-	image=`convert -ping $img -format "%f" info:`
+	image=`convert -ping "$img" -format "%f" info:`
 
 	
 	if [ ! -f "$img" -a ! -r "$img" -a ! -s "$img" ]; then
@@ -444,9 +441,9 @@ if [ $num_images -eq 1 -a $num_methods -eq 1 ]; then
 	
 	# read image comment and label data
 	if [ "$save" = "comment" ]; then
-		comment=`convert -ping $img -format "%c" info:`
+		comment=`convert -ping "$img" -format "%c" info:`
 	elif [ "$save" = "label" ]; then
-		label=`convert -ping $img -format "%l" info:`
+		label=`convert -ping "$img" -format "%l" info:`
 	fi
 
 	# write image to jsonfile
@@ -531,10 +528,9 @@ if [ $num_images -eq 1 -a $num_methods -eq 1 ]; then
 
 	# write to comment or label meta data
 	if [ "$save" = "comment" ]; then
-		convert $img -set comment "$comment" $img
-		
+		convert "$img" -set comment "$comment" "$img"
 	elif [ "$save" = "label" ]; then
-		convert $img -set label "$label" $img
+		convert "$img" -set label "$label" "$img"
 	fi
 
 	# show progress
@@ -555,7 +551,7 @@ else
 		#echo "$img"
 		
 		# get image filename with extension from path
-		image=`convert -ping $img -format "%f" info:`
+		image=`convert -ping "$img" -format "%f" info:`
 		
 		# read the input image into the temporary cached image and test if valid
 		convert -quiet "$img" +repage -alpha off -colorspace gray \
@@ -564,9 +560,9 @@ else
 
 		# read image comment and label data
 		if [ "$save" = "comment" ]; then
-			comment=`convert -ping $img -format "%c" info:`
+			comment=`convert -ping "$img" -format "%c" info:`
 		elif [ "$save" = "label" ]; then
-			label=`convert -ping $img -format "%l" info:`
+			label=`convert -ping "$img" -format "%l" info:`
 		fi
 		
 		# write image to jsonfile
@@ -659,10 +655,9 @@ else
 		
 		# write to comment or label meta data
 		if [ "$save" = "comment" ]; then
-			convert $img -set comment "$comment" $img
-		
+			convert "$img" -set comment "$comment" "$img"
 		elif [ "$save" = "label" ]; then
-			convert $img -set label "$label" $img
+			convert "$img" -set label "$label" "$img"
 		fi
 
 		[ $progress -ne 0 ] && echo ""

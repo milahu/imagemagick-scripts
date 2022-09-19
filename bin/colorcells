@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 5/18/2017 .......... 5/18/2017
+# Developed by Fred Weinhaus 5/18/2017 .......... 8/12/2018
 #
 # ------------------------------------------------------------------------------
 # 
@@ -26,8 +26,8 @@
 # 
 ####
 #
-# USAGE: colorcells [-n numcells ] [-c cellsize] [-p percent] [-s seeds] [-d diameters] 
-# infile outfile 
+# USAGE: colorcells [-n numcells ] [-c cellsize] [-p percent] [-s seeds] [-t thickness] 
+# [-d diameters] infile outfile 
 # USAGE: colorcells [-h|help]
 #
 # OPTIONS:
@@ -38,6 +38,8 @@
 #                      default is to use numcells; takes precedent over numcells
 # -p     percent       percent coverage of colored cells; 0<=integer<=100; default=50
 # -s     seeds         random seeds; comma separate pair of integers; default="200,300"
+# -t     thickness     thickness of white grid lines; integer>0; default=0 (no grid); 
+#                      odd values will be rounded up to even values
 # -d     diameters     diameters of elliptical mask expressed as percent of width and 
 #                      height of image; comma separate pair of integers; default="70,70"
 # 
@@ -68,11 +70,16 @@
 # -s seeds ... random number SEEDS. Values are a comma separate pair of positive integers. 
 # The default="200,300".
 # 
+# -t thickness ... THICKNESS of white grid lines. Values are integer>=0. The default=0 
+# (no grid). Odd values will be rounded up to even values.
+# 
 # -d diameters ... DIAMETERS of an elliptical mask expressed as a percent of the width  
 # and height of the image. Values are a comma separate pair of integers. The 
 # default="70,70". If the value is 0 (0,0), then no mask will be used.
 # 
 # NOTE: The script will be slower the more cells that are created.
+# 
+# REFERENCE: http://www.photoshopessentials.com/photo-effects/color-grid-photo-display-effect/
 # 
 # CAVEAT: No guarantee that this script will work on all platforms, 
 # nor that trapping of inconsistent parameters is complete and 
@@ -134,7 +141,7 @@ if [ $# -eq 0 ]
    echo ""
    usage2
    exit 0
-elif [ $# -gt 12 ]
+elif [ $# -gt 14 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -180,6 +187,14 @@ else
 					   [ "$percent" = "" ] && errMsg "--- PERCENT=$percent MUST BE A NON-NEGATIVE INTEGER ---"
 					   test=`echo "$percent > 100" | bc`
 					   [ $test -eq 1 ] && errMsg "--- PERCENT=$percent MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
+				-t)    # get thickness
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID THICKNESS SPECIFICATION ---"
+					   checkMinus "$1"
+					   thickness=`expr "$1" : '\([0-9]*\)'`
+					   [ "$thickness" = "" ] && errMsg "--- THICKNESS=$thickness MUST BE A NON-NEGATIVE INTEGER ---"
 					   ;;
 				-d)    # get diameters
 					   shift  # to get the next parameter
@@ -270,6 +285,14 @@ diametery=`echo "$diameters" | cut -d, -f2`
 seed1=`echo "$seeds" | cut -d, -f1`
 seed2=`echo "$seeds" | cut -d, -f2`
 
+# extract and set up grid thickness
+if [ "$thickness" = "0" ]; then
+	gproc=""
+else
+	thick=`convert xc: -format "%[fx:mod($thickness,2)==0?$thickness/2:($thickness+1)/2]" info:`
+	gproc="-shave ${thick}x${thick} -bordercolor white -border $thick"
+fi
+
 
 if [ "$diameterx" = "0" -o "$diametery" = "0" ]; then
 
@@ -281,8 +304,8 @@ if [ "$diameterx" = "0" -o "$diametery" = "0" ]; then
 	factor=`convert xc: -format "%[fx:$rr>$coverage?$rr:0]" info:`
 	seed2=$((2*i+seed2))
 	hue=`convert xc: -seed $seed2 -format "%[fx:round(100+$factor*random()*200)]" info:`
-	echo >&2 "factor=$factor; hue=$hue;"
-	convert $tmpI1[$i] -modulate 100,100,$hue miff:-
+	#echo >&2 "factor=$factor; hue=$hue;"
+	convert $tmpI1[$i] $gproc -modulate 100,100,$hue miff:-
 	done
 	) | convert - -background none -layers merge +repage "$outfile"
 
@@ -290,38 +313,6 @@ else
 
 	# create mask and crop to tiles. Then average to one pixel and threshold.
 	centx=`convert xc: -format "%[fx:$cropw/2]" info:`
-	centy=`convert xc: -format "%[fx:$croph/2]" info:`
-	radx=`convert xc: -format "%[fx:$diameterx*$centx/100]" info:`
-	rady=`convert xc: -format "%[fx:$diametery*$centy/100]" info:`
-	convert -size ${cropw}x${croph} xc:white -fill black \
-		-draw "translate $centx,$centy ellipse 0,0 $radx,$rady 0,360" -alpha off \
-		-crop ${cellw}x${cellh} +repage $tmpM1
-	echo "centx=$centx; centy=$centy; radx=$radx; rady=$rady;"
-
-	(
-	for ((i=0; i<num; i++)); do
-	seed1=$((i+seed1))
-	rr=`convert xc: -seed $seed1 -format "%[fx:random()]" info:`
-	factor=`convert xc: -format "%[fx:$rr>$coverage?$rr:0]" info:`
-	seed2=$((2*i+seed2))
-	hue=`convert xc: -seed $seed2 -format "%[fx:round(100+$factor*random()*200)]" info:`
-	echo >&2 "factor=$factor; hue=$hue;"
-	convert $tmpI1[$i] \
-		\( $tmpM1[$i] -scale 1x1! -negate -threshold 0 -negate -scale ${cellw}x${cellx}! \) \
-		-evaluate-sequence max -modulate 100,100,$hue miff:-
-	done
-	) | convert - -background none -layers merge +repage "$outfile"
-
-fi
-
-exit 0
-
-
-
-
-
-
-`convert xc: -format "%[fx:$cropw/2]" info:`
 	centy=`convert xc: -format "%[fx:$croph/2]" info:`
 	radx=`convert xc: -format "%[fx:$diameterx*$centx/100]" info:`
 	rady=`convert xc: -format "%[fx:$diametery*$centy/100]" info:`

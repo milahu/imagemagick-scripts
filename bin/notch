@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 1/22/2010 .......... revised 7/15/2015
+# Developed by Fred Weinhaus 1/22/2010 .......... revised 1/18/2020
 #
 # ------------------------------------------------------------------------------
 # 
@@ -486,7 +486,7 @@ convert -quiet "$infile" +repage "$tmp1A" ||
 
 # get IM version
 im_version=`convert -list configure | \
-sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+sed '/^LIB_VERSION_NUMBER */!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # test for valid IM version to use FFT
 [ "$im_version" -lt "06050403" ] && errMsg "--- IM VERSION $im_version IS NOT COMPATIBLE WITH FFT ---"
@@ -516,7 +516,7 @@ kapurThresh()
 
 	# get value array from IM histogram
 	nvalArr=(`convert $img -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- \
-	| tr -cs '0-9\012' ' ' | sed -n 's/[ ]*\([0-9]*\)[ ]*\([0-9]*\).*$/\1 \2/p' |\
+	| sed -n 's/[ ]*\([0-9]*\).*gray[(]\([0-9]*\).*$/\1 \2/p' |\
 	awk '
 	# AWK 
 	{ vbin[$2] += $2;} 
@@ -527,7 +527,7 @@ kapurThresh()
 	
 	# get count array from IM histogram
 	countArr=(`convert $img -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- \
-	| tr -cs '0-9\012' ' ' | sed -n 's/[ ]*\([0-9]*\)[ ]*\([0-9]*\).*$/\1 \2/p' |\
+	| sed -n 's/[ ]*\([0-9]*\).*gray[(]\([0-9]*\).*$/\1 \2/p' |\
 	awk '
 	# AWK 
 	{ cbin[$2] += $1; } 
@@ -726,5 +726,4 @@ convert \( $tmp2A[0] $tmp3A -compose multiply -composite \) $tmp2A[1] \
 	-ift -crop ${ww}x${hh}+0+0 +repage "$outfile"
 
 exit 0
-
 

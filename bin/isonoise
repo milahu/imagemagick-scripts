@@ -188,7 +188,7 @@ trap "rm -f $tmpA $tmpB $tmp0 $tmp1; exit 1" ERR
 #correct for change in median at IM 6.6.8-6 from radius to widthxheight
 #and to go from -median to -statistic median
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 if [ "$im_version" -ge "06060806" ]; then
 	radius=$((2*$radius+1))
 	proc="-statistic median"
@@ -212,4 +212,3 @@ else
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 fi
 exit 0
-

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 3/31/2008 .......... revised 11/9/2017
+# Developed by Fred Weinhaus 3/31/2008 .......... revised 8/11/2021
 # Added wedge-top and wedge-bottom effects ...... revised 6/24/2010
 # Revised InnerBevel and Round styles ............revised 6/24/2010
 # Added Size Argument ........................... revised 6/18/2010
@@ -613,7 +613,13 @@ fi
 
 # get IM version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+if [ "$im_version" -ge "07000000" ]; then
+	identifying="magick identify"
+else
+	identifying="identify"
+fi
 	
 # test acceptible versions for arc, innerbevel and roundbevel
 [ "$effect" = "arc-top" -a "$im_version" -lt "06030505" ] && errMsg "--- ARC EFFECT REQUIRES IM 6.3.5-5 OR HIGHER ---"
@@ -630,15 +636,15 @@ im_version=`convert -list configure | \
 # set trim of initial text image before distorting according to effect 
 if [ "$effect" = "bulge" -o "$effect" = "bulge-top" -o "$effect" = "bulge-bottom" -o "$effect" = "pinch" -o "$effect" = "pinch-top" -o "$effect" = "pinch-bottom" -o "$effect" = "concave" -o "$effect" = "concave-top" -o "$effect" = "concave-bottom" -o "$effect" = "convex" -o "$effect" = "convex-top" -o "$effect" = "convex-bottom" ]
 	then
-	trimpad="-fuzz 0.1 -trim +repage -bordercolor $bc -border $pad"
+	trimpad="-fuzz 0.1% -trim +repage -bordercolor $bc -border $pad"
 elif [ "$style" = "outline" -o "$style" = "gradient" -o "$style" = "plain" ]
 	then
-	trimpad="-fuzz 0.1 -trim +repage -bordercolor $bc -border $linewt"
+	trimpad="-fuzz 0.1% -trim +repage -bordercolor $bc -border $linewt"
 elif [ "$style" = "glow" -o "$style" = "hardshadow" -o "$style" = "softshadow" -o "$style" = "bevel" -o "$style" = "antibevel" -o "$style" = "stamp" ]
 	then
-	trimpad="-fuzz 0.1 -trim +repage -bordercolor $bc -border 5"
+	trimpad="-fuzz 0.1% -trim +repage -bordercolor $bc -border 5"
 else
-	trimpad="-fuzz 0.1 -trim +repage"
+	trimpad="-fuzz 0.1% -trim +repage"
 fi
 
 # set stroke depending upon linewt
@@ -1013,11 +1019,11 @@ if [ "$effect" = "pinch" -o "$effect" = "pinch-top" -o "$effect" = "pinch-bottom
 	then
 	distort=`convert xc: -format "%[fx:-$distort]" info:`
 fi
-a=`convert xc: -format "%[fx:1+$distort]" info:`
-b=`convert xc: -format "%[fx:-$distort]" info:`
+a=`convert xc: -format "%[fx:1+($distort)]" info:`
+b=`convert xc: -format "%[fx:-($distort)]" info:`
 #d=`convert xc: -format "%[fx:1-$distort]" info:`
-width=`identify -format %w $tmpA0`
-height=`identify -format %h $tmpA0`
+width=`$identifying -format %w $tmpA0`
+height=`$identifying -format %h $tmpA0`
 w2=`convert xc: -format "%[fx:$width/2]" info:`
 h2=`convert xc: -format "%[fx:$height/2]" info:`
 sf=`convert xc: -format "%[fx:($w2+$h2)/2]" info:`
@@ -1334,6 +1340,5 @@ else
 fi
 
 exit 0
-
 
 

@@ -268,7 +268,7 @@ trap "rm -f $tmpA $tmpB $tmpC $tmp0 $tmp1 $tmp2 $tmp3; exit 1" 1 2 3 15
 
 # get im version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
 # though probably not resolved until the latter
@@ -395,4 +395,3 @@ if [ "$save" = "yes" ]
 fi
 	animate $tmpC
 exit 0
-

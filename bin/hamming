@@ -1,6 +1,7 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 5/2/2018 .......... revised 5/2/2018
+# Developed by Fred Weinhaus 5/2/2018 .......... revised 1/29/2022
+# Revision for hamming computation provided by Niels Luttge 1/29/2022
 #
 # ------------------------------------------------------------------------------
 # 
@@ -337,27 +338,22 @@ fi
 
 # compute hamming distance
 # count the number of differences between each corresponding phash digit positions
-arr1=(`echo $phash1 | fold -w1`)
-arr2=(`echo $phash2 | fold -w1`)
-num1=${#arr1[*]}
-num2=${#arr2[*]}
-#echo "num1=$num1; num2=$num2;"
-
+num1=${#phash1}
+num2=${#phash2}
 if [ $num1 -eq 0 -o $num2 -eq 0 ]; then
 	errMsg "--- ONE OR BOTH IMAGES DO NOT STORE PHASHES FOR THE REQUESTED METHOD $method ---"
 elif [ $num1 -ne $num2 ]; then
 	errMsg "--- UNEQUAL PHASH LENGTHS: $num1 $num2 ---"
-elif [ $num1 -eq $num2 ]; then
-	arr1=(`echo $phash1 | fold -w1`)
-	arr2=(`echo $phash2 | fold -w1`)
+else # $num1 -eq $num2
 	dist=0
-	dist=`echo | awk -v phash1=$phash1 -v phash2=$phash2 '
-	{ dist=0; num=split(phash1,arr1,""); split(phash2,arr2,""); 
-	for (i=1;i<=num;i++) if (arr1[i] != arr2[i]) { dist=dist+1 }; 
-	printf "%.1f", 100*dist/num }'`
-	echo $dist
+	for (( i=0; i<$num1; i++ )); do
+		if [[ ${phash1:$i:1} -ne ${phash2:$i:1} ]]; then 
+			((dist=dist+1))
+		fi
+	done
+	# print integer dot decimal to two places
+	echo "$((100*$dist/$num1)).$((100*$dist%$num1*100/$num1))"
 fi
-
 
 exit 0
 

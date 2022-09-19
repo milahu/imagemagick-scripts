@@ -1,6 +1,6 @@
 #!/bin/bash
 # 
-# Developed by Fred Weinhaus 12/12/2007 .......... revised 10/16/2017
+# Developed by Fred Weinhaus 12/12/2007 .......... revised 9/1/2022
 #
 # ------------------------------------------------------------------------------
 # 
@@ -103,7 +103,6 @@
 # Note that the algorithm cannot correct beyond 45 degrees and cannot 
 # distinguish between exactly +45 degrees and exactly -45. Therefore you 
 # may need to do a 90, 180, or 270 degree rotation after using this script. 
-# You may need to do a 90, 180, or 270 degree rotation after using this script. 
 # If the outfile is left off, then the script will simply report the rotation 
 # angle needed to unrotate the image.
 # 
@@ -294,7 +293,7 @@ convert -quiet "$infile" +repage $tmpA ||
 
 # get im_version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
 # though probably not resolved until the latter
@@ -578,4 +577,4 @@ else
 		convert $tmpA +repage "$outfile"
 	fi
 fi
-exit 00
+exit 0

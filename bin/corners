@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 1/26/2017 .......... revised 1/26/2017
+# Developed by Fred Weinhaus 1/27/2017 .......... revised 10/11/2017
 #
 # ------------------------------------------------------------------------------
 # 
@@ -36,7 +36,7 @@
 # -m     method         method of corner detection; choices are: morphology (m), 
 #                       harris (h) or shi-tomasi (s); default=morphology
 # -t     threshold      threshold level (in percent) for choosing the strongest 
-#                       corners; 0<=integer<=100; default=50
+#                       corners; 0<=float<=100; default=50
 # -s     smooth         smoothing to apply noise suppression; 0<=integer<=5; 
 #                       number of applications of -enhance; default=0
 # -r     region         region is either the morphology structure element size 
@@ -77,7 +77,7 @@
 # shi-tomasi methods require Imagemagick compile in HDRI mode.
 # 
 # -t threshold ... THRESHOLD level (in percent) for choosing the strongest 
-# corners. Values are 0<=integers<=100. The default=50. Different values 
+# corners. Values are 0<=float<=100. The default=50. Different values 
 # are needed for each method. The optimal threshold will also depend upon 
 # and smoothing applied and upon the region size. More smoothing or larger 
 # regions permit lower thresholds.
@@ -210,11 +210,11 @@ else
 					   # test if parameter starts with minus sign 
 					   errorMsg="--- INVALID THRESHOLD SPECIFICATION ---"
 					   checkMinus "$1"
-					   threshold=`expr "$1" : '\([0-9]*\)'`
-					   [ "$threshold" = "" ] && errMsg "--- THRESHOLD=$threshold MUST BE AN INTEGER ---"
+					   threshold=`expr "$1" : '\([.0-9]*\)'`
+					   [ "$threshold" = "" ] && errMsg "--- THRESHOLD=$threshold MUST BE A FLOAT ---"
 					   testA=`echo "$threshold < 0" | bc`
 					   testB=`echo "$threshold > 100" | bc`
-					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- THRESHOLD=$threshold MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- THRESHOLD=$threshold MUST BE A FLOAT BETWEEN 0 AND 100 ---"
 					   ;;
 				-r)    # get region
 					   shift  # to get the next parameter - radius,sigma
@@ -305,7 +305,7 @@ trap "rm -rf $dir; exit 1" 1 2 3 15
 
 # test for hdri enabled
 hdri_on=`convert -list configure | grep "enable-hdri"`
-[ "$method" != "morphology" -a "$hdri_on" = "" ] && echo "--- REQUIRES HDRI ENABLED IN IM COMPILE ---"
+[ "$method" != "morphology" -a "$hdri_on" != "" ] && echo "--- REQUIRES HDRI ENABLED IN IM COMPILE ---"
 
 # set up smoothing
 if [ "$smooth" = "5" ]; then

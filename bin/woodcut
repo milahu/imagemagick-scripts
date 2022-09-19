@@ -329,7 +329,7 @@ trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2; exit 1" ERR
 
 # get im_version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
 # though probably not resolved until the latter
@@ -362,7 +362,7 @@ convert -quiet "$woodfile" +repage  "$tmpB1" ||
 
 # get IM version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # test im version for compatibility to -function polynomial
 [ "$intensity" != "1" -a "$im_version" -lt "06040808" ] && errMsg "--- IM VERSION IS NOT COMPATIBLE WITH CARVE INTENSITY ---"
@@ -441,4 +441,3 @@ convert \( $tmpA1 $colorizing -alpha set -channel A -evaluate set $mix% -channel
 
 
 exit 0
-0

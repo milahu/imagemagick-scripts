@@ -309,7 +309,7 @@ trap "rm -f $tmp0; exit 1" ERR
 
 # get im version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # specify filter
 # get filter
@@ -397,5 +397,4 @@ fi
 # process image
 convert $infile -convolve "$kernIM" $threshoption "$outfile"
 exit 0
-
 

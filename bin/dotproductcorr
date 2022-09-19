@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 10/7/2013 .......... revised 7/11/2017
+# Developed by Fred Weinhaus 10/7/2013 .......... revised 1/16/2020
 #
 # ------------------------------------------------------------------------------
 # 
@@ -319,7 +319,7 @@ convert -quiet "$largefile" -alpha off +repage "$dir/tmpA2.mpc" ||
 
 # test for valid version of IM
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 [ "$im_version" -lt "06050407" ] && errMsg "--- REQUIRES IM VERSION 6.5.4-7 OR HIGHER ---"
 #echo "im_version=$im_version;"
 
@@ -504,14 +504,14 @@ fi
 if [ "$im_version" -ge "06080610" ]; then
 	max=`convert "$dir/tmp0.mpc" -format "%[fx:maxima]" info:`
 	str=`convert "$dir/tmp0.mpc" -fx "u>=($max-quantumscale)?debug(u):0" null: 2>&1`
-	coords=`echo "$str" | sed -n 's/^.*\[\([0-9]*,[0-9]*\)\]\.red.*$/\1/p'`
+	coords=`echo "$str" | sed -n 's/^.*\[\([0-9]*,[0-9]*\)\].*$/\1/p'`
 	echo ""
 	echo "Match Coords: ($coords) And Score In Range 0 to 1: ($max)"
 	echo ""
 else
 	max=`convert "$dir/tmp0.mpc" -format "%[fx:maxima]" info:`
 	str=`convert "$dir/tmp0.mpc" -fx "u>=($max-quantumscale)?debug(u):0" null: 2>&1`
-	coords=`echo "$str" | sed -n 's/^.*\[\([0-9]*,[0-9]*\)\]\.red.*$/\1/p'`
+	coords=`echo "$str" | sed -n 's/^.*\[\([0-9]*,[0-9]*\)\].*$/\1/p'`
 	echo ""
 	echo "Match Coords: ($coords) And Score In Range 0 to 1: ($max)"
 	echo ""
@@ -537,7 +537,6 @@ elif [ "$matchfile" != "" -a "$mode" = "best" ]; then
 	convert $dir/tmpA2.mpc[${ws}x${hs}+${ulx}+${uly}] "$matchfile"
 fi
 exit 0
-
 
 
 

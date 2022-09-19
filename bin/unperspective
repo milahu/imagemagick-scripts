@@ -1,6 +1,6 @@
 #!/bin/bash
 # 
-# Developed by Fred Weinhaus 11/16/2011 .......... revised 9/18/2016
+# Developed by Fred Weinhaus 11/16/2011 .......... revised 2/25/2020
 # 
 # Licensing:
 # 
@@ -788,8 +788,8 @@ prompt()
 getColor()
 	{
 	img="$1"
-	wd=`identify -ping -format "%w" $img`
-	ht=`identify -ping -format "%h" $img`
+	wd=`convert -ping $img -format "%w" info:`
+	ht=`convert -ping $img -format "%h" info:`
 	widthm1=$((wd-1))
 	heightm1=$((ht-1))
 	midwidth=`echo "scale=0; $wd / 2" | bc`
@@ -887,7 +887,7 @@ getXY()
 
 # get im_version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # setup prerotate
 if [ "$prerotate" = "autorotate" ]; then
@@ -1127,7 +1127,6 @@ elif [ "$method" = "derivative" ]; then
 fi
 
 
-
 # save or view polar derivative graph
 if [ "$method" = "derivative" ]; then
 	if [ "$kind" = "polar" -o "$kind" = "all" ]; then
@@ -1147,12 +1146,16 @@ if [ "$monitor" = "yes" ]; then
 	echo "Finding Peaks And Valleys"
 fi
 
+
 # convert row image to array
-if [ "$im_version" -le "06080609" -o "$im_version" -ge "06090201" ]; then
+# first test if values contain % symbol
+pct_test=`convert $dir/tmpF.mpc txt:- | sed -n 2p | sed -n 's/^.*[(]\(.*\)[)] *\#.*$/\1/p' | grep "%"`
+if [ "$pct_test" = "" ]; then
+	# values are raw and do not contain percent symbol %
 	htArr=(`convert $dir/tmpF.mpc txt:- | tail -n +2 | tr -cs "0-9\n" " " | cut -d\  -f 3`)
 	num="${#htArr[*]}"
 else
-	# txt: format changed from raw values in qrange to percent at 6.8.6.10
+	# values are in percent
 	htArr=(`convert $dir/tmpF.mpc txt:- | tail -n +2 | tr -cs ".0-9\n" " " | cut -d\  -f 3`)
 	num="${#htArr[*]}"
 	for ((i=0; i<num; i++)); do
@@ -1351,11 +1354,14 @@ fi
 
 # reset maxArr to values from original 1D polar image hts
 if [ "$sharpen" != "0" -o "$method" = "derivative" ]; then
-	if [ "$im_version" -le "06080609" -o "$im_version" -ge "06090201" ]; then
+	# first test if values contain % symbol
+	pct_test=`convert $dir/tmpE.mpc txt:- | sed -n 2p | sed -n 's/^.*[(]\(.*\)[)] *\#.*$/\1/p' | grep "%"`
+	if [ "$pct_test" = "" ]; then
+		# values are raw and do not contain percent symbol %
 		htArr=(`convert $dir/tmpE.mpc txt:- | tail -n +2 | tr -cs "0-9\n" " " | cut -d\  -f 3`)
 		num="${#htArr[*]}"
 	else
-		# txt: format changed from raw values in qrange to percent at 6.8.6.10
+		# values are in percent
 		htArr=(`convert $dir/tmpE.mpc txt:- | tail -n +2 | tr -cs ".0-9\n" " " | cut -d\  -f 3`)
 		num="${#htArr[*]}"
 		for ((i=0; i<num; i++)); do
@@ -1408,7 +1414,8 @@ data=`convert $dir/tmpC.mpc -verbose \
 	-define distort:viewport=1x1+0+0 \
 	-distort depolar $maxrad null: 2>&1 >/dev/null`
 data=`echo "$data" | tail -n +2 | head -n 8 | tr -cs "\-\+.0-9\012" " " | sed -n 's/^ *\(.*\)$/\1/p'`
-clist=`echo "$data" | cut -d\  -f 2`
+# remove + signs
+clist=`echo "$data" | cut -d\  -f 2 | sed 's/\+//g'`
 cArr=($clist)
 if $debug; then
 	echo ""
@@ -1547,9 +1554,9 @@ fi
 	
 if [ "$aspect" = "" ]; then
 	#simplified equations, assuming u0=0, v0=0, s=1
-	k2=`echo "scale=5; (($m1y - $m4y)*$m3x - ($m1x - $m4x)*$m3y + $m1x*$m4y - $m1y*$m4x)/(($m2y- $m4y)*$m3x - ($m2x - $m4x)*$m3y + $m2x*$m4y - $m2y*$m4x)" | bc`
-	k3=`echo "scale=5; (($m1y - $m4y)*$m2x - ($m1x - $m4x)*$m2y + $m1x*$m4y - $m1y*$m4x)/(($m3y- $m4y)*$m2x - ($m3x - $m4x)*$m2y + $m3x*$m4y - $m3y*$m4x)" | bc`
-	ff=`echo "scale=5; (($k3*$m3y - $m1y)*($k2*$m2y - $m1y) + ($k3*$m3x - $m1x)*($k2*$m2x- $m1x))/(($k3 - 1)*($k2 - 1))" | bc`
+	k2=`echo "scale=8; (($m1y - $m4y)*$m3x - ($m1x - $m4x)*$m3y + $m1x*$m4y - $m1y*$m4x)/(($m2y- $m4y)*$m3x - ($m2x - $m4x)*$m3y + $m2x*$m4y - $m2y*$m4x)" | bc`
+	k3=`echo "scale=8; (($m1y - $m4y)*$m2x - ($m1x - $m4x)*$m2y + $m1x*$m4y - $m1y*$m4x)/(($m3y- $m4y)*$m2x - ($m3x - $m4x)*$m2y + $m3x*$m4y - $m3y*$m4x)" | bc`
+	ff=`echo "scale=8; (($k3*$m3y - $m1y)*($k2*$m2y - $m1y) + ($k3*$m3x - $m1x)*($k2*$m2x- $m1x))/(($k3 - 1)*($k2 - 1))" | bc`
 	if $debug; then
 		echo "k2=$k2; k3=$k3"
 	fi
@@ -1707,8 +1714,10 @@ xmax=`convert xc: -format "%[fx:max(max(max($i1,$i2),$i3),$i4)]" info:`
 ymax=`convert xc: -format "%[fx:max(max(max($j1,$j2),$j3),$j4)]" info:`
 xmin=`convert xc: -format "%[fx:min(min(min($i1,$i2),$i3),$i4)]" info:`
 ymin=`convert xc: -format "%[fx:min(min(min($j1,$j2),$j3),$j4)]" info:`
-iw=`convert xc: -format "%[fx:abs($xmax-$xmin)]" info:`
-ih=`convert xc: -format "%[fx:abs($ymax-$ymin)]" info:`
+# add extra parentheses to fix bug in -fx dealing with double minus or double plus signs
+# for IM 6.9.10.84 through IM 6.9.10.95 and for IM 7.0.9.14 through IM 7.0.9.25
+iw=`convert xc: -format "%[fx:abs($xmax-($xmin))]" info:`
+ih=`convert xc: -format "%[fx:abs($ymax-($ymin))]" info:`
 if [ "$viewport" = "on" ]; then
 	test=`convert xc: -format "%[fx:sign($xmin)]" info:`
 	if [ $test -eq 1 ]; then
@@ -1761,20 +1770,16 @@ if [ "$monitor" = "yes" ]; then
 fi
 
 # process image
+cpts="$ipt0 $opt0  $ipt1 $opt1  $ipt2 $opt2  $ipt3 $opt3"
+if $debug; then
+	echo "cpts=$cpts;"
+fi
+
 convert $dir/tmpA.mpc  \
 	-virtual-pixel background -background $color \
-	$viewporting +distort perspective \
-	"$ipt0 $opt0  $ipt1 $opt1  $ipt2 $opt2  $ipt3 $opt3" \
+	$viewporting +distort perspective "$cpts" \
 	-bordercolor $color -border 2 \
 	-fuzz ${fuzzval}% -trim +repage \
-	$rotation \
-	"$outfile"
-
-
-
-exit 0
-
-z ${fuzzval}% -trim +repage \
 	$rotation \
 	"$outfile"
 

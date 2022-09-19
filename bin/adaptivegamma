@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 10/2/2017 .......... revised 10/4/2017
+# Developed by Fred Weinhaus 10/2/2017 .......... revised 12/9/2018
 #
 # ------------------------------------------------------------------------------
 # 
@@ -27,15 +27,15 @@
 ####
 #
 # USAGE: adaptivegamma [-t type] [-c colormode] [-a autolevel] [-s sigma] [-m mix ] 
-# [-b base] [-g gain] infile outfile
+# [-b base] [-g gain] [-T thresh] infile outfile
 # USAGE: adaptivegamma [-h or -help]
 #
 # OPTIONS:
 #
 # -t     type          type of adaptive gamma enhancement; choices are lcc, pnae, hybrid; 
 #                      default=hybrid
-# -c     colormode     colorspace for processing; choices are gray, srgb, lab, hcl 
-#                      ycbcr and ohta; default=gray
+# -c     colormode     colorspace for processing; choices are gray, srgb, lab, hcl, hsl, 
+#                      hsv, hsi, ycbcr and ohta; default=gray
 # -a     autolevel     autolevel as preprocessing; options are: off, together and 
 #                      separately; default=together
 # -s     sigma         sigma value for blurring the intensity-like channel; integer>=0;
@@ -46,6 +46,9 @@
 # -g     gain          gain value for pnae method; float>=0; default is computed 
 #                      automatically from the mean and standard deviation of the image;
 #                      nominal value is about 0.5
+# -T     thresh        threshold to determine if image is bright or dark; 0<=float<=1; 
+#                      default=0.5. If bright, the image will be negated before and 
+#                      after processing
 #
 ###
 #
@@ -80,8 +83,8 @@
 # -t type ... TYPE of adaptive gamma enhancement. The choices are lcc (l), pnae (p)
 # and hybrid (h). The default=hybrid.
 # 
-# -c colormode ... COLORMODE is thecolorspace for processing. The choices are gray, 
-# srgb, lab, hcl, ycbcr and ohta. The default=gray.
+# -c colormode ... COLORMODE is the colorspace for processing. The choices are gray, 
+# srgb, lab, hcl, hsl, hsv, hsi, ycbcr and ohta. The default=gray.
 # 
 # -a autolevel ... AUTOLEVEL as preprocessing step. The choices are: off (o), 
 # together (t) and separately (s). The default=together
@@ -99,10 +102,14 @@
 # automatically from the global mean and standard deviation of the intensity-like 
 # channel of the image. The nominal value is around 0.5.
 # 
+# -T thresh ... THRESH is a threshold to determine if the image is bright or dark. 
+# Values are 0<=float<=1. The default=0.5. If bright, the image will be negated before  
+# and after processing.
+#
 # REFERENCES:
 # http://www.ipol.im/pub/art/2011/gl_lcc/article_lr.pdf 
 # https://asp-eurasipjournals.springeropen.com/track/pdf/10.1186/1687-6180-2014-70?site=asp.eurasipjournals.springeropen.com
-# http://www.ivl.disco.unimib.it/download/capra2010contrast-image.pdf
+# https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=2&cad=rja&uact=8&ved=0ahUKEwigiqGb1sjWAhXrlVQKHSM3Bf4QFggrMAE&url=http%3A%2F%2Fwww.ivl.disco.unimib.it%2Fdownload%2Fcapra2010contrast-image.pdf&usg=AFQjCNFcvsunTdhTjNTd6goxo3wZCPvEYQ
 # https://en.wikipedia.org/wiki/Gamma_correction
 # 
 # NOTE: This script may be a bit slow due to the use of -fx.
@@ -122,10 +129,11 @@ sigma=20				# blur sigma
 mix=0.5					# mixing of lcc and pnae for hybrid (mix=1 is pnae, mix=0 is lcc)
 base=2					# for lcc and hybrid
 gain=""					# nominal 0.5, default computed from mean and midgray
+thresh=0.5              # threshold to determine if image is bright or dark
 
 # internal args
-midgray=0.5			# for gain default for pnae or hybrid
-maxstd=0.15			# for gain default for pnae or hybrid
+midgray=0.5			# for lcc or hybrid
+maxstd=0.15			# for lcc or hybrid
 const=0.1			# for pnae or hybrid
 eps=0.01			# for pnae or hybrid
 
@@ -175,7 +183,7 @@ if [ $# -eq 0 ]
 	echo ""
 	usage2
 	exit 0
-elif [ $# -gt 16 ]
+elif [ $# -gt 18 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -223,7 +231,10 @@ else
 						gray|g) colormode="gray" ;;
 						srgb|s|r) colormode="srgb" ;;
 						lab|l) colormode="lab" ;;
-						hcl|h) colormode="hcl" ;;
+						hcl) colormode="hcl" ;;
+						hsl) colormode="hsl" ;;
+						hsv) colormode="hsv" ;;
+						hsi) colormode="hsi" ;;
 						ycbcr|y) colormode="ycbcr" ;;
 						ohta|o) colormode="ohta" ;;
 						*) errMsg "--- COLORMODE=$colormode IS AN INVALID VALUE ---" ;;
@@ -264,6 +275,16 @@ else
 				   checkMinus "$1"
 				   gain=`expr "$1" : '\([.0-9]*\)'`
 				   [ "$gain" = "" ] && errMsg "--- GAIN=$gain MUST BE A POSITIVE FLOATING POINT VALUE (with no sign) ---"
+				   ;;
+			-T)    # thresh
+				   shift  # to get the next parameter - maxgain
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID THRESH SPECIFICATION ---"
+				   checkMinus "$1"
+				   thresh=`expr "$1" : '\([.0-9]*\)'`
+				   [ "$thresh" = "" ] && errMsg "--- THRESH=$thresh MUST BE A POSITIVE FLOATING POINT VALUE (with no sign) ---"
+				   testA=`echo "$thresh > 1" | bc`
+				   [ $testA -eq 1 ] && errMsg "--- THRESH=$thresh MUST BE A POSITIVE FLOATING POINT VALUE BETWEEN 0 AND 1 ---"
 				   ;;
 			 -)    # STDIN and end of arguments
 				   break
@@ -307,17 +328,24 @@ else
 	aproc=""
 fi
 
+
+# test threshold for negating if image is too bright
+test=`convert "$infile" -format "%[fx:mean>$thresh?1:0]" info:`
+if [ $test -eq 1 ]; then
+	negating="-negate"
+else
+	negating=""
+fi
+
 # read the input image into the temporary cached image and test if valid
-convert -quiet -regard-warnings "$infile" $aproc +repage "$tmpA1" ||
+convert -quiet -regard-warnings "$infile" $negating $aproc +repage $tmpA1 ||
 	echo "--- 1 FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
-
-
 
 # set up gain
 if [ "$type" != "lcc" -a "$gain" = "" ]; then
 	# gain=inverse gamma with boost for very low standard deviations (very low contrast)
 	#gain=`convert $tmpA1 -format "%[fx:log(0.5)/log(mean)]" info:`
-	gain=`convert $tmpA1 -format "%[fx:(log(0.5)/log(mean))*($maxstd/min($maxstd,standard_deviation))]" info:`
+	gain=`convert $tmpA1 -format "%[fx:(log($midgray)/log(mean))*($maxstd/min($maxstd,standard_deviation))]" info:`
 fi
 #echo "gain=$gain"
 
@@ -327,26 +355,26 @@ mix=`convert xc: -format "%[fx:$mix/100]" info:`
 
 # set up channel for colormode
 [ "$colormode" = "lab" -o "$colormode" = "ycbcr" -o "$colormode" = "ohta" ] && channel=0
-[ "$colormode" = "hcl" ] && channel=2
+[ "$colormode" = "hcl" -o "$colormode" = "hsl" -o "$colormode" = "hsv" -o "$colormode" = "hsi" ] && channel=2
 
 
 if [ "$type" = "lcc" ] || [ "$type" = "hybrid" -a "$mix" = "0" ]; then
 	if [ "$colormode" = "gray" ]; then
 		convert $tmpA1 \( +clone -colorspace $colormode -blur 0x$sigma \) -monitor \
-		-fx "pow(u,pow($base,2*v-1))" +monitor "$outfile"
+		-fx "pow(u,pow($base,2*v-1))" +monitor $negating "$outfile"
 
 	elif [ "$colormode" = "srgb" ]; then
 		convert $tmpA1 -colorspace sRGB -separate \
 			\( -clone 0 \( +clone -blur 0x$sigma \) -monitor -fx "pow(u,pow($base,2*v-1))" +monitor \) \
 			\( -clone 1 \( +clone -blur 0x$sigma \) -monitor -fx "pow(u,pow($base,2*v-1))" +monitor \) \
 			\( -clone 2 \( +clone -blur 0x$sigma \) -monitor -fx "pow(u,pow($base,2*v-1))" +monitor \) \
-			-delete 0-2 -set colorspace sRGB -combine -colorspace sRGB \
+			-delete 0-2 -set colorspace sRGB -combine -colorspace sRGB $negating \
 			"$outfile"
 
 	else
 		convert $tmpA1 -colorspace $colormode -separate \
 			\( -clone $channel \( +clone -blur 0x$sigma \) -monitor -fx "pow(u,pow($base,2*v-1))" +monitor \) \
-			-swap ${channel},3 +delete -set colorspace $colormode -combine -colorspace sRGB \
+			-swap ${channel},3 +delete -set colorspace $colormode -combine -colorspace sRGB $negating \
 			"$outfile"
 	fi
 
@@ -354,57 +382,13 @@ elif [ "$type" = "pnae" ] || [ "$type" = "hybrid" -a "$mix" = "1" ]; then
 
 	if [ "$colormode" = "gray" ]; then
 		convert $tmpA1 \( +clone -colorspace $colormode -blur 0x$sigma \) -monitor \
-		-fx "pow(u,$const*(v+$eps)/(1-v+$eps)+$gain)" +monitor "$outfile"
+		-fx "pow(u,$const*(v+$eps)/(1-v+$eps)+$gain)" +monitor $negating "$outfile"
 
 	elif [ "$colormode" = "srgb" ]; then
 		convert $tmpA1 -colorspace sRGB -separate \
 			\( -clone 0 \( +clone -blur 0x$sigma \) -monitor -fx "pow(u,$const*(v+$eps)/(1-v+$eps)+$gain)" +monitor \) \
 			\( -clone 1 \( +clone -blur 0x$sigma \) -monitor -fx "pow(u,$const*(v+$eps)/(1-v+$eps)+$gain)" +monitor \) \
 			\( -clone 2 \( +clone -blur 0x$sigma \) -monitor -fx "pow(u,$const*(v+$eps)/(1-v+$eps)+$gain)" +monitor \) \
-			-delete 0-2 -set colorspace sRGB -combine -colorspace sRGB \
-			"$outfile"
-
-	else
-		convert $tmpA1 -colorspace $colormode -separate \
-			\( -clone $channel \( +clone -blur 0x$sigma \) -monitor -fx "pow(u,$const*(v+$eps)/(1-v+$eps)+$gain)" +monitor \) \
-			-swap ${channel},3 +delete -set colorspace $colormode -combine -colorspace sRGB \
-			"$outfile"
-	fi
-	
-
-elif [ "$type" = "hybrid" ]; then
-
-	if [ "$colormode" = "gray" ]; then
-		convert $tmpA1 \( +clone -colorspace $colormode -blur 0x$sigma \) -monitor \
-		-fx "pow(u,$mix*($const*(v+$eps)/(1-v+$eps)+$gain)+(1-$mix)*pow($base,2*v-1))" +monitor "$outfile"
-
-	elif [ "$colormode" = "srgb" ]; then
-		convert $tmpA1 -colorspace sRGB -separate \
-			\( -clone 0 \( +clone -blur 0x$sigma \) -monitor -fx "pow(u,$mix*($const*(v+$eps)/(1-v+$eps)+$gain)+(1-$mix)*pow($base,2*v-1))" +monitor \) \
-			\( -clone 1 \( +clone -blur 0x$sigma \) -monitor -fx "pow(u,$mix*($const*(v+$eps)/(1-v+$eps)+$gain)+(1-$mix)*pow($base,2*v-1))" +monitor \) \
-			\( -clone 2 \( +clone -blur 0x$sigma \) -monitor -fx "pow(u,$mix*($const*(v+$eps)/(1-v+$eps)+$gain)+(1-$mix)*pow($base,2*v-1))" +monitor \) \
-			-delete 0-2 -set colorspace sRGB -combine -colorspace sRGB \
-			"$outfile"
-
-	else
-		convert $tmpA1 -colorspace $colormode -separate \
-			\( -clone $channel \( +clone -blur 0x$sigma \) -monitor -fx "pow(u,$mix*($const*(v+$eps)/(1-v+$eps)+$gain)+(1-$mix)*pow($base,2*v-1))" +monitor \) \
-			-swap ${channel},3 +delete -set colorspace $colormode -combine -colorspace sRGB \
-			"$outfile"
-	fi
-
-fi
-
-
-
-exit 0
-
-
-
-
-
-
-nst*(v+$eps)/(1-v+$eps)+$gain)" +monitor \) \
 			-delete 0-2 -set colorspace sRGB -combine -colorspace sRGB $negating \
 			"$outfile"
 

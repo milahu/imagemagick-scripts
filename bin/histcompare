@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 3/8/2014 .......... revised 4/25/2015
+# Developed by Fred Weinhaus 3/8/2014 .......... revised 4/29/2021
 #
 # ------------------------------------------------------------------------------
 # 
@@ -32,13 +32,18 @@
 # 
 # OPTIONS:
 # 
-# -p     processing        processing of images; choices are: gray (convert 
-#                          to grayscale first), global (append all channels 
-#                          into one grayscale image) and all (process each 
-#                          channel separately); default=gray
+# -p     processing        processing of images; choices are:
+#                          lab (convert to LAB colorspace first),
+#                          gray (convert to grayscale first), 
+#                          rec601luma (convert to rec601luma first), 
+#                          rec709luma (convert to rec709luma first), 
+#                          global (append all channels into 1 grayscale image), 
+#                          and all (process each channel of input separately); 
+#                          default=gray
 # -m     metric            difference metrics; choices are: correlation (co),
 #                          chisquare (ch), intersection (i), bhattacharyya (b), 
-#                          earthmover (e) or jeffrey (j); default=correlation
+#                          earthmover (e), jeffrey (j) or all (a); 
+#                          default=correlation
 # -n     normalization     normalization of count values; comma separate pair 
 #                          minval,maxval; counts are scaled so that 
 #                          minimum histogram count becomes minval and  
@@ -62,13 +67,18 @@
 #
 # Arguments: 
 # 
-# -p processing ... PROCESSING of the images. The choices are: gray (convert 
-# to grayscale first), global (append all channels into one grayscale image) 
-# and all (process each channel separately). The default=gray.
+# -p processing ... PROCESSING of the images. The choices are: 
+# lab (convert to LAB colorspace first),
+# gray (convert to grayscale first), 
+# rec601luma (convert to rec601luma first), 
+# rec709luma (convert to rec709luma first), 
+# global (append all channels into one grayscale image), 
+# and all (process each channel of input separately).
+# The default=gray
 # 
 # -m metric ... METRIC is the desired difference metric. The choices are: 
 # correlation (co), chisquare (ch), intersection (i), bhattacharyya (b), 
-# earthmover (e) or jeffrey (j). The default=correlation.
+# earthmover (e), jeffrey (j) or all (a). The default=correlation.
 # 
 # -n normalization ... NORMALIZATION of histogram counts. Values are specified 
 # as a comma separate pair, minval,maxval. The counts are scaled so that the 
@@ -174,6 +184,9 @@ else
 				   checkMinus "$1"
 				   processing=`echo "$1" | tr "[:upper:]" "[:lower:]"`
 				   case "$processing" in
+						lab) ;;
+						rec601luma) ;;
+						rec709luma) ;;
 						gray) ;;
 						global) ;;
 						all) ;;
@@ -193,6 +206,7 @@ else
 						bhattacharyya|b) metric="bhattacharyya";;
 						earthmover|e) metric="earthmover";;
 						jeffrey|j) metric="jeffrey";;
+						all|a) metric="all";;
 						*) errMsg "--- METRIC=$metric IS NOT A VALID CHOICE ---" ;;
 				   esac
 				   ;;
@@ -365,12 +379,13 @@ correlationMetric()
 	}
 
 # function to compare two single channel histograms with the chisquare metric
+# note bugs fixed 4/29/2021 that changes the value for chisquare and is now in agreement with OpenCV
 chisquareMetric()
 	{
 	chisquare=`echo "${harr[*]}" |\
 		awk ' BEGIN { FS = ","; RS = " "; } 
-			{ if ($2 != 0 && $3 != 0) { diff = ($2-$3); sum = ($2+$3); chisquare += diff*diff/sum; } }
-			END { print chisquare/2 } '`
+			{ if ($2 != 0 || $3 != 0) { diff = ($2-$3); sum = ($2+$3); chisquare += (diff*diff)/sum; } }
+			END { print 2*chisquare } '`
 	}
 
 # function to compare two single channel histograms with the intersection metric
@@ -440,7 +455,19 @@ fi
 [ "$colormode1" != "$colormode2" ] && echo "--- COLORMODES NOT THE SAME ---" || colormode=$colormode1
 
 # set up processing
-if [ "$processing" = "gray" -a "$colormode" != "Gray" ]; then
+if [ "$processing" = "lab" ]; then
+	convert $tmpA1 -colorspace LAB -set colorspace sRGB $tmpA1
+	convert $tmpA2 -colorspace LAB -set colorspace sRGB $tmpA2
+	colormode="LAB"
+elif [ "$processing" = "rec601luma" ]; then
+	convert $tmpA1 -colorspace rec601luma $tmpA1
+	convert $tmpA2 -colorspace rec601luma $tmpA2
+	colormode="Rec601luma"
+elif [ "$processing" = "rec709luma" ]; then
+	convert $tmpA1 -colorspace rec709luma $tmpA1
+	convert $tmpA2 -colorspace rec709luma $tmpA2
+	colormode="Rec709luma"
+elif [ "$processing" = "gray" -a "$colormode" != "Gray" ]; then
 	convert $tmpA1 -colorspace gray $tmpA1
 	convert $tmpA2 -colorspace gray $tmpA2
 	colormode="Gray"
@@ -471,36 +498,108 @@ totpix2=`convert $tmpA2 -ping -format "%[fx:w*h]" info:`
 
 # compute metric for channels
 # Note: channel argument defined by: gray/red/cyan=1; green/magenta=2; blue/yellow=3; black=4
-if [ "$colormode" = "Gray" ]; then
-	if [ "$metric" = "correlation" ]; then
+if [ "$colormode" = "Gray" -o "$colormode" = "Rec601luma" -o "$colormode" = "Rec709luma" ]; then
+	if [ "$metric" = "correlation" -o "$metric" = "all" ]; then
 		extractChannelHistograms "1"
 		correlationMetric
 		echo "$processing correlation = $correlation"
-	elif [ "$metric" = "chisquare" ]; then
+	fi
+	if [ "$metric" = "chisquare" -o "$metric" = "all" ]; then
 		extractChannelHistograms "1"
 		chisquareMetric
 		echo "$processing chisquare = $chisquare"
-	elif [ "$metric" = "intersection" ]; then
+	fi
+	if [ "$metric" = "intersection" -o "$metric" = "all" ]; then
 		extractChannelHistograms "1"
 		intersectionMetric
 		echo "$processing intersection = $intersection"
-	elif [ "$metric" = "bhattacharyya" ]; then
+	fi
+	if [ "$metric" = "bhattacharyya" -o "$metric" = "all" ]; then
 		extractChannelHistograms "1"
 		bhattacharyyaMetric
 		echo "$processing bhattacharyya = $bhattacharyya"
-	elif [ "$metric" = "earthmover" ]; then
+	fi
+	if [ "$metric" = "earthmover" -o "$metric" = "all" ]; then
 		extractChannelHistograms "1"
 		earthmoverMetric
 		echo "$processing earthmover = $earthmover"
-	elif [ "$metric" = "jeffrey" ]; then
+	fi
+	if [ "$metric" = "jeffrey" -o "$metric" = "all" ]; then
 		extractChannelHistograms "1"
 		jeffreyMetric
 		echo "$processing jeffrey = $jeffrey"
 	fi
 		
+elif [ "$colormode" = "LAB" ]; then
+	if [ "$metric" = "correlation" -o "$metric" = "all" ]; then
+		extractChannelHistograms "1"
+		correlationMetric
+		echo "L correlation = $correlation"
+		extractChannelHistograms "2"
+		correlationMetric
+		echo "A correlation = $correlation"
+		extractChannelHistograms "3"
+		correlationMetric
+		echo "B correlation = $correlation"
+	fi
+	if [ "$metric" = "chisquare" -o "$metric" = "all" ]; then
+		extractChannelHistograms "1"
+		chisquareMetric
+		echo "L chisquare = $chisquare"
+		extractChannelHistograms "2"
+		chisquareMetric
+		echo "A chisquare = $chisquare"
+		extractChannelHistograms "3"
+		chisquareMetric
+		echo "B chisquare1 = $chisquare"
+	fi
+	if [ "$metric" = "intersection" -o "$metric" = "all" ]; then
+		extractChannelHistograms "1"
+		intersectionMetric
+		echo "L intersection = $intersection"
+		extractChannelHistograms "2"
+		intersectionMetric
+		echo "A intersection = $intersection"
+		extractChannelHistograms "3"
+		intersectionMetric
+		echo "B intersection = $intersection"
+	fi
+	if [ "$metric" = "bhattacharyya" -o "$metric" = "all" ]; then
+		extractChannelHistograms "1"
+		bhattacharyyaMetric
+		echo "L bhattacharyya = $bhattacharyya"
+		extractChannelHistograms "2"
+		bhattacharyyaMetric
+		echo "A bhattacharyya = $bhattacharyya"
+		extractChannelHistograms "3"
+		bhattacharyyaMetric
+		echo "B bhattacharyya = $bhattacharyya"
+	fi
+	if [ "$metric" = "earthmover" -o "$metric" = "all" ]; then
+		extractChannelHistograms "1"
+		earthmoverMetric
+		echo "L earthmover = $earthmover"
+		extractChannelHistograms "2"
+		earthmoverMetric
+		echo "A earthmover = $earthmover"
+		extractChannelHistograms "3"
+		earthmoverMetric
+		echo "B earthmover = $earthmover"
+	fi
+	if [ "$metric" = "jeffrey" -o "$metric" = "all" ]; then
+		extractChannelHistograms "1"
+		jeffreyMetric
+		echo "L jeffrey = $jeffrey"
+		extractChannelHistograms "2"
+		jeffreyMetric
+		echo "A jeffrey = $jeffrey"
+		extractChannelHistograms "3"
+		jeffreyMetric
+		echo "B jeffrey = $jeffrey"
+	fi
 
 elif [ "$colormode" = "RGB" ]; then
-	if [ "$metric" = "correlation" ]; then
+	if [ "$metric" = "correlation" -o "$metric" = "all" ]; then
 		extractChannelHistograms "1"
 		correlationMetric
 		echo "red correlation = $correlation"
@@ -510,7 +609,8 @@ elif [ "$colormode" = "RGB" ]; then
 		extractChannelHistograms "3"
 		correlationMetric
 		echo "blue correlation = $correlation"
-	elif [ "$metric" = "chisquare" ]; then
+	fi
+	if [ "$metric" = "chisquare" -o "$metric" = "all" ]; then
 		extractChannelHistograms "1"
 		chisquareMetric
 		echo "red chisquare = $chisquare"
@@ -520,7 +620,8 @@ elif [ "$colormode" = "RGB" ]; then
 		extractChannelHistograms "3"
 		chisquareMetric
 		echo "blue chisquare1 = $chisquare"
-	elif [ "$metric" = "intersection" ]; then
+	fi
+	if [ "$metric" = "intersection" -o "$metric" = "all" ]; then
 		extractChannelHistograms "1"
 		intersectionMetric
 		echo "red intersection = $intersection"
@@ -530,7 +631,8 @@ elif [ "$colormode" = "RGB" ]; then
 		extractChannelHistograms "3"
 		intersectionMetric
 		echo "blue intersection = $intersection"
-	elif [ "$metric" = "bhattacharyya" ]; then
+	fi
+	if [ "$metric" = "bhattacharyya" -o "$metric" = "all" ]; then
 		extractChannelHistograms "1"
 		bhattacharyyaMetric
 		echo "red bhattacharyya = $bhattacharyya"
@@ -540,7 +642,8 @@ elif [ "$colormode" = "RGB" ]; then
 		extractChannelHistograms "3"
 		bhattacharyyaMetric
 		echo "blue bhattacharyya = $bhattacharyya"
-	elif [ "$metric" = "earthmover" ]; then
+	fi
+	if [ "$metric" = "earthmover" -o "$metric" = "all" ]; then
 		extractChannelHistograms "1"
 		earthmoverMetric
 		echo "red earthmover = $earthmover"
@@ -550,7 +653,8 @@ elif [ "$colormode" = "RGB" ]; then
 		extractChannelHistograms "3"
 		earthmoverMetric
 		echo "blue earthmover = $earthmover"
-	elif [ "$metric" = "jeffrey" ]; then
+	fi
+	if [ "$metric" = "jeffrey" -o "$metric" = "all" ]; then
 		extractChannelHistograms "1"
 		jeffreyMetric
 		echo "red jeffrey = $jeffrey"
@@ -562,7 +666,7 @@ elif [ "$colormode" = "RGB" ]; then
 		echo "blue jeffrey = $jeffrey"
 	fi
 
-elif [ "$colormode" = "CMYK" ]; then
+elif [ "$colormode" = "CMYK" -o "$metric" = "all" ]; then
 	if [ "$metric" = "correlation" ]; then
 		extractChannelHistograms "1"
 		correlationMetric
@@ -576,7 +680,8 @@ elif [ "$colormode" = "CMYK" ]; then
 		extractChannelHistograms "4"
 		correlationMetric
 		echo "black correlation = $correlation"
-	elif [ "$metric" = "chisquare" ]; then
+	fi
+	if [ "$metric" = "chisquare" -o "$metric" = "all" ]; then
 		extractChannelHistograms "1"
 		chisquareMetric
 		echo "cyan chisquare = $chisquare"
@@ -589,7 +694,8 @@ elif [ "$colormode" = "CMYK" ]; then
 		extractChannelHistograms "4"
 		chisquareMetric
 		echo "black chisquare = $chisquare"
-	elif [ "$metric" = "intersection" ]; then
+	fi
+	if [ "$metric" = "intersection" -o "$metric" = "all" ]; then
 		extractChannelHistograms "1"
 		intersectionMetric
 		echo "cyan intersection = $intersection"
@@ -602,7 +708,8 @@ elif [ "$colormode" = "CMYK" ]; then
 		extractChannelHistograms "4"
 		intersectionMetric
 		echo "black intersectionMetric = $intersectionMetric"
-	elif [ "$metric" = "bhattacharyya" ]; then
+	fi
+	if [ "$metric" = "bhattacharyya" -o "$metric" = "all" ]; then
 		extractChannelHistograms "1"
 		bhattacharyyaMetric
 		echo "cyan bhattacharyya = $bhattacharyya"
@@ -615,7 +722,8 @@ elif [ "$colormode" = "CMYK" ]; then
 		extractChannelHistograms "4"
 		bhattacharyyaMetric
 		echo "black bhattacharyya = $bhattacharyya"
-	elif [ "$metric" = "earthmover" ]; then
+	fi
+	if [ "$metric" = "earthmover" -o "$metric" = "all" ]; then
 		extractChannelHistograms "1"
 		earthmoverMetric
 		echo "cyan earthmover = $earthmover"
@@ -628,7 +736,8 @@ elif [ "$colormode" = "CMYK" ]; then
 		extractChannelHistograms "4"
 		earthmoverMetric
 		echo "black earthmover = $earthmover"
-	elif [ "$metric" = "jeffrey" ]; then
+	fi
+	if [ "$metric" = "jeffrey" -o "$metric" = "all" ]; then
 		extractChannelHistograms "1"
 		jeffreyMetric
 		echo "cyan jeffrey = $jeffrey"

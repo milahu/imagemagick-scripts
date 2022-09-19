@@ -1,12 +1,12 @@
 #!/bin/bash
-#
-# Developed by Fred Weinhaus 6/9/2009 .......... revised 12/18/2017
-#
+# 
+# Developed by Fred Weinhaus 6/9/2009 .......... revised 2/18/2022
+# 
 # ------------------------------------------------------------------------------
 # 
 # Licensing:
 # 
-# Copyright © Fred Weinhaus
+# Copyright Â© Fred Weinhaus
 # 
 # My scripts are available free of charge for non-commercial use, ONLY.
 # 
@@ -25,15 +25,16 @@
 # ------------------------------------------------------------------------------
 # 
 ####
-#
+# 
 # USAGE: textcleaner [-r rotate] [-l layout] [-c cropoff] [-g] [-e enhance ] 
-# [-f filtersize] [-o offset] [-u]  [-t threshold] [-s sharpamt] [-s saturation] 
-# [-a adaptblur] [-T] [-p padamt] [-b bgcolor] [-F fuzzval] [-i invert] infile outfile
+# [-f filtersize] [-o offset] [-u] [-P] [-t threshold] [-s sharpamt] 
+# [-s saturation] [-a adaptblur] [-T] [-p padamt] [-b bgcolor] [-F fuzzval] 
+# [-i invert] [-C compression] [-D density] [-R resize] infile outfile
 # USAGE: textcleaner [-help]
-#
+# 
 # OPTIONS:
-#
-# -r	  rotate			rotate image 90 degrees in direction specified if 
+# 
+# -r	  rotate			(pre-)rotate image 90 degrees in direction specified if 
 #                           aspect ratio does not match layout; options are cw 
 #                           (or clockwise), ccw (or counterclockwise) and n 
 #                           (or none); default=none or no rotation
@@ -54,6 +55,7 @@
 #                           integer>=0; default=5
 # -u                        unrotate image; cannot unrotate more than 
 #                           about 5 degrees
+# -P                        preserve input size after unrotate
 # -t      threshold			text smoothing threshold; 0<=threshold<=100; 
 #                           nominal value is about 50; default is no smoothing
 # -s      sharpamt          sharpening amount in pixels; float>=0; 
@@ -71,39 +73,49 @@
 #                           integer>=0; default=10
 # -i      invert            invert colors; choices are: 1 or 2 for one-way or two-ways
 #                           (input or input and output); default is no inversion
-#
+# -C      compression       TIFF output compression mode; choices are: none (n), 
+#                           lzw(l), zip(z), fax(f), and group4(g); default=none
+# -D      density           input density when reading single page vector (PDF) 
+#                           files; integer>0; default is no input density
+# -R      resize            resize after reading a single page vector when 
+#                           supersampling to rasterize; 0<=integer<100 (percent); 
+#                           default is no resize
+# 
 ###
-#
+# 
 # NAME: TEXTCLEANER
 # 
 # PURPOSE: To process a scanned document of text to clean the text background.
 # 
 # DESCRIPTION: TEXTCLEANER processses a scanned document of text to clean
 # the text background and enhance the text. The order of processing is:
-# 1) optional 90 degree rotate if aspect does not match layout
-# 2) optional crop, 
-# 3) optional convert to grayscale, 
-# 4) optional enhance, 
-# 5) filter to clean background and optionally smooth/antialias, 
-# 6) optional unrotate (limited to about 5 degrees or less), 
-# 7) optional text smoothing,
-# 8) optional sharpening, 
-# 9) optional saturation change (if -g is not specified), 
-# 10) optional alternate text smoothing via adaptive blur
-# 11) optional auto trim of border (effective only if background well-cleaned),
-# 12) optional pad of border
+# 1) optional apply density for single page vector (PDF) files
+# 2) optional 90 degree rotate if aspect does not match layout
+# 3) optional crop, 
+# 4) optional convert to grayscale, 
+# 5) optional enhance, 
+# 6) filter to clean background and optionally smooth/antialias, 
+# 7) optional unrotate (limited to about 5 degrees or less), 
+# 8) optional text smoothing,
+# 9) optional sharpening, 
+# 10) optional saturation change (if -g is not specified), 
+# 11) optional alternate text smoothing via adaptive blur
+# 12) optional resize to compensate for increased read density for vector to raster output
+# 13) optional auto trim of border (effective only if background well-cleaned),
+# 14) optional pad of border
 # 
 # OPTIONS: 
 # 
 # -r rotate ... ROTATE image either clockwise or counterclockwise by 90 degrees,
 # if image aspect ratio does not match the layout mode. Choices are: cc (or 
 # clockwise), ccw (or counterclockwise) and n (or none). The default is no rotation.
+# Note: this is a pre-rotation
 # 
 # -l layout ... LAYOUT for determining if rotation is to be applied. The choices 
 # are p (or portrait) or l (or landscape). The image will be rotated if rotate is 
 # specified and the aspect ratio of the image does not match the layout chosen. 
 # The default is portrait.
-#
+# 
 # -c cropoffsets ... CROPOFFSETS are the image cropping offsets after potential 
 # rotate 90. Choices: one, two or four non-negative integer comma separated 
 # values. One value will crop all around. Two values will crop at 
@@ -118,7 +130,7 @@
 # background. Values are integers>0. The filtersize needs to be larger than 
 # the thickness of the writing, but the smaller the better beyond this. Making it 
 # larger will increase the processing time and may lose text. The default is 15. 
-#
+# 
 # -o offset ... OFFSET is the offset threshold in percent used by the filter  
 # to eliminate noise. Values are integers>=0. Values too small will leave much 
 # noise and artifacts in the result. Values too large will remove too much 
@@ -126,11 +138,13 @@
 # 
 # -u ... UNROTATE the image. This is limited to about 5 degrees or less.
 # 
+# -P ... PRESERVE input size after unrotate
+# 
 # -t threshold ... THRESHOLD is the text smoothing threshold. Values are integers 
 # between 0 and 100. Smaller values smooth/thicken the text more. Larger values 
 # thin, but can result in gaps in the text. Nominal value is in the middle at 
 # about 50. The default is to disable smoothing.
-#
+# 
 # -s sharpamt ... SHARPAMT is the amount of pixel sharpening to be applied to  
 # the resulting text. Values are floats>=0. If used, it should be small 
 # (suggested about 1). The default=0 (no sharpening). 
@@ -152,20 +166,34 @@
 # cleaned up. Any valid IM color may be use. If bgcolor=image, then the color will 
 # be computed from the top left corner pixel and a fuzzval. The final color will be 
 # computed subsequently as an average over the whole image. The default is white.
-#
+# 
 # -F fuzzval ... FUZZVAL is the fuzz value for determining bgcolor when bgcolor=image. 
 # Values are integers>=0. The default=10.
-#
+# 
 # -i invert ... INVERT colors for example to convert white text on black background to 
 # black text on white background. The choices are: 1 or 2 for one-way or two-ways
 # (input or input and output). The default is no inversion.
+# 
+# -C compression ... COMPRESSION mode for TIFF output. The choices are: none (n), 
+# lzw(l), zip(z), fax(f), and group4(g). The default=none.
+# 
+# -D density ... input DENSITY when reading a single page vector (PDF) file 
+# and outputting a raster image. Values are integers>0. The default is no 
+# input density to be applied. Note multi-page vector files will not be 
+# properly processed by this script.
+# 
+# -R resize ... final RESIZE when reading a single page vector (PDF) file when 
+# supersampling to rasterize the output. Values are 0<=integer<100 (percent) 
+# to downsample the image (typically back to its default size at 72 dpi). 
+# The default is no special resize. Note multi-page vector files will not be 
+# properly processed by this script.
 # 
 # CAVEAT: No guarantee that this script will work on all platforms, 
 # nor that trapping of inconsistent parameters is complete and 
 # foolproof. Use At Your Own Risk. 
 # 
 ######
-#
+# 
 
 # set default values
 rotate="none"		# rotate 90 clockwise (cw) or counterclockwise (ccw)
@@ -181,11 +209,15 @@ sharpamt=0			# sharpen sigma
 saturation=200		# color saturation percent; 100 is no change
 adaptblur=0			# adaptive blur
 unrotate="no"		# unrotate flag
+preserve="no"       # preserve input size after unrotate flag
 trim="no"			# trim flag
 padamt=0			# pad amount
 bgcolor="white"		# color for output whiteboard background
 fuzzval=10			# fuzz value for determining bgcolor from image
 invert=""			# invert colors: 1 or 2
+compression="none"	# TIFF compression modes
+density=""          # input density for rasterizing vector files
+resize=""           # final resize 
 
 # set directory for temporary files
 dir="."    # suggestions are dir="." or dir="/tmp"
@@ -194,13 +226,13 @@ dir="."    # suggestions are dir="." or dir="/tmp"
 PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
 PROGDIR=`dirname $PROGNAME`            # extract directory of program
 PROGNAME=`basename $PROGNAME`          # base name of program
-usage1() 
+usage1()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
 	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
 	}
-usage2() 
+usage2()
 	{
 	echo >&2 ""
 	echo >&2 "$PROGNAME:" "$@"
@@ -233,7 +265,7 @@ if [ $# -eq 0 ]
    echo ""
    usage2
    exit 0
-elif [ $# -gt 31 ]
+elif [ $# -gt 32 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -359,6 +391,9 @@ else
 			   	-u)    # set unrotate
 					   unrotate="yes"
 					   ;;
+			   	-P)    # set preserve unrotate
+					   preserve="yes"
+					   ;;
 			   	-T)    # set trim
 					   trim="yes"
 					   ;;
@@ -396,6 +431,42 @@ else
 					   testB=`echo "$invert > 2" | bc`
 					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- INVERT=$invert MUST BE AN INTEGER VALUE OF 1 OR 2 ---"
 					   ;;
+			   	-C)    # compression
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COMPRESSION SPECIFICATION ---"
+					   checkMinus "$1"
+					   compression=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$compression" in
+					   		none|n) compression="none" ;;
+					   		lzw|l) compression="lzw" ;;
+					   		zip|z) compression="zip" ;;
+					   		fax|f) compression="fax" ;;
+					   		group4|g) compression="group4" ;;
+					   		*) errMsg "--- COMPRESSION=$compression IS NOT A VALID CHOICE ---" ;;
+					   esac
+					   ;;
+				-D)    # get density
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DENSITY SPECIFICATION ---"
+					   checkMinus "$1"
+					   density=`expr "$1" : '\([0-9]*\)'`
+					   [ "$density" = "" ] && errMsg "--- DENSITY=$density MUST BE A NON-NEGATIVE INTEGER ---"
+					   test=`echo "$density < 1" | bc`
+					   [ $test -eq 1 ] && errMsg "--- DENSITY=$density MUST BE AN INTEGER GREATER THAN 0 ---"
+					   ;;
+				-R)    # get resize
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID RESIZE SPECIFICATION ---"
+					   checkMinus "$1"
+					   resize=`expr "$1" : '\([0-9]*\)'`
+					   [ "$resize" = "" ] && errMsg "--- RESIZE=$resize MUST BE A NON-NEGATIVE INTEGER ---"
+					   testA=`echo "$resize < 0" | bc`
+					   testB=`echo "$resize > 100" | bc`
+					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- RESIZE=$resize MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
 				 -)    # STDIN and end of arguments
 					   break
 					   ;;
@@ -420,16 +491,15 @@ fi
 # test that outfile provided
 [ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
 
-# get im version
-im_version=`convert -list configure | \
-sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
-
 tmpA1="$dir/textcleaner_1_$$.mpc"
 tmpA2="$dir/textcleaner_1_$$.cache"
-trap "rm -f $tmpA1 $tmpA2 exit 0;" 0
+trap "rm -f $tmpA1 $tmpA2; exit 0;" 0
 trap "rm -f $tmpA1 $tmpA2; exit 1" 1 2 3 15
 #trap "rm -f $tmpA1 $tmpA2; exit 1" ERR
 
+# get im version
+im_version=`convert -list configure | \
+sed '/^LIB_VERSION_NUMBER */!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # test for hdri enabled
 # NOTE: must put grep before trap using ERR in case it does not find a match
@@ -438,7 +508,6 @@ if [ "$im_version" -ge "07000000" ]; then
 else
 	hdri_on=`convert -list configure | grep "enable-hdri"`
 fi
-
 
 # colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
 # though probably not resolved until the latter
@@ -460,14 +529,22 @@ if [ "$im_version" -gt "06080504" ]; then
 	setcspace=""
 fi
 
+# set up density
+if [ "$density" = "" ]; then
+	applydensity=""
+else
+	applydensity="-density $density"
+fi
+
 if [ "$invert" != "" ]; then
 	inversion1="-negate"
 else
 	inversion1=""
 fi	
 
+
 # read the input image into the TMP cached image.
-convert -quiet "$infile" +repage $inversion1 "$tmpA1" ||
+convert -quiet $applydensity "$infile" +repage $rotation $inversion1 "$tmpA1" ||
 	errMsg "--- FILE $infile NOT READABLE OR HAS ZERO SIZE ---"
 
 # get image size
@@ -476,7 +553,6 @@ hh=`convert $tmpA1 -ping -format "%h" info:`
 
 # get image h/w aspect ratio and determine if portrait=1 (h/w>1) or landscape=0 (h/w<1)
 aspect=`convert xc: -format "%[fx:($hh/$ww)>=1?1:0]" info:`
- 
 #echo "ww=$ww; hh=$hh; aspect=$aspect"
 
 # set up rotation
@@ -551,7 +627,9 @@ fi
 #echo "$bgcolor"
 
 # set up unrotate
-if [ "$unrotate" = "yes" ]; then
+if [ "$unrotate" = "yes" -a "$preserve" = "yes" ]; then
+	unrotating="-background $bgcolor -deskew 40% -gravity center -background $bgcolor -compose over -extent ${ww}x${hh}+0+0 +repage"
+elif [ "$unrotate" = "yes" -a "$preserve" = "no" ]; then
 	unrotating="-background $bgcolor -deskew 40%"
 else
 	unrotating=""
@@ -610,10 +688,28 @@ else
 	inversion2=""
 fi	
 
+# test compression for TIFF output
+ofile="${outfile##*/}"
+suffix="${ofile##*.}"
+suffix2=`echo "$suffix" | tr "[:upper:]" "[:lower:]"`
+if [ "$suffix2" = "tiff" -o "$suffix2" = "tif" ]; then
+	compressing="-compress $compression"
+else
+	compressing=""
+fi
+
+# set up resize
+if [ "$resize" = "" ]; then
+	resizing=""
+else
+	resizing="-resize $resize%"
+fi
+
 # process image
-convert -respect-parenthesis \( $tmpA1 $rotation $cropping $makegray $enhancing \) \
+convert -respect-parenthesis \( $tmpA1 $cropping $makegray $enhancing \) \
 	\( -clone 0  $setcspace -colorspace gray -negate -lat ${filtersize}x${filtersize}+${offset}% -contrast-stretch 0 $blurring \) \
-	-compose copy_opacity -composite -fill "$bgcolor" -opaque none -alpha off \
-	$unrotating $sharpening $modulation $adaptiveblurring $trimming $padding $inversion2 \
+	-alpha off -compose copy_opacity -composite -fill "$bgcolor" -opaque none -alpha off \
+	$unrotating $sharpening $modulation $adaptiveblurring $resizing $trimming $padding $inversion2 $compressing \
 	"$outfile"
+
 exit 0

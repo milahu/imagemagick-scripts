@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 11/17/2016 .......... revised 10/22/2017
+# Developed by Fred Weinhaus 11/17/2016 .......... revised 9/11/2021
 #
 # ------------------------------------------------------------------------------
 # 
@@ -44,6 +44,9 @@
 #                      color is allowed; default=white
 # -t     trimval       trim fuzz value; 0<=float<=100; default=no trim
 # -p     padval        padding added to output; integer>=0; default=no padding
+# -T     thresh        threshold on image std; if too low abort since not 
+#                      enough lines of text for FFT processing; 0<int<100;
+#                      default=5 (percent).
 # 
 # An optional output image may be specified which will be the masked 
 # FFT spectrum showing the locations of the peaks that define the line from  
@@ -103,6 +106,10 @@
 # -p padval ... PADVAL is the padding added to the output. Values are
 # integers>=0. The default=no padding.
 # 
+# -T thresh ... THRESh is the threshold on image std. If too low abort, since  
+# there is not enough lines of text for FFT processing. Values are in the 
+# range 0<int<100. The default=5 (percent).
+# 
 # An optional output image may be specified which will be the masked 
 # FFT spectrum showing the locations of the peaks that define the line from  
 # which the unrotation angle is determined.
@@ -126,6 +133,7 @@ attenuate=85		# center intensity attenuation
 logval=1000000		# value for log conversion of magnitude to spectrum
 trimval=""			# trim fuzz value
 padval=""			# pad amount
+thresh=5			# threshold for text content
 
 # set internal arguments
 res_thresh=2		# threshold on residuals to filter points and refine regression
@@ -255,7 +263,7 @@ if [ $# -eq 0 ]
 	echo ""
 	usage2
 	exit 0
-elif [ $# -gt 18 ]
+elif [ $# -gt 21 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -350,6 +358,16 @@ else
 				   padval=`expr "$1" : '\([0-9]*\)'`
 				   [ "$padval" = "" ] && errMsg "--- PADVAL=$padval MUST BE A NON-NEGATIVE INTEGER (with no sign) ---"
 				   ;;
+			-T)    # thresh
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID THRESH SPECIFICATION ---"
+				   checkMinus "$1"
+				   thresh=`expr "$1" : '\([0-9]*\)'`
+				   [ "$thresh" = "" ] && errMsg "--- THRESH=$thresh MUST BE A NON-NEGATIVE FLOAT (with no sign) ---"
+				   test1=`echo "$thresh > 100" | bc`
+				   [ $test1 -eq 1 ] && errMsg "--- THRESH=$thresh MUST BE A FLOAT BETWEEN 0 AND 100 ---"
+				   ;;
 			 -)    # STDIN and end of arguments
 				   break
 				   ;;
@@ -375,10 +393,18 @@ fi
 # test input image
 convert -quiet "$infile" -auto-orient +repage $dir/tmpI.mpc ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+	
+# test amount of black (presumably text) in the image. Abort if too low
+std_pct=`convert $dir/tmpI.mpc -alpha off -format "%[fx:100*standard_deviation]" info:`
+#echo "std_pct=$std_pct"
+std_test=`echo "$std_pct < $thresh" | bc`
+[ $std_test -eq 1 ] && errMsg "--- FILE $infile HAS TOO FEW LINES OF TEXT (std=$std_pct%) ---"
 
 # create spectrum image
+# due to bug in FFT in Imagemagick around 7.0.10.61, explicitly set normalization to forward
 convert $dir/tmpI.mpc -alpha off \
-	-colorspace gray -fft +delete -evaluate log $logval \
+	-colorspace gray -define fourier:normalize=forward \
+	-fft +delete -evaluate log $logval \
 	$dir/tmpS.mpc
 
 # attenuate spectrum by radial gradient
@@ -386,14 +412,20 @@ wxh=`convert -ping $dir/tmpI.mpc -format "%wx%h" info:`
 convert $dir/tmpS.mpc \
 	\( -size $wxh radial-gradient:"gray($attenuate%)-white" \) \
 	-compose multiply -composite -auto-level -evaluate max 1 \
-	$dir/tmpS.mpc
+	$dir/tmpS.mpc	
  
 # get quantumrange
 qrange=`convert xc: -format "%[fx:quantumrange]" info:`
 
 # get im version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+if [ "$im_version" -ge "07000000" ]; then
+	identifying="magick identify"
+else
+	identifying="identify"
+fi
 
 # colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
 # though probably not resolved until the latter
@@ -420,7 +452,7 @@ fi
 	
 
 # set up for using (new) %[max] or (old) %[maxima]
-# notation changed somewhere between 6.7.4.10 and 6.7.7.7, but don't know where
+# notation changed somewhere between 6.7.4.10 and 6.7.7.7, but do not know where
 test=`convert -quiet xc:white xc:black +append -format "%[maxima]" info:`
 if [ "$test" != "" ]; then
 	# old
@@ -448,7 +480,7 @@ else
 	flag=""
 	for ((i=0; i<number; i++)); do
 		[ "$graphic" = "yes" ] && convert $dir/tmpI.mpc show:
-		data=`identify -precision 5 -define identify:locate=maximum -define identify:limit=1 $dir/tmpS.mpc |
+		data=`$identifying -precision 5 -define identify:locate=maximum -define identify:limit=1 $dir/tmpS.mpc |
 			tail -n +2 | tr -cs "[0-9,.]*" " " | sed 's/^ *//g'`
 		location=`echo "$data" | cut -d\  -f3`
 		valfrac=`echo "$data" | cut -d\  -f2`
@@ -511,27 +543,20 @@ fi
 
 # set up trimming
 if [ "$trimval" != "" ]; then
-	trimming="-fuzz $trimval% +repage"
+	trimming="-fuzz $trimval% -trim +repage"
 else
 	trimming=""
 fi
 
 # set up padding
 if [ "$padval" != "" ]; then
-	trimming="-bordercolor $color -border $padval"
+	padding="-bordercolor $color -border $padval"
 else
-	trimming=""
+	padding=""
 fi
 
 # do rotation to deskew
-convert $dir/tmpI.mpc -background "$color" -rotate $rotation $trimming $paddings "$outfile1"
-[ "$outfile2" != "" ] && convert $dir/tmpS.mpc "$outfile2"
-
-exit 0
-
-
-
-ation $trimming $padding "$outfile1"
+convert $dir/tmpI.mpc -background "$color" -rotate $rotation +repage $trimming $padding "$outfile1"
 [ "$outfile2" != "" ] && convert $dir/tmpS.mpc "$outfile2"
 
 exit 0

@@ -1,8 +1,8 @@
 #!/bin/bash
 #
-# Revised by Fred Weinhaus ...................... revised 1/14/2018
+# Revised by Fred Weinhaus ...................... revised 2/18/2021
 # Revised by Anthony Thyssen to add -b option ... revised 8/24/2010
-# Developed by Fred Weinhaus 1/30/2010 .......... revised 4/25/2015
+# Developed by Fred Weinhaus .............................1/30/2010
 #
 # ------------------------------------------------------------------------------
 # 
@@ -29,7 +29,7 @@
 ####
 #
 # USAGE: multicrop [-c coords] [-b bcolor] [-f fuzzval] [-g grid] [-d discard] 
-# [-p prune] [-u unrotate] [i innertrim] [-e extend] [-m mask] [-D density] 
+# [-p prune] [-u unrotate] [i innertrim] [-e extend] [-m mask] [-r resize] [-D density] 
 # infile outfile
 # USAGE: multicrop [-h or -help]
 # 
@@ -42,7 +42,7 @@
 #                            any valid IM color; default is to use option -c
 # -f          fuzzval        fuzz value for separating background color;
 #                            expressed as (integer) percent 0 to 100; 
-#                            default=0 (uniform color)
+#                            default=10 (0 is uniform color)
 # -g          grid           grid spacing in both x and y as percent of 
 #                            image width and height; used to locate images;
 #                            integer>0; default=10;
@@ -61,6 +61,8 @@
 # -m          mask           mask presentation method; choices are view, 
 #                            save (to file) or output mask only; default 
 #                            is none of the above, just output the images
+# -r          resize         resize percent to scale the image down; float>0;  
+#                            default is no resizing.
 # -D          density        density to use when reading a single page of a PDF; 
 #                            integer>0; default is no assigned density
 # 
@@ -99,8 +101,9 @@
 # 
 # -b bcolor ... BCOLOR is the background color to use for flood fill instead 
 # of extracting this color from the image. This is useful when an image has 
-# no borders with sub-images hard against the edges. Any valid IM color is 
-# allowed. The default is to use option -c.
+# no borders so that the sub-images are hard against the edges. The bcolor 
+# will be used to put a one pixel border around the image and coords will be 
+# set to 0,0. Any valid IM color is allowed. The default is to use option -c.
 # 
 # -f fuzzval ... FUZZVAL is the fuzz amount specified as an integer percent
 # value between 0 to 100 (without the % sign). The correct choice of fuzz
@@ -151,6 +154,11 @@
 # images, but the background can "eat" a little into the images so long as no 
 # full edge is lost or the images is split into multiple parts.
 # 
+# -r resize ... RESIZE amount in percent to scale the image down. Values are floats>0.  
+# The default is no resizing. This is useful to improve speed and floodfilling 
+# when you have a large image, especially if the background is grainy. Note: do not 
+# include the % symbol.
+#
 # -D density ... DENSITY to use when reading a single page of a PDF. Multipage pdf 
 # files are not permitted. Values are integers>0. The default is no assigned density.
 # 
@@ -176,6 +184,7 @@ extend=0				# extend the output crop on all sides
 mask=""					# view, save, output
 unrotate=1				# 1=deskew 2=unrotate
 innertrim="no"			# trim inside cropped area to orthogonal rectangle
+resize=""				# resize percent
 density=""				# density to use for input PDF
 debug="false"
 
@@ -223,7 +232,7 @@ if [ $# -eq 0 ]
 	echo ""
 	usage2
 	exit 0
-elif [ $# -gt 24 ]
+elif [ $# -gt 26 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -329,6 +338,16 @@ else
 				   mask=`echo "$1" | tr "[:upper:]" "[:lower:]"`
 				   [ "$mask" != "view" -a "$mask" != "save" -a "$mask" != "output"  ] && errMsg "--- MASK=$mask MUST BE EITHER VIEW, SAVE OR OUTPUT ---"
 				   ;;
+			-r)    # resize
+				   shift  # to get the next parameter
+				   # test if parameter starts with minus sign 
+				   errorMsg="--- INVALID RESIZE SPECIFICATION ---"
+				   checkMinus "$1"
+				   resize=`expr "$1" : '\([.0-9]*\)'`
+				   [ "$resize" = "" ] && errMsg "--- RESIZE=$resize MUST BE A NON-NEGATIVE FLOAT VALUE (with no sign) ---"
+				   testA=`echo "$resize == 0" | bc`
+				   [ $testA -eq 1 ] && errMsg "--- RESIZE=$resize MUST BE A NON-NEGATIVE FLOAT VALUE GREATER THAN 0 ---"
+				   ;;
 			-D)    # density
 				   shift  # to get the next parameter
 				   # test if parameter starts with minus sign 
@@ -357,9 +376,9 @@ else
 fi
 
 # test if both bcolor and coords specified at the same time
-if [ "X$bcolor" != "X" -a "X$coords" != "X" ]; then
+if [ "$bcolor" != "" -a "$coords" != "" ]; then
   errMsg "--- BACKGROUND COLOR AND COODINATES CAN NOT BE USED TOGETHER ---"
-elif [ "X$bcolor" = "X" -a "X$coords" = "X" ]; then
+elif [ "$bcolor" = "" -a "$coords" = "" ]; then
 	coords="0,0"
 fi
 
@@ -390,19 +409,27 @@ tmpB3="$dir/multicrop_3_$$.cache"
 tmpA4="$dir/multicrop_4_$$.mpc"
 tmpB4="$dir/multicrop_4_$$.cache"
 tmpA5="$dir/multicrop_5_$$.miff"
+tmpA6="$dir/multicrop_6_$$.mpc"
+tmpB6="$dir/multicrop_6_$$.cache"
 
-trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4 $tmpA5;" 0
-trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4 $tmpA5; exit 1" 1 2 3 15
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4 $tmpA5 $tmpB6 $tmpA6;" 0
+trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4 $tmpA5 $tmpB6 $tmpA6; exit 1" 1 2 3 15
 #trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4 $tmpA5; exit 1" ERR
 
 # read the input image into the temp files and test validity.
-convert -quiet $dproc "$infile" +repage "$tmpA1" ||
-	errMsg "--- FILE $infile1 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+if [ "$resize" != "" ]; then
+	convert -quiet $dproc "$infile" +repage "$tmpA6" ||
+		errMsg "--- FILE $infile1 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+	convert "$tmpA6" -resize $resize% "$tmpA1"
+else
+	convert -quiet $dproc "$infile" +repage "$tmpA1" ||
+		errMsg "--- FILE $infile1 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+fi
 
 
 # get im_version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # get output filename and suffix
 outnameArr=(`echo "$outfile" | sed -n 's/^\(.*\)[.]\([^.]*\)$/\1 \2/p'`)
@@ -427,10 +454,29 @@ test=`convert xc: -format "%[fx:$extend>0?1:0]" info:`
 [ $test -eq 1 -a $unrotate -eq 3 -a "$innertrim" = "yes" ] && errMsg "--- SIGN FOR EXTEND=$extend MUST BE NEGATIVE ---"
 
 
+# test if coords provided as x,y
+# coords="" if test fails and have other characters such as northwest
+coords1=`expr "$coords" : '\([0-9]*,[0-9]*\)'`
+
 # get color at user specified location
-if [ "X$bcolor" != "X" ]; then
+if [ "$bcolor" != "" ]; then
 	coords="0,0"
-else
+elif [ "$coords1" != "" -a "$resize" != "" ]; then
+	x=`echo "$coords1" | cut -d, -f1`
+	y=`echo "$coords1" | cut -d, -f2`
+	x=`convert xc: -format "%[fx:round($x*$resize/100)]" info:`
+	y=`convert xc: -format "%[fx:round($y*$resize/100)]" info:`
+	coords="$x,$y"
+	bcolor=`convert $tmpA1 -format "%[pixel:u.p{$coords}]" info:`
+elif [ "$coords1" != "" -a "$resize" = "" ]; then
+	x=`echo "$coords1" | cut -d, -f1`
+	y=`echo "$coords1" | cut -d, -f2`
+	# account for pad of 1
+	x=$((x+1))	
+	y=$((y+1))	
+	coords="$x,$y"
+	bcolor=`convert $tmpA1 -format "%[pixel:u.p{$coords}]" info:`
+elif [ "$coords1" = "" ]; then
 	widthm1=`convert xc: -format "%[fx:$width-1]" info:`
 	heightm1=`convert xc: -format "%[fx:$height-1]" info:`
 	midwidth=`convert xc: -format "%[fx:round(($width-1))/2]" info:`
@@ -445,7 +491,6 @@ else
 		s|south)         coords="$midwidth,$heightm1" ;;
 		sw|southwest)    coords="0,$heightm1" ;;
 		w|west)          coords="0,$midheight" ;;
-		[0-9]*,[0-9]*)   coords=$coords ;;
 		*)  errMsg "--- INVALID COORDS ---" ;;
 	esac
 	bcolor=`convert $tmpA1 -format "%[pixel:u.p{$coords}]" info:`
@@ -454,8 +499,8 @@ fi
 
 
 # get grid spacing
-wg=`convert xc: -format "%[fx:round($grid*$width/100)]" info:`
-hg=`convert xc: -format "%[fx:round($grid*$height/100)]" info:`
+wg=`convert xc: -format "%[fx:round(($grid/100)*$width)]" info:`
+hg=`convert xc: -format "%[fx:round(($grid/100)*$height)]" info:`
 num=`convert xc: -format "%[fx:round(100/$grid) - 2]" info:`
 #echo "width=$width; height=$height; wg=$wg; hg=$hg; num=$num"
 
@@ -542,77 +587,11 @@ for ((j=0;j<=$num;j++))
 			pg=`$identifying -ping -format "%g" $tmpA4`
 			offx=`echo $pg | cut -d+ -f2`
 			offy=`echo $pg | cut -d+ -f3`
-#			echo "Size: ${wd}x${ht}"  
-#			echo "Page Geometry: $pg"
-#			echo "offx=$offx; offy=$offy;"
-			echo "Initial Crop Box: ${wd}x${ht}+${offx}+${offy}"
-			echo ""
-			# Composite the black and white mask onto the original scan.
-			# Then trim and deskew/unrotate to make the output.
-			if [ $unrotate -eq 3 ]; then
-				if [ $extend -eq 0 -o "$innertrim" = "yes" ]; then
-					convert $tmpA1 -crop ${wd}x${ht}+${offx}+${offy} +repage $tmpA5
-				elif [ "$innertrim" = "no" -a $extend -ne 0 ]; then
-					wd=$((wd+2*extend))
-					ht=$((ht+2*extend))
-					offx=$((offx-extend))
-					offy=$((offy-extend))
-					convert $tmpA1 -crop ${wd}x${ht}+${offx}+${offy} +repage $tmpA5
-				fi
-			elif [ $unrotate -eq 1 ]; then
-				convert $tmpA1 -crop ${wd}x${ht}+${offx}+${offy} +repage $derotate \
-					-bordercolor "$bcolor" -border 2 -fuzz ${fuzzval}% -trim +repage $tmpA5
-				if [ "$innertrim" = "no" -a $extend -ne 0 ]; then
-					wd=`$identifying -ping -format "%w" $tmpA5`
-					ht=`$identifying -ping -format "%h" $tmpA5`
-					wd=$((wd+2*extend))
-					ht=$((ht+2*extend))
-					offx=$((-extend))
-					offy=$((-extend))
-					convert $tmpA5 -crop ${wd}x${ht}+${offx}+${offy} +repage $tmpA5
-				fi
-			elif [ $unrotate -eq 2 ]; then
-				convert $tmpA1 -crop ${wd}x${ht}+${offx}+${offy} +repage  \
-					-fuzz ${fuzzval}% -trim +repage miff:- | \
-				unrotate -C "$bcolor" -f ${fuzzval}% - $tmpA5
-				if [ "$innertrim" = "no" -a $extend -ne 0 ]; then
-					wd=`$identifying -ping -format "%w" $tmpA5`
-					ht=`$identifying -ping -format "%h" $tmpA5`
-					wd=$((wd+2*extend))
-					ht=$((ht+2*extend))
-					offx=$((-extend))
-					offy=$((-extend))
-					convert $tmpA5 -crop ${wd}x${ht}+${offx}+${offy} +repage $tmpA5
-				fi
-			fi
-			if [ "$innertrim" = "yes" ]; then
-				mextend=-$extend
-				autotrim -m inner -f $fuzzval -C "$bcolor" -l $mextend -t $mextend \
-					-r $extend -b $extend $tmpA5 ${outname}-${kk}.${suffix}
-			else
-				convert $tmpA5 ${outname}-${kk}.${suffix}
-			fi
-
-			# Fill the selected photo area in the red/none mask with none 
-			# for use with next coordinate so that it does not find it again.
-			convert $tmpA3 -channel rgba -alpha on -fill none -opaque white $tmpA2
-			if [ "$discard" = "" ]; then
-				k=$(($k + 1))
-			elif [ $wd -lt $discard -o $ht -lt $discard ]; then 
-				rm -f ${outname}-${kk}.${suffix}
-				echo "Discarding Image $k"
-			else
-				k=$(($k + 1))
-			fi
-		fi
-	done
-done
-echo ""
-exit 0
-
-
-
-und($offy*100/$resize)-$extend]" info:`
+			if [ "$resize" != "" ]; then
+				wd=`convert xc: -format "%[fx:round($wd*100/$resize)+2*$extend]" info:`
+				ht=`convert xc: -format "%[fx:round($ht*100/$resize)+2*$extend]" info:`
+				offx=`convert xc: -format "%[fx:round($offx*100/$resize)-$extend]" info:`
+				offy=`convert xc: -format "%[fx:round($offy*100/$resize)-$extend]" info:`
 				img=$tmpA6
 			else
 				wd=$((wd+2*extend))

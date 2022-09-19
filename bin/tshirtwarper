@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 9/1/2017 .......... revised 12/20/2017
+# Developed by Fred Weinhaus 9/1/2017 .......... revised 7/17/2020
 #
 # ------------------------------------------------------------------------------
 # 
@@ -28,13 +28,15 @@
 #
 # USAGE: tshirtwarper [-r region] [-c coords] [-f fit] [-g gravity] [-v vshift] 
 # [-o offset] [-R rotate] [-s sharpen] [-d displace] [-a antialias] [-B brightness] 
-# [-S saturation] [-C compose] [-D directory] infile bgfile outfile
+# [-S saturation] [-O opacity] [-C compose] [-D directory] infile bgfile [maskfile] 
+# outfile
 # 
 # or
 # 
 # USAGE: tshirtwarper [-r region] [-c coords] [-f fit] [-g gravity] [-v vshift] 
 # [-o offset] [-R rotate] [-s sharpen] [-d displace] [-a antialias] [-B brightness] 
-# [-S saturation] [-C compose] lightingfile displacementfile infile bgfile outfile
+# [-S saturation] [-C compose] [-O opacity] lightingfile displacementfile 
+# infile bgfile [maskfile] outfile
 # 
 #
 # USAGE: tshirtwarper [-help|-h]
@@ -56,17 +58,25 @@
 #                      specified. But coordinates take precedent. Coordinates 
 #                      are not restricted to a rectangle and the region 
 #                      defined by the coordinates can have rotation.
-# -f     fit           fit is either crop (c) or distort (d);  If crop, then 
-#                      the overlay image (infile) will be cropped to make 
-#                      its vertical aspect ratio fit that of the region 
-#                      or coordinate area. This will not distort the image, 
-#                      only make it fit the size of the region or coordinate 
-#                      area. The image will not be cropped, if its vertical
-#                      aspect ratio is smaller than that of the region. If 
-#                      distort, the overlay image (infile) will be fit to the  
-#                      region or coordinate area, if the aspect ratio of the 
-#                      overlay image (infile) does not match that of the region 
-#                      or coordinate area. The default=crop.
+# -f     fit           fit can be: crop (c), distort (d) scale (s) or none (n);  
+#                      If crop, then the overlay image (infile) will be resized to the  
+#                      width of the region (or coordinate area) and cropped if needed. 
+#                      This will not distort the image. The image will not be cropped, 
+#                      if its height is smaller than that of the region and it 
+#                      will then be aligned at the top of the region. If distort, 
+#                      then the overlay image (infile) will be resized to fit exactly    
+#                      to the region (or coordinate area). This will cause distortion, 
+#                      if the aspect ratio of the overlay image (infile) does not 
+#                      match the aspect ratio of the region (or coordinate area). If 
+#                      scale, then the overlay image (infile) will be resized so that
+#                      the larger dimension fits the region (or coordinate area) and  
+#                      the other dimension is smaller. The resized overlay image  
+#                      (infile) will be centered in the region. The default=none, 
+#                      which means that the image will be resized to fit the width of  
+#                      the region (or coordinate area) and aligned at the top of the 
+#                      region. If the height of the resized image is larger than the 
+#                      height of the region, it will extend past the bottom of the 
+#                      region.
 # -g     gravity       gravity for selecting the crop location; choices are:
 #                      north (n), south (s) or center (c). The default=center
 # -v     vshift        vertical shift of the crop region with respect to the 
@@ -92,11 +102,18 @@
 # -C     compose       compose method to merge the input overlay (infile) image with  
 #                      the background (bgfile); choices are: hardlight, multiply or 
 #                      over; default=hardlight
+# -O     opacity       opacity to apply to the image; 0<=integer<=100; default=100 
+#                      (fully opaque)
 # -D     directory     directory to read all the exported data from the tshirt script. 
 #                      This includes the lighting and displacement images and a text file 
 #                      called tshirtdata.txt containing the same textual parameter data. 
 #
-# infile is the overlay image to apply to the tshirt, which is the bgfile.
+# infile is the overlay image to apply to the tshirt.
+# 
+# bgfile is the tshirt image.
+# 
+# maskfile is a mask of part or all of the tshirt to limit the region onto which the 
+# overlay image is to be applied.
 #
 ###
 #
@@ -145,14 +162,21 @@
 # coordinates take precedent. Coordinates are not restricted to a rectangle 
 # and the region defined by the coordinates can have rotation.
 # 
-# -f fit ... FIT is crop (c), distort (d) or none. If crop, then the overlay
-# image (infile) will be cropped to make its vertical aspect ratio fit that of
-# the region or coordinate area. This will not distort the image, only make it
-# fit the size of the region or coordinate area. The image will not be
-# cropped, if its vertical aspect ratio is smaller than that of the region. If
-# distort, the overlay image (infile) will be fit to the region or coordinate
-# area, if the aspect ratio of the overlay image (infile) does not match that
-# of the region or coordinate area. The default is none.
+# -f fit ... fit can be: crop (c), distort (d) scale (s) or none (n); If crop, 
+# then the overlay image (infile) will be resized to the width of the region 
+# (or coordinate area) and cropped if needed. This will not distort the image. 
+# The image will not be cropped, if its height is smaller than that of the region
+# and it will then be aligned at the top of the region. If distort, then   
+# the overlay image (infile) will be resized to fit exactly to the region (or 
+# coordinate area). This will cause distortion, if the aspect ratio of the overlay 
+# image (infile) does not match the aspect ratio of the region (or coordinate area). 
+# If scale, then the overlay image (infile) will be resized so that the larger
+# dimension fits the region (or coordinate area) and the other dimension is
+# smaller. The resized overlay image (infile) will be centered in the region. The
+# default=none, which means that the image will be resized to fit the width of the
+# region (or coordinate area) and aligned at the top of the region. If the height
+# of the resized image is larger than the height of the region, it will extend
+# past the bottom of the region.
 # 
 # -g gravity ... GRAVITY for selecting the crop location. The choices are:
 # north (n), south (s) or center (c). The default=center. 
@@ -201,7 +225,10 @@
 # methods will not do that. The choice of over simply places the overlay image 
 # unchanged upon the tshirt image. The choice of multiply does a multiply operation, 
 # which may change colors and would need adjustment by -B and -S arguments.
-#
+# 
+# -O opacity ... OPACITY to apply to the image. Values are 0<=integers<=100. 
+# The default=100 (fully opaque).
+# 
 # -D directory ... DIRECTORY to write all the exported data when using the -E export 
 # option, including a text file called tshirtdata.txt that contains the same textual 
 # parameter data sent to terminal. The directory can be specified in the tshirtwarp 
@@ -240,6 +267,7 @@ antialias=""			# antialias amount to apply to alpha channel of tshirt image; flo
 brightness=""			# brightness change to the infile; integer 
 saturation=""			# saturation change to the infile; integer 
 compose=""				# compose method; hardlight or multiply
+opacity=""				# opacity of image
 directory=""			# directory to write the lighting image, displacement map and text file
 
 
@@ -289,7 +317,7 @@ if [ $# -eq 0 ]
    echo ""
    usage2
    exit 0
-elif [ $# -gt 31 ]
+elif [ $# -gt 33 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -436,6 +464,16 @@ else
 					   		*) errMsg "--- COMPOSE=$compose IS AN INVALID VALUE ---" 
 					   	esac
 					   ;;
+				-O)    # get opacity
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OPACITY SPECIFICATION ---"
+					   checkMinus "$1"
+					   opacity=`expr "$1" : '\([0-9]*\)'`
+					   [ "$opacity" = "" ] && errMsg "--- OPACITY=$opacity MUST BE A NON-NEGATIVE INTEGER ---"
+					   test=`echo "$opacity > 100" | bc`
+					   [ $test -eq 1 ] && errMsg "--- OPACITY=$opacity MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
+					   ;;
 				-D)    # get directory
 					   shift  # to get the next parameter
 					   # test if parameter starts with minus sign 
@@ -457,18 +495,48 @@ else
 	done
 	#
 	# get infile and outfile
-	if [ "$directory" != "" ]; then
-		infile="$1"
-		bgfile="$2"
-		outfile="$3"
-	else
-		lightingfile="$1"
-		displacementfile="$2"
-		infile="$3"
-		bgfile="$4"
-		outfile="$5"
+	numargs=$#
+	maskfile=""
+	# test if directory exists and is OK
+	if [ -d "$directory" -a ! -r "$1" ]; then
+		errMsg "--- DIRECTORY IS NOT READABLE ---"
 	fi
-	
+	if [ -d "$directory" -a ! -s "$1" ]; then
+		errMsg "--- DIRECTORY IS EMPTY ---"
+	fi
+	if [ -d "$directory" -a -r "$1" -a -s "$1" ]; then
+		# directory exists, is readable and is not empty
+		if [ $# -eq 3 ]; then
+			infile="$1"
+			bgfile="$2"
+			outfile="$3"
+		elif [ $# -eq 4 ]; then
+			infile="$1"
+			bgfile="$2"
+			maskfile="$3"
+			outfile="$4"
+		else
+			errMsg "--- INCONSISTENT NUMBER OF INPUT AND OUTPUT IMAGES SPECIFIED 1 ---"
+		fi
+
+	else
+		if [ $# -eq 5 ]; then
+			lightingfile="$1"
+			displacementfile="$2"
+			infile="$3"
+			bgfile="$4"
+			outfile="$5"
+		elif [ $# -eq 6 ]; then
+			lightingfile="$1"
+			displacementfile="$2"
+			infile="$3"
+			bgfile="$4"
+			maskfile="$5"
+			outfile="$6"
+		else
+			errMsg "--- INCONSISTENT NUMBER OF INPUT AND OUTPUT IMAGES SPECIFIED 2 ---"
+		fi
+	fi	
 fi
 
 if [ "$directory" = "" ]; then
@@ -514,6 +582,7 @@ if [ "$directory" = "" ]; then
 	[ "$brightness" = "" ] && brightness=0
 	[ "$saturation" = "" ] && saturation=0
 	[ "$compose" = "" ] && compose="hardlight"
+	[ "$opacity" = "" ] && opacity="100"
 
 else
 	# store arguments from input into _in variable
@@ -530,6 +599,7 @@ else
 	brightness_in=$brightness
 	saturaion_in=$saturation
 	compose_in=$compose
+	opacity_in=$opacity
 	
 	# read the arguments from the textfile in the directory
 	source $directory/tshirtdata.txt
@@ -560,6 +630,7 @@ else
 	[ "$sharpen_in" != "" ] && sharpen=$sharpen_in
 	[ "$antialias_in" != "" ] && antialias=$antialias_in
 	[ "$compose_in" != "" ] && compose=$compose_in
+	[ "$opacity_in" != "" ] && opacity=$opacity_in
 	if [ "$brightness" != "" -o "$saturation" != "" ]; then
 		modulating=""
 		if [ "$brightness_in" != "" ]; then
@@ -595,10 +666,17 @@ if ! convert -quiet "$infile" +repage $modulating $dir/tmpI.mpc; then
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 fi	
 
-# read tshirt image
-if ! convert -quiet "$bgfile" +repage $dir/tmpT.mpc; then
+# read tshirt image and make color (so that result is not grayscale when overlay image is grayscale)
+if ! convert -quiet "$bgfile" +repage -colorspace sRGB $dir/tmpT.mpc; then
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 fi	
+
+if [ "$maskfile" != "" ]; then
+	# read maskfile image
+	if ! convert -quiet "$maskfile" +repage $dir/tmpM.mpc; then
+		echo "--- FILE $maskfile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+	fi	
+fi
 
 # read lightingfile and displacementfile
 if [ "$directory" = "" ]; then
@@ -770,7 +848,7 @@ fi
 
 
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 if [ "$im_version" -ge "07000000" ]; then
 	identifying="magick identify"
@@ -790,8 +868,7 @@ else
 	sproc=""
 fi
 #echo "sproc=$sproc"
-
-echo "fit=$fit; gravity=$gravity;"
+#echo "fit=$fit; gravity=$gravity;"
 
 # set up cropping
 cropping=""
@@ -802,43 +879,29 @@ if [ "$fit" = "crop" ]; then
 		cropping="-gravity $gravity -crop ${ww}x${hc}+0+0 +repage"
 	fi
 fi
-echo "hh=$hh; hc=$hc; cropping=$cropping"
+#echo "hh=$hh; hc=$hc; cropping=$cropping"
 
+# set up for opacity
+if [ "$opacity" != "100" ]; then
+	opacity=`convert xc: -format "%[fx:$opacity/100]" info:`
+	oproc="-alpha on -channel a -evaluate multiply $opacity +channel"
+else
+	oproc=""
+fi
 
+if [ "$maskfile" != "" ]; then
+	mask="$dir/tmpM.mpc"
+else
+	mask=""
+fi
 	
 # line2 1-4:  process overlay image to perspective transform with transparent
 #             background the size of the tshirt image and sharpen
 # lines 5-7:  apply lighting image and make tshirt background from lighting image 
 #			  transparent using alpha of previous steps
 # lines 8-10: apply displacement image
-convert -respect-parenthesis \( $dir/tmpT.mpc -alpha transparent \) \
-	\( $dir/tmpI.mpc $cropping -virtual-pixel none +distort perspective \
-	"$xo1,$yo1 $x1,$y1 $xo2,$yo2 $x2,$y2 $xo3,$yo3 $x3,$y3 $xo4,$yo4 $x4,$y4" $sproc \) \
-	-background none -layers merge +repage \
-	\
-	\( -clone 0 -alpha extract \) \
-	\( -clone 0 $dir/tmpL.mpc $swapping -compose $compose -composite \) \
-	-delete 0 +swap -compose over -alpha off -compose copy_opacity -composite \
-	\
-	$dir/tmpD.mpc \
-	-define compose:args=-$displace,-$displace -compose displace -composite \
-	$dir/tmpITD.mpc
-
-
-# composite distorted overlay onto tshirt
-if [ "$is_alpha" != "" ]; then
-	convert $dir/tmpT.mpc $dir/tmpITD.mpc -compose over -composite \
-		$dir/tmpA.mpc -alpha off -compose copy_opacity -composite "$outfile"
-else
-	convert $dir/tmpT.mpc $dir/tmpITD.mpc -compose over -composite "$outfile"
-fi
-
-
-exit 0   background the size of the tshirt image and sharpen
-# lines 5-7:  apply lighting image and make tshirt background from lighting image 
-#			  transparent using alpha of previous steps
-# lines 8-10: apply displacement image
-convert -respect-parenthesis \( $dir/tmpT.mpc -alpha transparent \) \
+# note: need to add -colorspace sRGB to tmpTG to keep tmpI as color after layers merge 7/17/2020 some time after 7.0.8.23
+convert -respect-parenthesis \( $dir/tmpT.mpc -alpha transparent -colorspace sRGB \) \
 	\( $dir/tmpI.mpc $cropping -virtual-pixel none +distort perspective \
 	"$xo1,$yo1 $x1,$y1 $xo2,$yo2 $x2,$y2 $xo3,$yo3 $x3,$y3 $xo4,$yo4 $x4,$y4" $sproc \) \
 	-background none -layers merge +repage \
@@ -854,10 +917,10 @@ convert -respect-parenthesis \( $dir/tmpT.mpc -alpha transparent \) \
 
 # composite distorted overlay onto tshirt
 if [ "$is_alpha" != "" ]; then
-	convert $dir/tmpT.mpc $dir/tmpITD.mpc -compose over -composite \
+	convert $dir/tmpT.mpc $dir/tmpITD.mpc $mask -compose over -composite \
 		$dir/tmpA.mpc -alpha off -compose copy_opacity -composite "$outfile"
 else
-	convert $dir/tmpT.mpc $dir/tmpITD.mpc -compose over -composite "$outfile"
+	convert $dir/tmpT.mpc $dir/tmpITD.mpc $mask -compose over -composite "$outfile"
 fi
 
 

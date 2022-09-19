@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 9/12/2009 .......... revised 7/28/2015
+# Developed by Fred Weinhaus 9/12/2009 .......... revised 7/28/2021
 #
 # ------------------------------------------------------------------------------
 # 
@@ -304,13 +304,18 @@ else
 fi
 [ "$hdri_on" = "" ] && errMsg "--- REQUIRES HDRI ENABLED IN IM COMPILE ---"
 
+if [ "$im_version" -ge "07000000" ]; then
+	identifying="magick identify"
+else
+	identifying="identify"
+fi
 
 
 # get image dimensions to be sure that infile1 is smaller than infile2
-ws=`identify -ping -format "%w" "$dir/tmpA1.mpc"`
-hs=`identify -ping -format "%h" "$dir/tmpA1.mpc"`
-wlo=`identify -ping -format "%w" "$dir/tmpA2.mpc"`
-hlo=`identify -ping -format "%h" "$dir/tmpA2.mpc"`
+ws=`$identifying -ping -format "%w" "$dir/tmpA1.mpc"`
+hs=`$identifying -ping -format "%h" "$dir/tmpA1.mpc"`
+wlo=`$identifying -ping -format "%w" "$dir/tmpA2.mpc"`
+hlo=`$identifying -ping -format "%h" "$dir/tmpA2.mpc"`
 
 [ $ws -gt $wlo ] && errMsg "--- SECOND IMAGE MUST BE WIDER THAN FIRST IMAGE ---"
 [ $hs -gt $hlo ] && errMsg "--- SECOND IMAGE MUST BE TALLER THAN FIRST IMAGE ---"
@@ -412,6 +417,8 @@ fi
 # create (S x L)
 crossCorr "$dir/tmpS.mpc" "$dir/tmpL.mpc"
 convert "$dir/tmp0.mpc" -crop ${wlo}x${hlo}+0+0 +repage $gproc "$dir/tmp0.mpc"
+# allow correlation to wrap around
+#convert "$dir/tmp0.mpc" $gproc "$dir/tmp0.mpc"
 
 
 # setup pseudocolor lut
@@ -435,16 +442,15 @@ fi
 
 #echo "get match"
 if [ "$im_version" -ge "06080610" ]; then
-	max=`convert "$dir/tmp0.mpc" -format "%[fx:maxima]" info:`
-	str=`convert "$dir/tmp0.mpc" -fx "u>=($max-quantumscale)?debug(u):0" null: 2>&1`
-	coords=`echo "$str" | sed -n 's/^.*\[\([0-9]*,[0-9]*\)\]\.red.*$/\1/p'`
+	max=`convert $dir/tmp0.mpc -format "%[fx:maxima]" info:`
+	coords=`$identifying -define identify:locate=maximum -define identify:limit=1 $dir/tmp0.mpc | tail -n 1 | sed -n 's/^.* \([0-9]*,[0-9]*\)/\1/p'`
 	echo ""
 	echo "Match Coords: ($coords) And Score In Range 0 to 1: ($max)"
 	echo ""
 else
 	max=`convert "$dir/tmp0.mpc" -format "%[fx:maxima]" info:`
 	str=`convert "$dir/tmp0.mpc" -fx "u>=($max-quantumscale)?debug(u):0" null: 2>&1`
-	coords=`echo "$str" | sed -n 's/^.*\[\([0-9]*,[0-9]*\)\]\.red.*$/\1/p'`
+	coords=`echo "$str" | sed -n 's/^.*\[\([0-9]*,[0-9]*\)\].*$/\1/p'`
 	echo ""
 	echo "Match Coords: ($coords) And Score In Range 0 to 1: ($max)"
 	echo ""

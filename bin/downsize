@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 12/24/2009 .......... revised 3/5/2017
+# Developed by Fred Weinhaus 12/24/2009 .......... revised 8/1/2021
 #
 # ------------------------------------------------------------------------------
 # 
@@ -297,12 +297,11 @@ if [ "$strip" = "no" ]; then
 fi
 
 # set up temp file
-tmpA1="$dir/downsize_1_$$.suffix"
+tmpA1="$dir/downsize_1_$$.$suffix"
 
 trap "rm -f $tmpA1;" 0
 trap "rm -f $tmpA1; exit 1" 1 2 3 15
 #trap "rm -f $tmpA1; exit 1" ERR
-
 
 # read the input image into the temp files and test validity.
 convert -quiet "$infile"[0] $stripping -depth 8 $setcompression $setquality $setunits +repage ${ftype}:$tmpA1 ||
@@ -325,7 +324,7 @@ else
 	errMsg="--- UNRECOGNIZED FILESIZE SUFFIX ---"
 fi
 size2=`convert xc: -format "%[fx:$size*1000]" info:`
-#echo "test1=$test1; test2=$test2; ftype=$ftype; fullsize=$fullsize; size2=$size2;"
+#echo "test1=$test1; test2=$test2; test3=$test3; ftype=$ftype; fullsize=$fullsize; size2=$size2;"
 
 # process image for strip=yes, if input size > desired size
 # process image for strip=no, if input size > desired size + meta size 
@@ -356,7 +355,7 @@ if [ $test4 -eq 1 ]; then
 			#echo "i=$i; fullsize=$fullsize; size=$size; size2=$size2; newsize=${newsize}kB; pratio=$pratio;"
 		
 			# resize image
-			convert "$outfile" -resize ${pratio}% $setquality "$outfile"
+			convert "$outfile" -resize ${pratio}% -depth 8 $setquality $setunits ${ftype}:"$outfile"
 		
 			# set newsize in KB
 			testa=`convert "$outfile" -ping -format "%b" info:- | grep "MB"`
@@ -380,7 +379,7 @@ if [ $test4 -eq 1 ]; then
 
 		# get final size of iterated outfile and then use that to resize the original
 		dim=`convert "$outfile" -format "%wx%h" info:`
-		convert $tmpA1 -resize $dim -define jpeg:extent=${size}KB ${ftype}:"$outfile"
+		convert $tmpA1 -resize $dim -define jpeg:extent=${size}KB -depth 8 $setquality $setunits ${ftype}:"$outfile"
 		# set newsize in KB
 		testa=`convert "$outfile" -ping -format "%b" info:- | grep "MB"`
 		testb=`convert "$outfile" -ping -format "%b" info:- | grep "KB"`
@@ -408,7 +407,7 @@ if [ $test4 -eq 1 ]; then
 		# iterate again changing jpeg write extent size
 #		while [ $iterate -eq 1 -a $i -lt $maxiter -a $newsign -eq $oldsign -a "$newsize" != "$oldsize" ]; do
 		while [ $iterate -eq 1 -a $i -lt $maxiter -a "$newsize" != "$oldsize" ]; do
-			convert $tmpA1 -resize $dim -define jpeg:extent=${size1}KB ${ftype}:"$outfile"
+			convert $tmpA1 -resize $dim -define jpeg:extent=${size1}KB -depth 8 $setquality $setunits ${ftype}:"$outfile"
 			# set newsize in KB
 			testa=`convert "$outfile" -ping -format "%b" info:- | grep "MB"`
 			testb=`convert "$outfile" -ping -format "%b" info:- | grep "KB"`
@@ -439,26 +438,32 @@ if [ $test4 -eq 1 ]; then
 	else
 		while [ $iterate -eq 1 -a $i -lt $maxiter ]; do
 			# get sqrt size ratio in percent
-			size2=`convert xc: -format "%[fx:$size2-($diffsize*1000)]" info:`
+			size2=`convert xc: -format "%[fx:max($size2-($diffsize*1000),0)]" info:`
 			pratio=`convert xc: -format "%[fx:100*sqrt($size2/$fullsize)]" info:`
 			#echo "i=$i; fullsize=$fullsize; size=$size; size2=$size2; pratio=$pratio;"
+			
+			testd=`convert xc: -format "%[fx:$size2<($toler*$size/100)?1:0]" info:`
+			[ $testd -eq 1 ] && break
 		
 			# resize image
-			convert $tmpA1 -resize ${pratio}% $setquality ${ftype}:"$outfile"
-		
-			testa=`convert "$outfile" -ping -format "%b" info:- | grep "MB"`
-			testb=`convert "$outfile" -ping -format "%b" info:- | grep "KB"`
-			testc=`convert "$outfile" -ping -format "%b" info:- | grep "B"`
+			convert $tmpA1 -resize ${pratio}% -depth 8 $setcompression $setquality $setunits ${ftype}:"$outfile"
+			printsize=`convert "$outfile" -ping -format "%b" info:`
+			echo "i=$i; size=${printsize}"
+						
+			testa=`convert "$outfile" -ping -format "%b" info:- | grep -i "MB"`
+			testb=`convert "$outfile" -ping -format "%b" info:- | grep -i "KB"`
+			testc=`convert "$outfile" -ping -format "%b" info:- | grep -i "B"`
 			if [ "$testa" != "" ]; then
-				newsize=`convert "$outfile" $setquality ${ftype}:- | convert - -ping -format "%b" info: | tr -d "[:alpha:]"`
+				newsize=`convert "$outfile" -depth 8 $setcompression $setquality $setunits ${ftype}:- | convert - -ping -format "%b" info: | tr -d "[:alpha:]"`
 				newsize=`convert xc: -format "%[fx:$newsize*1000]" info:`
 			elif [ "$testb" != "" ]; then
-				newsize=`convert "$outfile" $setquality ${ftype}:- | convert - -ping -format "%b" info: | tr -d "[:alpha:]"`
+				newsize=`convert "$outfile" -depth 8 $setcompression $setquality $setunits ${ftype}:- | convert - -ping -format "%b" info: | tr -d "[:alpha:]"`
 			elif [ "$testc" != "" ]; then
-				newsize=`convert "$outfile" $setquality ${ftype}:- | convert - -ping -format "%b" info: | tr -d "[:alpha:]"`
-				newsize=`convert xc: -format "%[fx:$fullsize/1000]" info:`
+				newsize=`convert "$outfile" -depth 8 $setcompression $setquality $setunits ${ftype}:- | convert - -ping -format "%b" info: | tr -d "[:alpha:]"`
+				#newsize=`convert xc: -format "%[fx:$fullsize/1000]" info:`
+				newsize=`convert xc: -format "%[fx:$newsize/1000]" info:`
 			fi		
-			echo "i=$i; newsize=${newsize}kB"
+			#echo "i=$i; newsize=${newsize}kB"
 			diffsize=`convert xc: -format "%[fx:($newsize-$size)]" info:`
 			iterate=`convert xc: -format "%[fx:abs($diffsize)>($toler*$size/100)?1:0]" info:`
 			#echo "i=$i; newsize=${newsize}kB; diffsize=$diffsize; iterate=$iterate;"
@@ -466,8 +471,14 @@ if [ $test4 -eq 1 ]; then
 		done
 	fi
 	
-elif [ "$changetype" = "no" -o "$copy" = "yes" ]; then
+elif [ "$changetype" = "no" -a "$copy" = "yes" ]; then
 	convert "$infile" "$outfile"
+
+else
+	convert $tmpA1 -depth 8 $setcompression $setquality $setunits "$outfile"
 fi
+
+finalsize=`convert "$outfile" -format "%b" info:`
+echo "final size = $finalsize"
 
 exit

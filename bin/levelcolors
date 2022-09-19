@@ -253,7 +253,7 @@ chi2=`echo "$colors" | sed -n 's/^[^x][^x]*x\([^x][^x]*\)$/\1/p'`
 
 # get IM version for version trap
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # get colorspace and channels of image
 if [ $im_version -ge 06030901 ]; then 
@@ -477,4 +477,3 @@ elif [ "$imagechannels" = "rgba" -o "$imagechannels" = "ga" ]; then
 		$tmpAl -alpha off -compose copy_opacity -composite "$outfile"
 fi
 exit 0
-

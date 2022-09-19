@@ -1,6 +1,6 @@
 #!/bin/bash
 # 
-# Developed by Fred Weinhaus and Dirk Lemstra 10/2/2015 .... revised 10/18/2017
+# Developed by Fred Weinhaus and Dirk Lemstra 10/2/2015 .... revised 8/12/2018
 #
 # ------------------------------------------------------------------------------
 # 
@@ -52,7 +52,7 @@
 #                                default=0 (no change) 
 # -p              preview        preview displays a red box on input image; 
 #                                choices are: viewonly (vo), view (v), 
-#                                save (s) or off (o); default=off
+#                                saveonly (so), save (s) or off (o); default=off
 # -h or -help                    get help
 # 
 ###
@@ -299,8 +299,13 @@ trap "rm -f $tmpA1 $tmpA2 $tmpB1 $tmpB2; exit 1" 1 2 3 15
 
 # get im_version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
+if [ "$im_version" -ge "07000000" ]; then
+	identifying="magick identify"
+else
+	identifying="identify"
+fi
 
 # read the input image into the temporary cached image and test if valid
 convert -quiet "$infile" +repage $tmpA1 ||
@@ -310,8 +315,8 @@ convert -quiet "$infile" +repage $tmpA1 ||
 dimensions()
 	{
 	img=$1
-	width=`identify -ping -format "%w" $img`
-	height=`identify -ping -format "%h" $img`
+	width=`$identifying -ping -format "%w" $img`
+	height=`$identifying -ping -format "%h" $img`
 	widthm1=$((width-1))
 	heightm1=$((height-1))
 	#echo "width=$width; height=$height; widthm1=$widthm1; heightm1=$heightm1;"
@@ -623,7 +628,7 @@ brx=$((xoff+ww-1))
 bry=$((yoff+hh-1))
 
 # generate preview image
-if [ "$preview" = "on" ]; then
+if [ "$preview" != "off" ]; then
 	inname=`convert -ping "$infile" -format "%t" info:`
 	suffix=`convert -ping "$infile" -format "%e" info:`
 fi
@@ -638,13 +643,6 @@ fi
 # generate cropped image
 if [ "$preview" != "viewonly" -a "$preview" != "saveonly" ]; then
 	convert $tmpA1[${ww}x${hh}+${xoff}+${yoff}] "$outfile"
-fi
-
-# list crop coordinates at terminal
-echo "Crop Box: ${ww}x${hh}+$xoff+$yoff"
-
-exit 0
-[${ww}x${hh}+${xoff}+${yoff}] "$outfile"
 fi
 
 # list crop coordinates at terminal

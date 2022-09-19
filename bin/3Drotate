@@ -1,12 +1,12 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/18/2007 .......... revised 3/21/2017
+# Developed by Fred Weinhaus 8/18/2007 .......... revised 10/25/2020
 #
 # ------------------------------------------------------------------------------
 # 
 # Licensing:
 # 
-# Copyright © Fred Weinhaus
+# Copyright Â© Fred Weinhaus
 # 
 # My scripts are available free of charge for non-commercial use, ONLY.
 # 
@@ -352,10 +352,10 @@ function M3inverse
 # function to test if entry is floating point number
 function testFloat
 	{
-	test1=`expr "$1" : '^[0-9][0-9]*$'`  				# counts same as above but preceeded by plus or minus
-	test2=`expr "$1" : '^[+-][0-9][0-9]*$'`  			# counts one or more digits
-	test3=`expr "$1" : '^[0-9]*[\.][0-9]*$'`			# counts 0 or more digits followed by period followed by 0 or more digits
-	test4=`expr "$1" : '^[+-][0-9]*[\.][0-9]*$'`		# counts same as above but preceeded by plus or minus
+	test1=`expr "$1" : '[0-9][0-9]*'`  				# counts same as above but preceeded by plus or minus
+	test2=`expr "$1" : '[+-][0-9][0-9]*'`  			# counts one or more digits
+	test3=`expr "$1" : '[0-9]*[\.][0-9]*'`			# counts 0 or more digits followed by period followed by 0 or more digits
+	test4=`expr "$1" : '[+-][0-9]*[\.][0-9]*'`		# counts same as above but preceeded by plus or minus
 	floatresult=`expr $test1 + $test2 + $test3 + $test4`
 #	[ $floatresult = 0 ] && errMsg "THE ENTRY $1 IS NOT A FLOATING POINT NUMBER"
 	}
@@ -533,7 +533,7 @@ else
 	        vp[=]*)    # virtual pixel method
 					   arg="$1="
 					   vp=`echo "$arg" | cut -d= -f2`
-					   [ "$vp" != "background" -a "$vp" != "dither" -a "$vp" != "edge" -a "$vp" != "mirror" -a "$vp" != "random" -a "$vp" != "tile" -a "$vp" != "transparent" ] && errMsg "VP=$vp IS NOT A VALID VALUE"
+					   [ "$vp" != "background" -a "$vp" != "dither" -a "$vp" != "edge" -a "$vp" != "mirror" -a "$vp" != "random" -a "$vp" != "tile" -a "$vp" != "transparent" -a "$vp" != "none" ] && errMsg "VP=$vp IS NOT A VALID VALUE"
 					   ;;
 	   	  auto[=]*)    # output background color
 					   arg="$1="
@@ -884,7 +884,7 @@ else
 fi
 
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # set up $matting
 if [ "$im_version" -ge "070000000" -a "$im_version" -le "07000409" ]

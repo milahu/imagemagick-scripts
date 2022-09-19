@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 7/22/2013 .......... revised 6/8/2015
+# Developed by Fred Weinhaus 7/22/2013 .......... revised 7/11/2022
 #
 # ------------------------------------------------------------------------------
 # 
@@ -308,8 +308,8 @@ function randomPts()
 		seedingx="-seed $seedx"
 		seedingy="-seed $seedy"
 	fi
-	xx=`convert xc: $seedingx -format "%[fx:round($ww1*random())]" info:`
-	yy=`convert xc: $seedingy -format "%[fx:round($hh1*random())]" info:`
+	xx=`convert xc: $seedingx -format "%[fx:round($ww1*rand())]" info:`
+	yy=`convert xc: $seedingy -format "%[fx:round($hh1*rand())]" info:`
 	}
 
 # setup temporary images
@@ -322,7 +322,7 @@ tmpB3="$dir/puzzle_3_$$.cache"
 tmpS="$dir/puzzle_S_$$.svg"
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpS $dir/tmpS.svg;" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpS $dir/tmpS.svg; exit 1" 1 2 3 15
-trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpS $dir/tmpS.svg; exit 1" ERR
+#trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpS $dir/tmpS.svg; exit 1" ERR
 
 
 # read the input image into the temporary cached image and test if valid
@@ -9081,10 +9081,10 @@ echo '<?xml version="1.0" standalone="no"?>
 
 # do not know why I need to do this for IM 7
 # can use $tmpS for IM 6 and it works fine
-convert $tmpS $dir/tmpS.svg
+#convert $tmpS $dir/tmpS.svg
 
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # get input size
 ww=`convert $tmpA1 -format "%w" info:`
@@ -9092,8 +9092,15 @@ hh=`convert $tmpA1 -format "%h" info:`
 ww1=$((ww-1))
 hh1=$((hh-1))
 
+# set up channels for IM 7 threshold
+if [ "$im_version" -ge "07000000" ]; then
+	channeling="-channel rgb"
+else
+	channeling=""
+fi
+
 # compute scale
-density=`convert $tmpA1 -format "%[fx:$scale*72/100]" info:`
+density=`convert $tmpA1 -format "%[fx:$scale*96/100]" info:`
 #echo "ww=$ww; hh=$hh; density=$density"
 
 # NOTE: restrict to MSVG so it reproduces my examples.
@@ -9105,18 +9112,13 @@ if [ $scale -lt 80 ]; then
 	# empirical tests to try to make the grid transition (width) for anti-aliased to aliased less obvious.
 	# factor=scale/20 - 2.5 so that at scale=60 factor is 0.5 and at scale=80 factor is 1.5
 	thresh=`convert xc: -format "%[fx:($scale<60)?0.5*(100-$scale):($scale/20-2.5)*(100-$scale)]" info:`
-
-	convert -density $density MSVG:$dir/tmpS.svg -threshold 50% -write mpr:tile +delete \
-		\( -size ${ww}x${hh} tile:mpr:tile +write $tmpA2 +delete \) \
-		-threshold $thresh% -size ${ww}x${hh} tile:mpr:tile $tmpA3
+	convert -density $density MSVG:$tmpS -channel rgb -depth 8 -write mpr:tile +delete \
+		-size ${ww}x${hh} tile:mpr:tile +write $tmpA2  \
+		-threshold $thresh% $tmpA3
 	
-# alternate, makes slightly darker but more aliased	
-#	convert -density $density $tmpS -write mpr:tile +delete \
-#		-size ${ww}x${hh} tile:mpr:tile \( +write $tmpA2 \) -threshold $thresh% $tmpA3
-
-
 else
-	convert -density $density MSVG:$dir/tmpS.svg -threshold 50% -write mpr:tile +delete -size ${ww}x${hh} tile:mpr:tile +write $tmpA3 $tmpA2
+	convert -density $density MSVG:$tmpS -channel rgb -depth 8 -write mpr:tile +delete \
+	-size ${ww}x${hh} tile:mpr:tile +write $tmpA3 $tmpA2
 fi
 
 # get random coordinates and process mask for each filling empty tile with transparency
@@ -9131,7 +9133,7 @@ if [ $missing -gt 0 ]; then
 		# test if color equals pure black
 		testcolor=`convert $tmpA3 -depth 8 -format "%[pixel:u.p{$xx,$yy}]" info:`
 #echo "testcolor=$testcolor"
-		if [ "$testcolor" = "black" ]; then
+		if [ "$testcolor" = "black" -o "$testcolor" = "srgb(0,0,0)" -o "$testcolor" = "srgba(0,0,0,1)" ]; then
 			if [ "$im_version" -ge "07000000" ]; then
  				args="alpha $xx,$yy floodfill"
  			else
@@ -9151,7 +9153,7 @@ if [ "$ocolor" = "carve" ]; then
 	proc="$tmpA2 -shade 225x45"
 	ocolor="gray40"
 else
-	proc="-clone 0 -fill $ocolor -colorize 100"
+	proc="-clone 0 -fill $ocolor -colorize 100%"
 fi
 
 if [ $missing -gt 0 ]; then
@@ -9160,9 +9162,11 @@ if [ $missing -gt 0 ]; then
 		# use antialiased version of the tiled pattern as mask and composite with original
 		# convert (binary) tiled pattern so that non transparent is replaced with white
 		# put the previous image as alpha channel of previous composited image
+		# Note need -alpha off after $tmpA2 for IM 7.
+
 		convert $tmpA1 \
 			\( $proc \) \
-			$tmpA2 -compose over -composite \
+			$tmpA2 -alpha off -compose over -composite \
 			\( $tmpA3 -fill "rgba(255,255,255,1)" +opaque "rgba(0,0,0,0)" \) \
 			-alpha off -compose copy_opacity -composite \
 			-compose over -background "$ecolor" -flatten "$outfile"
@@ -9184,16 +9188,18 @@ if [ $missing -gt 0 ]; then
 			# create shadow 
 			# use -layers merge with previous image to add shadow to overlaid pieces
 			# composite that result over the previous process image with colored missing pieces
+			# Note need -alpha off after $tmpA2 for IM 7.
+
 			convert $tmpA1 \
 				\( $proc \) \
-				$tmpA2 -compose over -composite \
-				\( $tmpA3 -fill "rgba(255,255,255,1)" +opaque "rgba(0,0,0,0)" -write mpr:missing \) \
-				-alpha off -compose copy_opacity -composite \
-				-compose over -background "$ecolor" -compose over -flatten \
+				$tmpA2 -alpha off -compose over -composite +write y1.png \
+				\( $tmpA3 -fill "rgba(255,255,255,1)" +opaque "rgba(0,0,0,0)" +write y2.png -write mpr:missing \) \
+				-alpha off -compose copy_opacity -composite +write y3.png \
+				-compose over -background "$ecolor" -compose over -flatten +write y4.png \
 				\( \( $tmpA1 \( mpr:missing -alpha off -negate \) -compose copy_opacity -composite \
 						-background none -virtual-pixel none -filter point -distort SRT "$cx,$cy 1 $rotate $x1,$y1" \) \
-					\( +clone -fill white +opaque none -alpha off -morphology edge diamond:1 \) \
-					\( +clone -fill "$ocolor" -colorize 100 \) +swap -compose over -composite \
+					\( +clone -channel rgba -fill white +opaque none -alpha off -morphology edge diamond:1 \) \
+					\( +clone -fill "$ocolor" -colorize 100% \) +swap -compose over -composite \
 					\( +clone -background black -shadow ${opacity}x${depth}+${length}+${length} \) \
 						+swap -background none -layers merge +repage \) \
 				-compose over -flatten "$outfile"
@@ -9207,12 +9213,14 @@ if [ $missing -gt 0 ]; then
 			# create edge image of missing pieces
 			# create constant image of ocolor and composite with mask and SRT image
 			# composite that over the previous process image with colored missing pieces
+			# Note need -alpha off after $tmpA2 for IM 7.
+
 			convert $tmpA1 \
 				\( $proc \) \
-				$tmpA2 -compose over -composite \
-				\( $tmpA3 -fill "rgba(255,255,255,1)" +opaque "rgba(0,0,0,0)" -write mpr:missing \) \
-				-alpha off -compose copy_opacity -composite \
-				-compose over -background "$ecolor" -compose over -flatten \
+				$tmpA2 -alpha off -compose over -composite +write y1.png \
+				\( $tmpA3 -channel rgba -fill "rgba(255,255,255,1)" +opaque "rgba(0,0,0,0)" +write y2.png -write mpr:missing \) \
+				-alpha off -compose copy_opacity -composite +write y3.png \
+				-compose over -background "$ecolor" -compose over -flatten +write y4.png \
 				\( \( $tmpA1 \( mpr:missing -alpha off -negate \) -compose copy_opacity -composite \
 						-background none -virtual-pixel none -filter point -distort SRT "$cx,$cy 1 $rotate $x1,$y1" \) \
 					\( +clone -fill white +opaque none -alpha off -morphology edge diamond:1 \) \
@@ -9221,8 +9229,8 @@ if [ $missing -gt 0 ]; then
 		fi
 	fi
 else
-	convert $tmpA1 \( $proc \) $tmpA2 -compose over -composite "$outfile"
+	# Note need -alpha off after $tmpA2 for IM 7.
+	convert $tmpA1 \( $proc \) $tmpA2 -alpha off -compose over -composite "$outfile"
 fi
 
 exit 0
-

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 10/30/2008 .......... revised 11/3/2015
+# Developed by Fred Weinhaus 10/30/2008 .......... revised 5/23/2019
 #
 # ------------------------------------------------------------------------------
 # 
@@ -26,7 +26,7 @@
 # 
 ####
 #
-# USAGE: localthresh [-m method] [-s size] [-b bias] [-n negate] infile outfile
+# USAGE: localthresh [-m method] [-r radius] [-b bias] [-n negate] infile outfile
 # USAGE: localthresh [-help]
 #
 # OPTIONS:
@@ -98,7 +98,7 @@
 # -n negate ... NEGATE indicates whether to negate the image before 
 # and after processing, since this technique only works when the "object" 
 # or foreground is white and the "non-object" or background is black. 
-# Values may be either yes or no. The default=yes.
+# Values may be either yes or no. The default=no.
 # 
 # REFERENCES: see the following:
 # http://www.dfki.uni-kl.de/~shafait/papers/Shafait-efficient-binarization-SPIE08.pdf
@@ -253,7 +253,7 @@ trap "rm -f $tmpA1 $tmpA2 $tmpT1 $tmpT2 $tmpM1 $tmpM2 $tmpS1 $tmpS2; exit 1" 1 2
 
 # get im_version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
 # though probably not resolved until the latter
@@ -345,4 +345,3 @@ else
 fi
 
 exit 0
-

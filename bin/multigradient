@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 5/14/2013 .......... revised 10/9/2015
+# Developed by Fred Weinhaus 5/14/2013 .......... revised 2/2/2019
 #
 # ------------------------------------------------------------------------------
 # 
@@ -77,10 +77,13 @@
 # 
 # -h height ... HEIGHT of desired output image. The default=256.
 # 
-# -s stops ... STOPS are a space separate list of pairs of colors and percent 
-# locations along the gradient enclosed in double quotes. The first and last 
-# percent location may be left off and are then assumed to be 0 and 100 
-# (percent). The default="white black" or "white 0 black 100".
+# -s stops ... STOPS are a space separate list of pairs of colors and percent
+# locations along the gradient enclosed in double quotes. The colors may be color
+# names, hex colors, rgb colors or a mix. The first and last percent location may
+# be left off and are then assumed to be 0 and 100 (percent). The first percentage
+# must be zero if specified. The last percentage may be less than 100 if
+# specified. In this case, then last color will be use to fill out the gradient.
+# The default="white black" or "white 0 black 100".
 # 
 # -t type ... TYPE of gradient. The choices are: linear, circle or ellipse. 
 # The default=linear.
@@ -291,7 +294,7 @@ tmpA2="$dir/multigradient_2_$$.mpc"
 tmpB2="$dir/multigradient_2_$$.cache"
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2;" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
-trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" ERR
+#trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" ERR
 
 
 function linearGradient
@@ -308,11 +311,9 @@ function linearGradient
 	dist=`convert xc: -format "%[fx:abs($width*$cos)+abs($height*$sin)]" info:`
 #	echo "dist=$dist; phase=$phase; angle=$angle"
 
-: <<COMMENT1
 	# slow pure fx approach
-	convert -size ${width}x${height} xc: \
-		-fx "xx=((i-$cx)*$cos+(j-$cy)*$sin)/$rx; yy=((i-$cx)*$sin-(j-$cy)*$cos)/$ry; 1-hypot(xx,yy)" \
-COMMENT1
+	# convert -size ${width}x${height} xc: \
+	#	-fx "xx=((i-$cx)*$cos+(j-$cy)*$sin)/$rx; yy=((i-$cx)*$sin-(j-$cy)*$cos)/$ry; 1-hypot(xx,yy)" \
 
 	# faster hybrid approach (same speed if use gradient:)
 	a=`convert xc: -format "%[fx:$cos*($width-1)/$dist]" info:`
@@ -331,6 +332,7 @@ COMMENT1
 
 	}
 
+
 function radialGradient
 	{
 	cx=$1
@@ -339,11 +341,9 @@ function radialGradient
 	ry=$4
 #	echo "cx=$cx; cy=$cy; rx=$rx; ry=$ry"
 	
-: <<COMMENT2
 	# slow pure fx approach
-	convert -size ${width}x1 xc: \
-		-fx "xx=(i-$cx)/$rx; yy=(j-$cy)/$ry; hypot(xx,yy)" $tmpA1
-COMMENT2
+	# convert -size ${width}x1 xc: \
+	#	-fx "xx=(i-$cx)/$rx; yy=(j-$cy)/$ry; hypot(xx,yy)" $tmpA1
 
 	# faster hybrid approach
 	# choose not to use 1D gradient: and -solarize -level 0x50% -evaluate pow 2
@@ -353,6 +353,7 @@ COMMENT2
 		\( -size 1x${height} xc: -fx "yy=(j-$cy)/$ry; yy*yy" -scale ${width}x${height}! \) \
 		-compose plus -composite -evaluate pow 0.5 $tmpA1
 	}
+
 	
 function distSides
 	{
@@ -369,6 +370,7 @@ function distCorners
 	rbottomright=`convert xc: -format "%[fx:hypot($width-1-$cx,$height-1-$cy)]" info:`
 	rbottomleft=`convert xc: -format "%[fx:hypot($cx,$height-1-$cy)]" info:`
 	}
+
 
 function cornerCoords
 	{
@@ -431,7 +433,7 @@ else
 		closest-corner) ;;
 		furthest-corner) ;;
 		*) errMsg "--- DIRECTION=$direction IS AN INVALID VALUE FOR TYPE=ELLIPSE OR TYPE=CIRCLE ---" 
-esac
+	esac
 fi
 
 if [ "$type" = "linear" ]; then
@@ -613,10 +615,10 @@ else
 #	echo "$numm1"
 	last=${colorArr[$numm1]}
 	# ensure first and last percent are 0 and 100
-	firstpct=${percentArr[1]}
-	lastpct=${percentArr[$num]}
+	firstpct=${percentArr[0]}
+	lastpct=${percentArr[$numm1]}
 	[ "$firstpct" != "0" ] && errMsg "--- FIRST PERCENT MUST BE 0 ---"
-	[ "$lastpct" != "100" ] && errMsg "--- LAST PERCENT MUST BE 100 ---"
+	#[ "$lastpct" != "100" ] && errMsg "--- LAST PERCENT MUST BE 100 ---"
 fi
 
 # get last color for initial fill of 1D image
@@ -645,14 +647,6 @@ done
 # test if alpha channel and not fully opaque
 # requires IM 6.4.3-7 for -alpha
 alphamean=`convert $tmpA2 -alpha on -alpha extract -format "%[fx:mean]" info:`
-if [ "$alphamean" != 1 ]; then
-	convert \( $tmpA1 -alpha copy -channel A -negate +channel \) $tmpA2 -clut "$outfile"
-else
-	convert $tmpA1 $tmpA2 -clut "$outfile"
-fi
-
-exit 0
-tract -format "%[fx:mean]" info:`
 if [ "$alphamean" != 1 ]; then
 	convert \( $tmpA1 -alpha copy -channel A -negate +channel \) $tmpA2 -clut "$outfile"
 else

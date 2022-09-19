@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 1/28/2012 .......... revised 4/25/2015
+# Developed by Fred Weinhaus 1/28/2012 .......... revised 11/3/2019
 #
 # ------------------------------------------------------------------------------
 # 
@@ -113,6 +113,7 @@
 allcolor=""				# overall color
 lowcolor=""				# shadow color
 highcolor=""			# highlight color
+order="h,l,a"			# order
 blendhigh=100			# highlight toned blending with image
 blendlow=100			# shadow toned blending with image
 blendall=100			# overall toned blending with image
@@ -237,7 +238,7 @@ else
 					   errorMsg="--- INVALID ORDER SPECIFICATION ---"
 					   checkMinus "$1"
 					   order=`echo "$1" | tr "[:upper:]" "[:lower:]"`
-					   order=`expr "$order" : '\([hla]*,*[hla]*,[hla]*\)'`
+					   order=`expr "$order" : '\([hla]*,*[hla]*,*[hla]*\)'`
 					   order=`echo $order | sed 's/ *//g'`
 				   	   ;;
 				-i)    # images
@@ -283,14 +284,14 @@ dir="$tmpdir/COLORTONING.$$"
 mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
 trap "rm -rf $dir;" 0
 trap "rm -rf $dir; exit 1" 1 2 3 15
-trap "rm -rf $dir; exit 1" ERR
+#trap "rm -rf $dir; exit 1" ERR
 
 # get inname
 inname=`convert "$infile" -format "%t" info:`
 
 # test for minimum IM version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
 # though probably not resolved until the latter
@@ -324,12 +325,17 @@ fi
 convert -quiet "$infile" +repage $setcspace $dir/tmpI.mpc ||
 errMsg  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
+if [ "$im_version" -ge "07000000" ]; then
+	identifying="magick identify"
+else
+	identifying="identify"
+fi
 
 # get colorspace and type
 # colorspace swapped at IM 6.7.5.5, but not properly fixed until 6.7.6.6
 # before swap verbose info reported colorspace=RGB after colorspace=sRGB
 # not all formats report grayscale for colorspace (gif, tiff, jpg do not), but type will be grayscale
-colorspace=`identify -ping -verbose $dir/tmpI.mpc | sed -n 's/^.*Colorspace: \([^ ]*\).*$/\1/p'`
+colorspace=`$identifying -ping -verbose $dir/tmpI.mpc | sed -n 's/^.*Colorspace: \([^ ]*\).*$/\1/p'`
 if [ "$colorspace" != "RGB" -a "$colorspace" != "sRGB" -a "$colorspace" != "Gray" ]; then
 	errMsg "--- FILE $infile MUST BE RGB, sRGB or GRAY ---"
 fi
@@ -439,6 +445,7 @@ elif [ "$order" = "a,h" ]; then
 	procHigh
 	procImages 2
 elif [ "$order" = "a,l" ]; then
+echo "got here"
 	procAll
 	procImages 1
 	procLow
@@ -491,4 +498,4 @@ fi
 
 convert $dir/tmpP.mpc "$outfile"
 
-exit 00
+exit 0

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 5/23/2010 .......... 4/4/2015
+# Developed by Fred Weinhaus 5/23/2010 .......... 5/29/2020
 #
 # ------------------------------------------------------------------------------
 # 
@@ -312,7 +312,7 @@ trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4; exit 1" ERR
 
 # get im_version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
 # though probably not resolved until the latter
@@ -370,11 +370,13 @@ y1=$ycoord
 # dx=pixel distance from lower right corner along bottom edge
 dx=`convert xc: -format "%[fx:$ww*$amount/100]" info:`
 rangle=`convert xc: -format "%[fx:(180/pi)*atan($dx/($hh-$y1))]" info:`
+#echo "$dx, $rangle"
 
 # compute a=rx as semicircle arc length = dx
 # compute b from a and ellipticity
 a=`convert xc: -format "%[fx:($dx+$ww-$x1)/pi]" info:`
 b=`convert xc: -format "%[fx:$a*(1-$ellipticity)]" info:`
+#echo "$a, $b"
 
 # get diameter by sqrt(2) and a bit more to use for initial ellipse image as it will be trimmed
 a2=`convert xc: -format "%[fx:3*$a]" info:`
@@ -402,6 +404,7 @@ y2=`convert xc: -format "%[fx:$hh-$ehh/2]" info:`
 x2=`convert xc: -format "%[fx:$x1-($y2-$y1)*tan(pi*$angle/180)]" info:`
 x0=`convert xc: -format "%[fx:$x2-$eww/2]" info:`
 y0=`convert xc: -format "%[fx:$y2-$ehh/2]" info:`
+#echo "$y2, $x2, $x0, $y0"
 
 # insert ellipse image in white background at correct location to form mask
 testx=`convert xc: -format "%[fx:sign($x0)]" info:`
@@ -440,21 +443,23 @@ p0x=0
 p0y=-$len
 A=`convert xc: -format "%[fx:$a*$a*$p0y*$p0y + $b*$b*$p0x*$p0x]" info:`
 B=`convert xc: -format "%[fx:-2*$a*$a*$b*$b*$p0x]" info:`
-C=`convert xc: -format "%[fx:$a*$a*$a*$a*($b*$b-$p0y*$p0y)]" info:`
-p3x=`convert xc: -format "%[fx:(-$B-sqrt($B*$B-4*$A*$C))/(2*$A)]" info:`
-p4x=`convert xc: -format "%[fx:(-$B+sqrt($B*$B-4*$A*$C))/(2*$A)]" info:`
-p3y=`convert xc: -format "%[fx:($a*$a*$b*$b-$b*$b*$p0x*$p3x)/($a*$a*$p0y)]" info:`
-p4y=`convert xc: -format "%[fx:($a*$a*$b*$b-$b*$b*$p0x*$p4x)/($a*$a*$p0y)]" info:`
+C=`convert xc: -format "%[fx:$a*$a*$a*$a*(($b*$b)-($p0y*$p0y))]" info:`
+p3x=`convert xc: -format "%[fx:(-$B-sqrt(($B*$B)-4*($A*$C)))/(2*$A)]" info:`
+p4x=`convert xc: -format "%[fx:(-$B+sqrt(($B*$B)-4*($A*$C)))/(2*$A)]" info:`
+p3y=`convert xc: -format "%[fx:(($a*$a*$b*$b)-($b*$b*$p0x*$p3x))/($a*$a*$p0y)]" info:`
+p4y=`convert xc: -format "%[fx:(($a*$a*$b*$b)-($b*$b*$p0x*$p4x))/($a*$a*$p0y)]" info:`
+#echo "$p0y, $A, $B, $C, $p3x, $p4x, $p3y, $p4y"
 
 # rotate p2 and p3 relative to p1 by angle3
-x3=`convert xc: -format "%[fx:($p3x)cos(pi*$angle/180)-($p3y+$len)sin(pi*$angle/180)+$x1]" info:`
-y3=`convert xc: -format "%[fx:($p3x)sin(pi*$angle/180)+($p3y+$len)cos(pi*$angle/180)+$y1]" info:`
-x4=`convert xc: -format "%[fx:($p4x)cos(pi*$angle/180)-($p4y+$len)sin(pi*$angle/180)+$x1]" info:`
-y4=`convert xc: -format "%[fx:($p4x)sin(pi*$angle/180)+($p4y+$len)cos(pi*$angle/180)+$y1]" info:`
+x3=`convert xc: -format "%[fx:($p3x)*cos(pi*$angle/180)-($p3y+$len)*sin(pi*$angle/180)+$x1]" info:`
+y3=`convert xc: -format "%[fx:($p3x)*sin(pi*$angle/180)+($p3y+$len)*cos(pi*$angle/180)+$y1]" info:`
+x4=`convert xc: -format "%[fx:($p4x)*cos(pi*$angle/180)-($p4y+$len)*sin(pi*$angle/180)+$x1]" info:`
+y4=`convert xc: -format "%[fx:($p4x)*sin(pi*$angle/180)+($p4y+$len)*cos(pi*$angle/180)+$y1]" info:`
+#echo "$x3, $y3, $x4, $y4"
 
 # create triangle mask
 convert -size ${ww}x${hh} xc:black \
-	-fill white -stroke white -strokewidth $swidth -draw "polygon $x1,$y1 $x3,$y3 $x4,$y4" $tmpA3
+	-fill white -stroke white -strokewidth $swidth -draw "polygon $x1,$y1 $x3,$y3 $x4,$y4" -alpha off $tmpA3
 
 # setup for grad or doublegrad
 if [ "$mode" = "grad" ]; then
@@ -505,4 +510,4 @@ convert $tmpA4 \( -size ${ww}x${hh} xc:white \
 	-alpha off -compose copy_opacity -composite \
 	-compose over $back -flatten "$outfile"
 
-exit 00
+exit 0

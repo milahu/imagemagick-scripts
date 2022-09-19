@@ -314,7 +314,7 @@ echo "width=$width"
 
 		# get im_version
 		im_version=`convert -list configure | \
-			sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+			sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 		
 		# colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
 		# though probably not resolved until the latter
@@ -374,7 +374,7 @@ profile()
 
 	# draw graph of point pairs
 	im_version=`convert -list configure | \
-		sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+		sed '/^LIB_VERSION_NUMBER */!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 	if [ $width -le 300 -o "$im_version" -ge "06030600" ]
 		then 
 		convert -size ${width}x${height} xc: \
@@ -519,4 +519,4 @@ fi
 convert $tmp4 "$outfile"
 
 echo ""
-exit 0 0
+exit 0

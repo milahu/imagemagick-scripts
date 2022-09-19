@@ -211,7 +211,7 @@ fi
 
 # get im version to use for switching methods depending upon version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 [ "$im_version" -lt "06040204" ] && usage "--- IM 6.4.2.4 OR HIGHER REQUIRED ---"
 
@@ -337,4 +337,4 @@ else
   convert $dir/result.miff -loop 0 "$outfile"
 fi
 
-exit 00
+exit 0

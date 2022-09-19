@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 11/11/2014 .......... revised 8/18/2017
+# Developed by Fred Weinhaus 11/11/2014 .......... revised 7/17/2020
 #
 # ------------------------------------------------------------------------------
 # 
@@ -29,7 +29,7 @@
 # USAGE: tshirt [-r region] [-c coords] [-f fit] [-g gravity] [-v vshift] 
 # [-o offset] [-R rotate] [-l lighting] [-s sharpen] [-b blur] [-d displace] 
 # [-a antialias] [-A attenuate] [-B brightness] [-S saturation] [-C compose] 
-# [-E] [-D directory] infile bgfile outfile
+# [-o opacity] [-E] [-D directory] infile bgfile [maskfile] outfile
 #
 # USAGE: tshirt [-help|-h]
 #
@@ -50,17 +50,30 @@
 #                      specified. But coordinates take precedent. Coordinates 
 #                      are not restricted to a rectangle and the region 
 #                      defined by the coordinates can have rotation.
-# -f     fit           fit is either crop (c) or distort (d);  If crop, then 
-#                      the overlay image (infile) will be cropped to make 
-#                      its vertical aspect ratio fit that of the region 
-#                      or coordinate area. This will not distort the image, 
-#                      only make it fit the size of the region or coordinate 
-#                      area. The image will not be cropped, if its vertical
-#                      aspect ratio is smaller than that of the region. If 
-#                      distort, the overlay image (infile) will be fit to the  
-#                      region or coordinate area, if the aspect ratio of the 
-#                      overlay image (infile) does not match that of the region 
-#                      or coordinate area. The default=crop.
+# -f     fit           fit can be: crop (c), distort (d) scale (s), top (t) 
+#                      or none (n); If crop, then the overlay image (infile) 
+#                      will be resized to the width of the region (or coordinate 
+#                      area) and cropped if needed. This will not distort the 
+#                      image. The image will not be cropped, if its height is 
+#                      smaller than that of the region and it will then be 
+#                      aligned at the top of the region. If distort, then the 
+#                      overlay image (infile) will be resized to fit exactly    
+#                      to the region (or coordinate area). This will cause 
+#                      distortion, if the aspect ratio of the overlay image 
+#                      (infile) does not match the aspect ratio of the region 
+#                      (or coordinate area). If scale, then the overlay image 
+#                      (infile) will be resized so that the larger dimension 
+#                      fits the region (or coordinate area) and the other 
+#                      dimension is smaller. The resized overlay image (infile) 
+#                      will be centered in the region. If top, then the overlay 
+#                      image (infile) will be resized so that both width and 
+#                      height fit into the region without distorting and placed 
+#                      at the top center of the region. The default=none, which 
+#                      means that the image will be resized to fit the width of  
+#                      the region (or coordinate area) and aligned at the top of 
+#                      the region. If the height of the resized image is larger 
+#                      than the height of the region, it will extend past the 
+#                      bottom of the region.
 # -g     gravity       gravity for selecting the crop location; choices are:
 #                      north (n), south (s) or center (c). The default=center
 # -v     vshift        vertical shift of the crop region with respect to the 
@@ -94,8 +107,10 @@
 # -S     saturation    saturation percent change to the input overlay image; 
 #                      positive or negative integer; default=0
 # -C     compose       compose method to merge the input overlay (infile) image with  
-#                      the background (bgfile); choices are: hardlight, multiply or 
-#                      over; default=hardlight
+#                      the background (bgfile); choices are: hardlight, multiply, 
+#                      screen or over; default=hardlight
+# -O     opacity       opacity to apply to the image; 0<=integer<=100; default=100 
+#                      (fully opaque)
 # -E     export        export the lighting image, displacement map and other 
 #                      needed parameters to be able to use a condensed script 
 #                      to repeat the processing on the same size and style tshirt 
@@ -105,7 +120,12 @@
 #                      sent to terminal. The directory can be specified in the tshirtwarp 
 #                      script to import all the needed images and textual data.
 #
-# infile is the overlay image to apply to the tshirt, which is the bgfile
+# infile is the overlay image to apply to the tshirt.
+# 
+# bgfile is the tshirt image.
+# 
+# maskfile is a mask of part or all of the tshirt to limit the region onto which the 
+# overlay image is to be applied.
 #
 ###
 #
@@ -134,14 +154,24 @@
 # coordinates take precedent. Coordinates are not restricted to a rectangle 
 # and the region defined by the coordinates can have rotation.
 # 
-# -f fit ... FIT is crop (c), distort (d) or none. If crop, then the overlay
-# image (infile) will be cropped to make its vertical aspect ratio fit that of
-# the region or coordinate area. This will not distort the image, only make it
-# fit the size of the region or coordinate area. The image will not be
-# cropped, if its vertical aspect ratio is smaller than that of the region. If
-# distort, the overlay image (infile) will be fit to the region or coordinate
-# area, if the aspect ratio of the overlay image (infile) does not match that
-# of the region or coordinate area. The default is none.
+# -f fit ... fit can be: crop (c), distort (d) scale (s), top (t) or none (n); 
+# If crop, then the overlay image (infile) will be resized to the width of the 
+# region (or coordinate area) and cropped if needed. This will not distort the 
+# image. The image will not be cropped, if its height is smaller than that of 
+# the region and it will then be aligned at the top of the region. If distort, 
+# then the overlay image (infile) will be resized to fit exactly to the region 
+# (or coordinate area). This will cause distortion, if the aspect ratio of the 
+# overlay image (infile) does not match the aspect ratio of the region (or 
+# coordinate area). If scale, then the overlay image (infile) will be resized 
+# so that the larger dimension fits the region (or coordinate area) and the 
+# other dimension is smaller. The resized overlay image (infile) will be 
+# centered in the region. If top, then the overlay image (infile) will be 
+# resized so that both width and height fit into the region without distorting 
+# and placed at the top center of the region. The default=none, which means 
+# that the image will be resized to fit the width of the region (or coordinate 
+# area) and aligned at the top of the region. If the height of the resized 
+# image is larger than the height of the region, it will extend past the bottom 
+# of the region.
 # 
 # -g gravity ... GRAVITY for selecting the crop location. The choices are:
 # north (n), south (s) or center (c). The default=center. 
@@ -187,13 +217,16 @@
 # positive or negative integers. The default=0.
 # 
 # -C compose ... COMPOSE method to merge the overlay (infile) image with the 
-# background (bgfile). Choices are: hardlight (h), multiply (m) or over (o). 
+# background (bgfile). Choices are: hardlight (h), multiply (m), screen (s) or over (o). 
 # The default=hardlight. The choice of hardlight allows the overlay image 
 # to be brighten and darken according to the folds in the tshirt. The other compose 
 # methods will not do that. The choice of over simply places the overlay image 
 # unchanged upon the tshirt image. The choice of multiply does a multiply operation, 
 # which may change colors and would need adjustment by -B and -S arguments.
-#
+# 
+# -O opacity ... OPACITY to apply to the image. Values are 0<=integers<=100. 
+# The default=100 (fully opaque).
+# 
 # -E ... EXPORT the lighting image, displacement map and other needed 
 # parameters for use with a condensed script to repeat the processing on the 
 # same tshirt image apart from coloring for faster processing. The lighting 
@@ -242,6 +275,7 @@ attenuate=0				# attenuation of bgfile texture onto the infile; float
 brightness=0			# brightness change to the infile; integer 
 saturation=0			# saturation change to the infile; integer 
 compose="hardlight"		# compose method; hardlight or multiply
+opacity=100             # opacity to apply to the image.
 export="no"				# export lighting image, displacement map and other arguments
 directory=""			# directory to write the lighting image, displacement map and text file
 
@@ -292,7 +326,7 @@ if [ $# -eq 0 ]
    echo ""
    usage2
    exit 0
-elif [ $# -gt 37 ]
+elif [ $# -gt 39 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -333,6 +367,8 @@ else
 					   		none|n) fit="none" ;;
 					   		crop|c) fit="crop" ;;
 					   		distort|d) fit="distort" ;;
+					   		scale|s) fit="scale" ;;
+					   		top|t) fit="top" ;;
 					   		*) errMsg "--- FIT=$fit IS AN INVALID VALUE ---" 
 					   	esac
 					   ;;
@@ -373,10 +409,10 @@ else
 					   errorMsg="--- INVALID ROTATE SPECIFICATION ---"
 #					   checkMinus "$1"
 					   rotate=`expr "$1" : '\([-]*[.0-9]*\)'`
-					   [ "$rotate" = "" ] && errMsg "--- ROTATE=$rotate MUST BE A NON-NEGATIVE FLOAT ---"
+					   [ "$rotate" = "" ] && errMsg "--- ROTATE=$rotate MUST BE A FLOAT ---"
 					   test1=`echo "$rotate < -360" | bc`
 					   test2=`echo "$rotate > 360" | bc`
-					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- ROTATE=$rotate MUST BE AN INTEGER BETWEEN -360 AND 360 ---"
+					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- ROTATE=$rotate MUST BE A FLOAT BETWEEN -360 AND 360 ---"
 					   ;;
 				-s)    # get sharpen
 					   shift  # to get the next parameter
@@ -408,7 +444,7 @@ else
 					   errorMsg="--- INVALID LIGHTING SPECIFICATION ---"
 					   #checkMinus "$1"
 					   lighting=`expr "$1" : '\([-0-9]*\)'`
-					   [ "$lighting" = "" ] && errMsg "--- LIGHTING=$lighting MUST BE A NON-NEGATIVE INTEGER ---"
+					   [ "$lighting" = "" ] && errMsg "--- LIGHTING=$lighting MUST BE AN INTEGER ---"
 					   test1=`echo "$lighting < -100" | bc`
 					   test2=`echo "$lighting > 100" | bc`
 					   [ $test1 -eq 1 -o $test2 -eq 1 ] && errMsg "--- LIGHTING=$lighting MUST BE AN INTEGER BETWEEN -30 AND 30 ---"
@@ -435,7 +471,7 @@ else
 					   errorMsg="--- INVALID BRIGHTNESS SPECIFICATION ---"
 					   #checkMinus "$1"
 					   brightness=`expr "$1" : '\([-0-9]*\)'`
-					   [ "$brightness" = "" ] && errMsg "--- BRIGHTNESS=$brightness MUST BE A NON-NEGATIVE INTEGER ---"
+					   [ "$brightness" = "" ] && errMsg "--- BRIGHTNESS=$brightness MUST BE AN INTEGER ---"
 					   testA=`echo "$brightness < -100" | bc`
 					   testB=`echo "$brightness > 100" | bc`
 					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- BRIGHTNESS=$brightness MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
@@ -446,7 +482,7 @@ else
 					   errorMsg="--- INVALID SATURATION SPECIFICATION ---"
 					   #checkMinus "$1"
 					   saturation=`expr "$1" : '\([-0-9]*\)'`
-					   [ "$saturation" = "" ] && errMsg "--- SATURATION=$saturation MUST BE A NON-NEGATIVE INTEGER ---"
+					   [ "$saturation" = "" ] && errMsg "--- SATURATION=$saturation MUST BE AN INTEGER ---"
 					   testA=`echo "$saturation < -100" | bc`
 					   testB=`echo "$saturation > 100" | bc`
 					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- SATURATION=$saturation MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
@@ -462,9 +498,20 @@ else
 					   case "$compose" in 
 					   		hardlight|h) compose="hardlight" ;;
 					   		multiply|m) compose="multiply" ;;
+					   		screen|s) compose="screen" ;;
 					   		over|o) compose="over" ;;
 					   		*) errMsg "--- COMPOSE=$compose IS AN INVALID VALUE ---" 
 					   	esac
+					   ;;
+				-O)    # get opacity
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OPACITY SPECIFICATION ---"
+					   checkMinus "$1"
+					   opacity=`expr "$1" : '\([0-9]*\)'`
+					   [ "$opacity" = "" ] && errMsg "--- OPACITY=$opacity MUST BE A NON-NEGATIVE INTEGER ---"
+					   test=`echo "$opacity > 100" | bc`
+					   [ $test -eq 1 ] && errMsg "--- OPACITY=$opacity MUST BE AN INTEGER BETWEEN 0 AND 100 ---"
 					   ;;
 				-E)    # get  export
 					   export="yes"
@@ -490,9 +537,19 @@ else
 	done
 	#
 	# get infile and outfile
-	infile="$1"
-	bgfile="$2"
-	outfile="$3"
+	if [ $# -eq 4 ]; then
+		infile="$1"
+		bgfile="$2"
+		maskfile="$3"
+		outfile="$4"
+	elif [ $# -eq 3 ]; then
+		infile="$1"
+		bgfile="$2"
+		outfile="$3"
+	else
+		errMsg "--- INCONSISTENT NUMBER OF INPUT AND OUTPUT IMAGES SPECIFIED ---"
+	fi
+
 fi
 
 # test that infile provided
@@ -532,11 +589,17 @@ if ! convert -quiet "$infile" +repage $modulating $dir/tmpI.mpc; then
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 fi	
 
-# read tshirt image
-if ! convert -quiet "$bgfile" +repage $dir/tmpT.mpc; then
+# read tshirt image and make color (so that result is not grayscale when overlay image is grayscale)
+if ! convert -quiet "$bgfile" +repage -colorspace sRGB $dir/tmpT.mpc; then
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 fi	
 
+if [ "$maskfile" != "" ]; then
+	# read maskfile image
+	if ! convert -quiet "$maskfile" +repage $dir/tmpM.mpc; then
+		errMsg "--- FILE $maskfile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
+	fi	
+fi
 
 # extract coordinates of subsection of tshirt and bounding box
 if [ "$coords" = "" -a "$region" = "" ]; then
@@ -581,6 +644,7 @@ elif [ "$coords" != "" ]; then
 		xoffset=$x1
 		yoffset=$y1
 		topwidth=`convert xc: -format "%[fx:hypot(($x2-$x1),($y2-$y1))+1]" info:`
+		leftheight=`convert xc: -format "%[fx:hypot(($x4-$x1),($y4-$y1))+1]" info:`
 		angle=`convert xc: -format "%[fx:-atan2(($y2-$y1),($x2-$x1))]" info:`
 		#echo "xoffset=$xoffset; yoffset=$yoffset; topwidth=$topwidth; angle=$angle;"
 	else
@@ -602,6 +666,7 @@ elif [ "$region" != "" ]; then
 		xoffset=$minx
 		yoffset=$miny
 		topwidth=$wd
+		leftheight=$ht
 		angle=0
 		#echo "xoffset=$xoffset; yoffset=$yoffset; topwidth=$topwidth; angle=$angle;"
 		x1=$minx
@@ -617,11 +682,26 @@ elif [ "$region" != "" ]; then
 fi
 
 
-# get width of overlay image and compute xscale
+# get width and height of overlay image and compute scale factor to fit region
 ww=`convert -ping $dir/tmpI.mpc -format "%w" info:`
 hh=`convert -ping $dir/tmpI.mpc -format "%h" info:`
-scale=`convert xc: -format "%[fx:($ww-1)/($topwidth-1)]" info:`
-#echo "scale=$scale;"
+# distort does not need scale to be computed. Perspective distort will do that.
+if [ "$fit" = "scale" ]; then
+	if [ $hh -ge $ww ]; then
+		scale=`convert xc: -format "%[fx:($hh-1)/($leftheight-1)]" info:`
+	else
+		scale=`convert xc: -format "%[fx:($ww-1)/($topwidth-1)]" info:`
+	fi
+elif [ "$fit" = "top" ]; then
+	xscale=`convert xc: -format "%[fx:($ww-1)/($topwidth-1)]" info:`
+	yscale=`convert xc: -format "%[fx:($hh-1)/($leftheight-1)]" info:`
+	scale=`convert xc: -format "%[fx:$xscale>$yscale?$xscale:$yscale]" info:`
+	scaleflag=`convert xc: -format "%[fx:$xscale>$yscale?1:0]" info:`
+	[ $scaleflag -eq 1 ] && scaleflag="x" || scaleflag="y"
+elif [ "$fit" = "crop" -o "$fit" = "none" ]; then
+	scale=`convert xc: -format "%[fx:($ww-1)/($topwidth-1)]" info:`
+fi
+#echo "ww=$ww; hh=$hh; wd=$wd; ht=$ht; topwidth=$topwidth; leftheight=$leftheight; xscale=$xscale; yscale=$yscale; scaleflag=$scaleflag; scale=$scale;"
 
 
 # compute corresponding coordinates in overlay image
@@ -635,36 +715,136 @@ if [ "$coords" != "" ]; then
 	yo3=`convert xc: -format "%[fx:round(($x3-$xoffset)*sin($angle)+($y3-$yoffset)*cos($angle))]" info:`
 	xo4=`convert xc: -format "%[fx:round(($x4-$xoffset)*cos($angle)+($y4-$yoffset)*sin($angle))]" info:`
 	yo4=`convert xc: -format "%[fx:round(($x4-$xoffset)*sin($angle)+($y4-$yoffset)*cos($angle))]" info:`
-	# compute max height
+	# compute max width and height
+	# error fixed below 3/19/2020 wo=`convert xc: -format "%[fx:max($xo4-$xo1,$xo3-$xo2)+1]" info:`
+	wo=`convert xc: -format "%[fx:max($xo2-$xo1,$xo4-$xo3)+1]" info:`
 	ho=`convert xc: -format "%[fx:max($yo4-$yo1,$yo3-$yo2)+1]" info:`
-	#echo "ho=$ho;"
-	xo1=0
-	yo1=0
-	xo2=$((ww-1))
-	yo2=0
-	xo3=$((ww-1))
+	#echo "xoffset=$xoffset; yoffset=$yoffset; angle=$angle; wo=$wo; ho=$ho;"
 	if [ "$fit" = "distort" ]; then
+		xo1=0
+		yo1=0
+		xo2=$((ww-1))
+		yo2=$yo1
+		xo3=$xo2
 		yo3=$((hh-1))
-	else
-		yo3=`convert xc: -format "%[fx:(round($scale*($ho-1)))]" info:`
+		xo4=$xo1
+		yo4=$yo3
+	elif [ "$fit" = "scale" ]; then
+		if [ $hh -ge $ww ]; then
+			xo1=`convert xc: -format "%[fx:round(0.5*($ww-$scale*$wo))]" info:`
+			yo1=0
+			xo2=`convert xc: -format "%[fx:(round($xo1+$scale*$wo-1))]" info:`
+			yo2=$yo1
+			xo3=$xo2
+			yo3=`convert xc: -format "%[fx:(round($yo1+$scale*$ho-1))]" info:`
+			xo4=$xo1
+			yo4=$yo3
+		else
+			xo1=0
+			yo1=`convert xc: -format "%[fx:round(0.5*($hh-$scale*$ho))]" info:`
+			xo2=`convert xc: -format "%[fx:(round($xo1+$scale*$wo-1))]" info:`
+			yo2=$yo1
+			xo3=$xo2
+			yo3=`convert xc: -format "%[fx:(round($yo1+$scale*$ho-1))]" info:`
+			xo4=$xo1
+			yo4=$yo3
+		fi
+	elif [ "$fit" = "top" ]; then
+		if [ "$scaleflag" = "y" ]; then
+			xo1=`convert xc: -format "%[fx:round(0.5*($ww-$scale*$wo))]" info:`
+			yo1=0
+			xo2=`convert xc: -format "%[fx:(round($xo1+$scale*$wo-1))]" info:`
+			yo2=$yo1
+			xo3=$xo2
+			yo3=`convert xc: -format "%[fx:(round($yo1+$scale*$ho-1))]" info:`
+			xo4=$xo1
+			yo4=$yo3
+		else
+			xo1=0
+			# center
+			#yo1=`convert xc: -format "%[fx:round(0.5*($hh-$scale*$ht))]" info:`
+			yo1=0
+			xo2=`convert xc: -format "%[fx:(round($xo1+$scale*$wo-1))]" info:`
+			yo2=$yo1
+			xo3=$xo2
+			yo3=`convert xc: -format "%[fx:(round($yo1+$scale*$ho-1))]" info:`
+			xo4=$xo1
+			yo4=$yo3
+		fi
+	elif [ "$fit" = "crop" -o "$fit" = "none" ]; then
+		xo1=0
+		yo1=0
+		xo2=$((ww-1))
+		yo2=$yo1
+		xo3=$xo2
+		yo3=`convert xc: -format "%[fx:(round($scale*$ho-1))]" info:`
+		xo4=$xo1
+		yo4=$yo3
 	fi
-	xo4=0
-	yo4=$yo3
 
 elif [ "$region" != "" ]; then
 	# use input width and scaled height of region for overlay coordinates
-	xo1=0
-	yo1=0
-	xo2=$((ww-1))
-	yo2=0
-	xo3=$((ww-1))
 	if [ "$fit" = "distort" ]; then
+		xo1=0
+		yo1=0
+		xo2=$((ww-1))
+		yo2=$yo1
+		xo3=$xo2
 		yo3=$((hh-1))
-	else
-		yo3=`convert xc: -format "%[fx:(round($scale*($ht-1)))]" info:`
+		xo4=$xo1
+		yo4=$yo3
+	elif [ "$fit" = "scale" ]; then
+		if [ $hh -ge $ww ]; then
+			xo1=`convert xc: -format "%[fx:round(0.5*($ww-$scale*$wd))]" info:`
+			yo1=0
+			xo2=`convert xc: -format "%[fx:(round($xo1+$scale*$wd-1))]" info:`
+			yo2=$yo1
+			xo3=$xo2
+			yo3=`convert xc: -format "%[fx:(round($yo1+$scale*$ht-1))]" info:`
+			xo4=$xo1
+			yo4=$yo3
+		else
+			xo1=0
+			yo1=`convert xc: -format "%[fx:round(0.5*($hh-$scale*$ht))]" info:`
+			xo2=`convert xc: -format "%[fx:(round($xo1+$scale*$wd-1))]" info:`
+			yo2=$yo1
+			xo3=$xo2
+			yo3=`convert xc: -format "%[fx:(round($yo1+$scale*$ht-1))]" info:`
+			xo4=$xo1
+			yo4=$yo3
+		fi
+	elif [ "$fit" = "top" ]; then
+		if [ "$scaleflag" = "y" ]; then
+			xo1=`convert xc: -format "%[fx:round(0.5*($ww-$scale*$wd))]" info:`
+			yo1=0
+			xo2=`convert xc: -format "%[fx:(round($xo1+$scale*$wd-1))]" info:`
+			yo2=$yo1
+			xo3=$xo2
+			yo3=`convert xc: -format "%[fx:(round($yo1+$scale*$ht-1))]" info:`
+			xo4=$xo1
+			yo4=$yo3
+		else
+			xo1=0
+			# center
+			#yo1=`convert xc: -format "%[fx:round(0.5*($hh-$scale*$ht))]" info:`
+			yo1=0
+			xo2=`convert xc: -format "%[fx:(round($xo1+$scale*$wd-1))]" info:`
+			yo2=$yo1
+			xo3=$xo2
+			yo3=`convert xc: -format "%[fx:(round($yo1+$scale*$ht-1))]" info:`
+			xo4=$xo1
+			yo4=$yo3
+		fi
+	elif [ "$fit" = "crop" -o "$fit" = "none" ]; then
+		xo1=0
+		yo1=0
+		xo2=$((ww-1))
+		yo2=$yo1
+		xo3=$xo2
+		yo3=`convert xc: -format "%[fx:(round($scale*$ht-1))]" info:`
+		xo4=$xo1
+		yo4=$yo3
 	fi
-	xo4=0
-	yo4=$yo3
 fi
 #echo "$xo1,$yo1;  $xo2,$yo2;  $xo3,$yo3;  $xo4,$yo4;"
 	
@@ -687,154 +867,9 @@ if [ "$rotate" != "0" ]; then
 fi
 
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 if [ "$im_version" -ge "07000000" ]; then
-	identifying="magick identify"
-else
-	identifying="identify"
-fi
-
-# test if tshirt/bgfile has alpha. If so remove and save for later.
-is_alpha=`$identifying -verbose $dir/tmpT.mpc | grep "Alpha" | head -n 1`
-[ "$is_alpha" != "" ] && convert $dir/tmpT.mpc -alpha extract -blur 0x$antialias -level 50x100% $dir/tmpA.mpc
-
-# convert tshirt/bgfile to grayscale and compute amount to add/subtract to change mean to 50%
-# use bounding box before any additional rotation as good approximation of region
-diff=`convert $dir/tmpT.mpc -alpha off -colorspace gray -write $dir/tmpTG.mpc \
-	-crop ${wd}x${ht}+${minx}+${miny} +repage -format "%[fx:100*mean-50]" info:`
-#echo "diff=$diff"	
-
-
-# set up lighting
-# test for sign of lighting
-test=`convert xc: -format "%[fx:($lighting>0)?1:0]" info:`
-if [ "$lighting" = "0" ]; then
-	lproc=""
-elif [ $test -eq 1 ]; then
-	cont=`convert xc: -format "%[fx:$lighting/3]" info:`
-	lproc="-sigmoidal-contrast $cont,50%"
-elif [ $test -eq 0 ]; then
-	cont=`convert xc: -format "%[fx:abs($lighting)/3]" info:`
-	lproc="+sigmoidal-contrast $cont,50%"
-fi
-#echo "lproc=$lproc"
-
-# set up blurring of the displacement image to soften texture
-if [ "$blur" != "0" ]; then
-	bproc="-blur 0x$blur"
-else
-	bproc=""
-fi
-
-# set up blurring of the bgimage image to soften texture
-if [ "$attenuate" != "0" ]; then
-	aproc="-blur 0x$attenuate"
-else
-	aproc=""
-fi
-#echo "aproc=$aproc"
-
-
-# convert grayscale tshirt to 50% mean, then to lighting image and displacement image
-convert \( $dir/tmpTG.mpc -evaluate subtract $diff% \) \
-	\( -clone 0 $aproc $lproc -write $dir/tmpL.mpc \) +delete \
-	$bproc $dir/tmpD.mpc
-
-# check if export directory exists.
-if [ "$export" = "yes" -a "$directory" != "" ]; then
-	# remove trailing \
-	if [ ! -d "$directory" ]; then 
-		mkdir "$directory" || {
-  		echo >&2 "UNABLE TO CREATE DIRECTORY \"$directory\" -- ABORTING"
-  		exit 10
-  		}
-  	fi
-	# remove trailing \
-  	directory=`echo "$directory" | sed 's/[/]*$//'`
-	convert $dir/tmpL.mpc $directory/lighting.png
-	convert $dir/tmpD.mpc -alpha set $directory/displace.png
-elif [ "$export" = "yes" -a "$directory" = "" ]; then
-	convert $dir/tmpL.mpc lighting.png
-	convert $dir/tmpD.mpc -alpha set displace.png
-fi
-
-
-# set up sharpening of overlay image in perspective
-if [ "$sharpen" != "0" ]; then
-	sproc="-unsharp 0x$sharpen -clamp"
-else
-	sproc=""
-fi
-#echo "sproc=$sproc"
-
-
-# set up cropping
-cropping=""
-if [ "$fit" = "crop" ]; then
-	hc=$((yo3+1))
-	test=`convert xc: -format "%[fx:($hh>$hc)?1:0]" info:`
-	if [ $test -eq 1 ]; then
-		cropping="-gravity $gravity -crop ${ww}x${hc}+0+0 +repage"
-	fi
-fi
-#echo "hh=$hh; hc=$hc; cropping=$cropping"
-
-# set up swapping for -C over
-if [ "$compose" = "over" ]; then
-	swapping="+swap"
-else
-	swapping=""
-fi
-	
-# line2 1-4:  process overlay image to perspective transform with transparent
-#             background the size of the tshirt image and sharpen
-# lines 5-7:  apply lighting image and make tshirt background from lighting image 
-#			  transparent using alpha of previous steps
-# lines 8-10: apply displacement image
-convert -respect-parenthesis \( $dir/tmpTG.mpc -alpha transparent \) \
-	\( $dir/tmpI.mpc $cropping -virtual-pixel none +distort perspective \
-	"$xo1,$yo1 $x1,$y1   $xo2,$yo2 $x2,$y2   $xo3,$yo3 $x3,$y3   $xo4,$yo4 $x4,$y4" $sproc \) \
-	-background none -layers merge +repage \
-	\
-	\( -clone 0 -alpha extract \) \
-	\( -clone 0 $dir/tmpL.mpc $swapping -compose $compose -composite \) \
-	-delete 0 +swap -compose over -alpha off -compose copy_opacity -composite \
-	\
-	$dir/tmpD.mpc \
-	-define compose:args=-$displace,-$displace -compose displace -composite \
-	$dir/tmpITD.mpc
-
-
-# composite distorted overlay onto tshirt
-if [ "$is_alpha" != "" ]; then
-	convert $dir/tmpT.mpc $dir/tmpITD.mpc -compose over -composite \
-		$dir/tmpA.mpc -alpha off -compose copy_opacity -composite "$outfile"
-else
-	convert $dir/tmpT.mpc $dir/tmpITD.mpc -compose over -composite "$outfile"
-fi
-
-if [ "$export" = "yes" ]; then
-	# show arguments to terminal
-	echo "coordinates=\"$xo1,$yo1 $x1,$y1 $xo2,$yo2 $x2,$y2 $xo3,$yo3 $x3,$y3 $xo4,$yo4 $x4,$y4\""
-	echo "antialias=\"$antialias\""
-	echo "sharpen=\"$sharpen\""
-	echo "displace=\"$displace\""
-	echo "modulating=\"$modulating\""
-	echo "compose=\"$compose\""
-fi
-
-if [ "$export" = "yes" -a "$directory" != "" ]; then
-	# save arguments to textfile
-	echo "coordinates=\"$xo1,$yo1 $x1,$y1 $xo2,$yo2 $x2,$y2 $xo3,$yo3 $x3,$y3 $xo4,$yo4 $x4,$y4\"" > $directory/tshirtdata.txt
-	echo "antialias=\"$antialias\"" >> $directory/tshirtdata.txt
-	echo "sharpen=\"$sharpen\"" >> $directory/tshirtdata.txt
-	echo "displace=\"$displace\"" >> $directory/tshirtdata.txt
-	echo "modulating=\"$modulating\"" >> $directory/tshirtdata.txt
-	echo "compose=\"$compose\"" >> $directory/tshirtdata.txt
-fi
-
-exit 0000" ]; then
 	identifying="magick identify"
 else
 	identifying="identify"
@@ -939,19 +974,20 @@ if [ "$opacity" != "100" ]; then
 else
 	oproc=""
 fi
-	
+
 # line2 1-4:  process overlay image to perspective transform with transparent
 #             background the size of the tshirt image and sharpen
 # lines 5-7:  apply lighting image and make tshirt background from lighting image 
 #			  transparent using alpha of previous steps
 # lines 8-10: apply displacement image
-convert -respect-parenthesis \( $dir/tmpTG.mpc -alpha transparent \) \
+# note: need to add -colorspace sRGB to tmpTG to keep tmpI as color after layers merge 7/17/2020 some time after 7.0.8.23
+convert -respect-parenthesis \( $dir/tmpTG.mpc -alpha transparent -colorspace sRGB \) \
 	\( $dir/tmpI.mpc $cropping -virtual-pixel none +distort perspective \
 	"$xo1,$yo1 $x1,$y1   $xo2,$yo2 $x2,$y2   $xo3,$yo3 $x3,$y3   $xo4,$yo4 $x4,$y4" $sproc \) \
 	-background none -layers merge +repage \
 	\
 	\( -clone 0 -alpha extract \) \
-	\( -clone 0 $oproc \( $dir/tmpL.mpc \) $swapping -compose $compose -composite \) \
+	\( -clone 0 $oproc \( $dir/tmpL.mpc \) $swapping -alpha off -compose $compose -composite \) \
 	-delete 0 +swap -compose over -alpha off -compose copy_opacity -composite \
 	\
 	$dir/tmpD.mpc \
@@ -976,6 +1012,9 @@ fi
 if [ "$export" = "yes" ]; then
 	# show arguments to terminal
 	echo "coordinates=\"$xo1,$yo1 $x1,$y1 $xo2,$yo2 $x2,$y2 $xo3,$yo3 $x3,$y3 $xo4,$yo4 $x4,$y4\""
+	echo "fit=\"$fit\""
+	echo "topwidth=\"$topwidth\""
+	echo "leftheight=\"$leftheight\""
 	echo "antialias=\"$antialias\""
 	echo "sharpen=\"$sharpen\""
 	echo "displace=\"$displace\""
@@ -987,6 +1026,9 @@ fi
 if [ "$export" = "yes" -a "$directory" != "" ]; then
 	# save arguments to textfile
 	echo "coordinates=\"$xo1,$yo1 $x1,$y1 $xo2,$yo2 $x2,$y2 $xo3,$yo3 $x3,$y3 $xo4,$yo4 $x4,$y4\"" > $directory/tshirtdata.txt
+	echo "fit=\"$fit\"" >> $directory/tshirtdata.txt
+	echo "topwidth=\"$topwidth\"" >> $directory/tshirtdata.txt
+	echo "leftheight=\"$leftheight\"" >> $directory/tshirtdata.txt
 	echo "antialias=\"$antialias\"" >> $directory/tshirtdata.txt
 	echo "sharpen=\"$sharpen\"" >> $directory/tshirtdata.txt
 	echo "displace=\"$displace\"" >> $directory/tshirtdata.txt

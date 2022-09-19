@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 12/28/2013 .......... revised 11/17/2015
+# Developed by Fred Weinhaus 12/28/2013 .......... revised 2/10/2018
 #
 # ------------------------------------------------------------------------------
 # 
@@ -499,7 +499,7 @@ tmpTG="$dir/plot_TG_$$.txt"
 tmpTB="$dir/plot_TB_$$.txt"
 trap "rm -f $tmpA1 $tmpA2 $tmpR $tmpG $tmpB $tmpO $tmpT $tmpTR $tmpTG $tmpTB;" 0
 trap "rm -f $tmpA1 $tmpA2 $tmpR $tmpG $tmpB $tmpO $tmpT $tmpTR $tmpTG $tmpTB; exit 1" 1 2 3 15
-trap "rm -f $tmpA1 $tmpA2 $tmpR $tmpG $tmpB $tmpO $tmpT $tmpTR $tmpTG $tmpTB; exit 1" ERR
+#trap "rm -f $tmpA1 $tmpA2 $tmpR $tmpG $tmpB $tmpO $tmpT $tmpTR $tmpTG $tmpTB; exit 1" ERR
 
 # setup preprocessing
 if [ "$preprocess" = "red" ]; then
@@ -523,14 +523,21 @@ convert -quiet "$infile" +repage -alpha off $proc "$tmpA1" ||
 
 # get im version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+
+if [ "$im_version" -ge "07000000" ]; then
+	identifying="magick identify"
+else
+	identifying="identify"
+fi
 
 # limit use of normalize=separate for graph usage
 [ "$normalize" = "separate" -a "$process" = "graph" -a "$yplotscale" != "minmax" ] && errMsg "--- NORMALIZE=SEPARATE ONLY VALID FOR YPLOTSCALE=MINMAX ---"
 
 
 # get colorspace and image depth
-data=`identify -verbose $tmpA1`
+data=`$identifying -verbose $tmpA1`
 colorspace=`echo "$data" | sed -n 's/^.*Colorspace: \([^ ]*\).*$/\1/p'`
 type=`echo "$data" | sed -n 's/^.*Type: \([^ ]*\).*$/\1/p'`
 depth=`echo "$data" | sed -n 's/^.*Depth\: \(.*\)$/\1 \1/p' | tr -cs "0-9" " " | sed 's/[ ][ ]*/ /g' | cut -d\  -f1`
@@ -547,8 +554,8 @@ fi
 #echo "colormode=$colormode; depth=$depth; drange=$drange; qrange=$qrange;"
 
 # get image width and height
-imgwidth=`identify -format %w $tmpA1`
-imgheight=`identify -format %h $tmpA1`
+imgwidth=`$identifying -format %w $tmpA1`
+imgheight=`$identifying -format %h $tmpA1`
 
 
 # get size and offset and line of data depending upon row or column
@@ -1110,16 +1117,6 @@ EOF
 		if ( "$normalize" eq "global" ) { set yrange [$ymin:$yplotscale] } 
 		else { set yrange [$bymin:$byplotscale] } }
 	plot "$tmpT" using (\$1*$xplotscale/$widthm1):((\$4*$expansion>$bymax)?$byplotscale:(\$4*$expansion*$byplotscale/$bymax)) with $curve linewidth $density linecolor rgb 'blue'
-EOF
-
-	convert $tmpR $tmpG $tmpB -trim +repage -bordercolor white -border 4 -append "$outfile"
-
-
-fi
-
-exit 0
-
- rgb 'blue'
 EOF
 
 	convert $tmpR $tmpG $tmpB -trim +repage -bordercolor white -border 4 -append "$outfile"

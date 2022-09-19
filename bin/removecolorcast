@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 1/30/2017 .......... revised 1/30/2017
+# Developed by Fred Weinhaus 1/31/2017 .......... revised 8/15/2022
 #
 # ------------------------------------------------------------------------------
 # 
@@ -43,16 +43,16 @@
 #                       default=0
 # -C     contrast       contrast change postprocessing; -100<=integer<=100; 
 #                       default=0
-# -S     saturation     saturation change postprocessing; -100<=integer<=100; 
+# -S     saturation     saturation change postprocessing; -100<=integer<=1000; 
 #                       default=0
 #
 ###
 # 
 # NAME: REMOVECOLORCAST 
 # 
-# PURPOSE: To remove an color cast in an image.
+# PURPOSE: To remove a color cast from an image.
 # 
-# DESCRIPTION: REMOVECOLORCAST removes a color cast in an image by blending 
+# DESCRIPTION: REMOVECOLORCAST removes a color cast from an image by blending 
 # the image and a color filter generated from the 180 deg hue shifted average 
 # color of the image. The method of filtering use -compose colorize. 
 # 
@@ -212,7 +212,7 @@ else
 					   saturation=`expr "$1" : '\([-0-9]*\)'`
 					   [ "$saturation" = "" ] && errMsg "--- SATURATION=$saturation MUST BE A NON-NEGATIVE INTEGER ---"
 					   testA=`echo "$saturation < -100" | bc`
-					   testB=`echo "$saturation > 100" | bc`
+					   testB=`echo "$saturation > 1000" | bc`
 					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- SATURATION=$saturation MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
 					   ;;
 				 -)    # STDIN and end of arguments
@@ -259,47 +259,11 @@ else
 fi
 #echo "stretch=$stretch"
 
-# set up brightness
-bsign=`convert xc: -format "%[fx:sign($brightness)]" info:`
-absbri=`convert xc: -format "%[fx:abs($brightness)]" info:`
-bval=$((100-$absbri))
-if [ $brightness -eq 0 ]; then
-	brightening=""
-elif [ $bsign -eq 1 ]; then
-	# increase brightness
-	brightening="-channel r -level 0x$bval% +channel"
-else
-	# decrease brightness
-	brightening="-channel r +level 0x$bval% +channel"
-fi
-#echo "bri=$brightening"
-
-# set up saturation
-ssign=`convert xc: -format "%[fx:sign($saturation)]" info:`
-abssat=`convert xc: -format "%[fx:abs($saturation)]" info:`
-sval1=$abssat
-sval2=$((100-$abssat))
-if [ $saturation -eq 0 ]; then
-	saturating=""
-elif [ $ssign -eq 1 ]; then
-	# increase saturation
-	saturating="-channel gb -level ${sval1}x${sval2}% +channel"
-else
-	# decrease saturation
-	saturating="-channel gb +level ${sval1}x${sval2}% +channel"
-fi
-#echo "sat=$saturating"
-
-# set up post processing colorspace change
-if [ $brightness -eq 0 -a $saturation -eq 0 ]; then
-	proc1=""
-	proc2=""
-else
-	proc1="-colorspace LAB"
-	proc2="-set colorspace LAB -colorspace sRGB"
-fi
-#echo "proc1=$proc1"
-#echo "proc2=$proc2"
+# set up brightness and saturation
+bval=$((100+brightness))
+sval=$((100+saturation))
+modulating="-set option:modulate HSB -modulate $bval,$sval,100"
+echo "bval=$bval; sval=$sval; modulating=$modulating;"
 
 # setup contrast
 if [ $contrast != 0 ]; then
@@ -319,14 +283,11 @@ convert $tmpI \
 	\( -clone 0 -colorspace $cspace -resize 1x1! -resize $WxH\! -modulate 100,100,0 \) \
 	\( -clone 0 -fill "gray($mixing%)" -colorize 100 \) \
 	-compose colorize -composite -colorspace sRGB \
-	$stretch $contrasting $proc1 $brightening $saturating $proc2 \
+	$stretch $contrasting $modulating \
 	"$outfile"
 
 
 exit 0
-
-
-
 
 
 

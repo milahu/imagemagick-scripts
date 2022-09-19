@@ -1,6 +1,6 @@
 #!/bin/bash
 # 
-# Developed by Fred Weinhaus 8/11/2017 .......... revised 1/14/2018
+# Developed by Fred Weinhaus 8/11/2017 .......... revised 10/15/2018
 #
 # ------------------------------------------------------------------------------
 # 
@@ -188,7 +188,7 @@ else
 					   case "$1" in
 						 linear|l)			projection="linear";;
 						 stereographic|s)	projection="stereographic";;
-						 orthographc|o)		projection="orthographc";;
+						 orthographic|o)		projection="orthographic";;
 					   	 *) errMsg "--- PROJECTION=$projection IS AN INVALID VALUE ---" 
 					   esac
 					   ;;
@@ -283,7 +283,7 @@ trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 0" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
 
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # test that input exists and is readable
 if [ ! -f "$infile" -a ! -r "$infile" -a ! -s "$infile" ]; then
@@ -294,10 +294,10 @@ fi
 # could use -roll +50%+0% for IM 6.9.9.0 or higher, but before IM 7. 
 # or im 7.0.6.1 or higher.
 # too many conditionals to deal with now.
-if [ "$view" = "manhole" ]; then
+if [ "$viewtype" = "manhole" ]; then
 	rollamt=`convert -ping "$infile" -format "%[fx:round(w/2)]" info:`
 	viewing="-roll +${rollamt}+0 -rotate 180"
-elif [ "$view" = "planet" ]; then
+elif [ "$viewtype" = "planet" ]; then
 	viewing=""
 fi
 
@@ -443,13 +443,6 @@ else
 		"$outfile"
 fi
 exit 0
-
-
-
-
-
-
-xit 0
 
 
 

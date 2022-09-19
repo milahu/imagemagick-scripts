@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 10/21/2011 .......... revised 4/25/2015
+# Developed by Fred Weinhaus 10/21/2011 .......... revised 10/12/2018
 #
 # ------------------------------------------------------------------------------
 # 
@@ -104,7 +104,7 @@ dir="$tmpdir/REMAP.$$"
 mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
 trap "rm -rf $dir;" 0
 trap "rm -rf $dir; exit 1" 1 2 3 15
-trap "rm -rf $dir; exit 1" ERR
+#trap "rm -rf $dir; exit 1" ERR
 
 
 # set up functions to report Usage and Usage with Description
@@ -344,6 +344,4 @@ if [ "$show" = "yes" ]; then
 fi
 
 exit 0
-
-
 

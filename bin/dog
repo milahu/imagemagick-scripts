@@ -231,7 +231,7 @@ trap "rm -f $tmpA1 $tmpB1; exit 1" ERR
 
 # test for minimum IM version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
 # though probably not resolved until the latter
@@ -270,7 +270,7 @@ fi
 # set up stretch
 # get IM version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 if [ "$im_version" -lt "06050501" ]; then
 	stretch="-contrast-stretch 0"
 else
@@ -297,8 +297,6 @@ convert $tmpA1 \
 	\( -clone 0 -blur 0x$smallfilt \) \
 	-delete 0 $swapmode -compose minus -composite \
 	$stretch $bright $thresholding "$outfile"
-
-
 
 
 

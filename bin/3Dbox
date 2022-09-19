@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 9/21/2008 .......... revised 2/23/2017
+# Developed by Fred Weinhaus 9/21/2008 .......... revised 7/7/2021
 #
 # ------------------------------------------------------------------------------
 # 
@@ -329,10 +329,10 @@ function isFrontFacing
 	uu3=`echo "$3" | cut -d, -f1`
 	vv3=`echo "$3" | cut -d, -f2`
 	# get edge components
-	eu1=`convert xc: -format "%[fx: $uu2-$uu1 ]" info:`
-	ev1=`convert xc: -format "%[fx: $vv2-$vv1 ]" info:`
-	eu2=`convert xc: -format "%[fx: $uu3-$uu2 ]" info:`
-	ev2=`convert xc: -format "%[fx: $vv3-$vv2 ]" info:`
+	eu1=`convert xc: -format "%[fx: ($uu2)-($uu1) ]" info:`
+	ev1=`convert xc: -format "%[fx: ($vv2)-($vv1) ]" info:`
+	eu2=`convert xc: -format "%[fx: ($uu3)-($uu2) ]" info:`
+	ev2=`convert xc: -format "%[fx: ($vv3)-($vv2) ]" info:`
 	# get cross product from determinant and if positive, 
 	# the front facing and return 1
 	# otherwise back facing and return 0
@@ -351,12 +351,22 @@ function testFloat
 #	[ $floatresult = 0 ] && errMsg "THE ENTRY $1 IS NOT A FLOATING POINT NUMBER"
 	}
 
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+if [ "$im_version" -ge "07000000" ]; then
+	identifying="magick identify"
+else
+	identifying="identify"
+fi
+
 # get input image size
 function imagesize
 	{
 	img=$1
-	width=`identify -format %w $img`
-	height=`identify -format %h $img`
+	width=`$identifying -format %w $img`
+	height=`$identifying -format %h $img`
 	}
 
 # test for correct number of arguments and get values
@@ -397,7 +407,7 @@ else
 					   [ $pantest -eq 0 ] && errMsg "PAN=$pan IS NOT A NUMBER"
 					   [ $pantestA -eq 1 -o $pantestB -eq 1 ] && errMsg "PAN=$pan MUST BE GREATER THAN OR EQUAL -360 AND LESS THAN +360"
 					   sinpan=`convert xc: -format "%[fx: sin(pi*$pan/180) ]" info:`
-					   sinpanm=`convert xc: -format "%[fx: -$sinpan ]" info:`
+					   sinpanm=`convert xc: -format "%[fx: -($sinpan) ]" info:`
 					   cospan=`convert xc: -format "%[fx: cos(pi*$pan/180) ]" info:`
 					   Rp0=($cospan 0 $sinpan)
 					   Rp1=(0 1 0)
@@ -420,7 +430,7 @@ else
 					   [ $tilttest -eq 0 ] && errMsg "tilt=$tilt IS NOT A NUMBER"
 					   [ $tilttestA -eq 1 -o $tilttestB -eq 1 ] && errMsg "TILT=$tilt MUST BE GREATER THAN OR EQUAL -360 AND LESS THAN +360"
 					   sintilt=`convert xc: -format "%[fx: sin(pi*$tilt/180) ]" info:`
-					   sintiltm=`convert xc: -format "%[fx: -$sintilt ]" info:`
+					   sintiltm=`convert xc: -format "%[fx: -($sintilt) ]" info:`
 					   costilt=`convert xc: -format "%[fx: cos(pi*$tilt/180) ]" info:`
 					   Rt0=(1 0 0)
 					   Rt1=(0 $costilt $sintilt)
@@ -443,7 +453,7 @@ else
 					   [ $rolltest -eq 0 ] && errMsg "roll=$roll IS NOT A NUMBER"
 					   [ $rolltestA -eq 1 -o $rolltestB -eq 1 ] && errMsg "ROLL=$roll MUST BE GREATER THAN OR EQUAL -360 AND LESS THAN +360"
 					   sinroll=`convert xc: -format "%[fx: sin(pi*$roll/180) ]" info:`
-					   sinrollm=`convert xc: -format "%[fx: -$sinroll ]" info:`
+					   sinrollm=`convert xc: -format "%[fx: -($sinroll) ]" info:`
 					   cosroll=`convert xc: -format "%[fx: cos(pi*$roll/180) ]" info:`
 					   Rr0=($cosroll $sinroll 0)
 					   Rr1=($sinrollm $cosroll 0)
@@ -495,7 +505,6 @@ else
 							   dheight=`echo "$size" | cut -dx -f2`
 					   		   xflag="true"
 						   fi
-echo "dwidth=$dwidth; dheight=$dheight; xflag=$xflag"
 					   fi
 					   ;;
 	   bgcolor[=]*)    # output background color
@@ -595,8 +604,6 @@ fi
 
 # test for minimum IM version required
 # IM 6.3.5.6 or higher to conform to current -distort perspective control point sequence
-im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 if [ "$im_version" -lt "06030506" ]
 	then
 	errMsg "--- REQUIRES IM VERSION 6.3.5-6 OR HIGHER ---"
@@ -651,7 +658,7 @@ fi
 # Image2 = orthogonal to X sides
 # Image3 = orthogonal to Y sides
 # top upper left (parallel to X-Y plane ordered clockwise from outside)
-px[0]=`convert xc: -format "%[fx:-$lastwidth1/2]" info:`
+px[0]=`convert xc: -format "%[fx:-($lastwidth1/2)]" info:`
 py[0]=`convert xc: -format "%[fx:$lastheight1/2]" info:`
 pz[0]=`convert xc: -format "%[fx:$lastwidth2/2]" info:`
 # top upper right (parallel to X-Y plane ordered clockwise from outside)
@@ -660,28 +667,28 @@ py[1]=`convert xc: -format "%[fx:$lastheight1/2]" info:`
 pz[1]=`convert xc: -format "%[fx:$lastwidth2/2]" info:`
 # top lower right (parallel to Y-Z plane ordered clockwise from outside)
 px[2]=`convert xc: -format "%[fx:$lastwidth1/2]" info:`
-py[2]=`convert xc: -format "%[fx:-$lastheight1/2]" info:`
+py[2]=`convert xc: -format "%[fx:-($lastheight1/2)]" info:`
 pz[2]=`convert xc: -format "%[fx:$lastwidth2/2]" info:`
 # top lower left (parallel to Y-Z plane ordered clockwise from outside)
-px[3]=`convert xc: -format "%[fx:-$lastwidth1/2]" info:`
-py[3]=`convert xc: -format "%[fx:-$lastheight1/2]" info:`
+px[3]=`convert xc: -format "%[fx:-($lastwidth1/2)]" info:`
+py[3]=`convert xc: -format "%[fx:-($lastheight1/2)]" info:`
 pz[3]=`convert xc: -format "%[fx:$lastwidth2/2]" info:`
 # bottom upper left (parallel to X-Y plane ordered clockwise from outside)
 px[4]=`convert xc: -format "%[fx:$lastwidth1/2]" info:`
 py[4]=`convert xc: -format "%[fx:$lastheight1/2]" info:`
-pz[4]=`convert xc: -format "%[fx:-$lastwidth2/2]" info:`
+pz[4]=`convert xc: -format "%[fx:-($lastwidth2/2)]" info:`
 # bottom upper right (parallel to X-Y plane ordered clockwise from outside)
-px[5]=`convert xc: -format "%[fx:-$lastwidth1/2]" info:`
+px[5]=`convert xc: -format "%[fx:-($lastwidth1/2)]" info:`
 py[5]=`convert xc: -format "%[fx:$lastheight1/2]" info:`
-pz[5]=`convert xc: -format "%[fx:-$lastwidth2/2]" info:`
+pz[5]=`convert xc: -format "%[fx:-($lastwidth2/2)]" info:`
 # bottom lower right (parallel to Y-Z plane ordered clockwise from outside)
-px[6]=`convert xc: -format "%[fx:-$lastwidth1/2]" info:`
-py[6]=`convert xc: -format "%[fx:-$lastheight1/2]" info:`
-pz[6]=`convert xc: -format "%[fx:-$lastwidth2/2]" info:`
+px[6]=`convert xc: -format "%[fx:-($lastwidth1/2)]" info:`
+py[6]=`convert xc: -format "%[fx:-($lastheight1/2)]" info:`
+pz[6]=`convert xc: -format "%[fx:-($lastwidth2/2)]" info:`
 # bottom lower left (parallel to Y-Z plane ordered clockwise from outside)
 px[7]=`convert xc: -format "%[fx:$lastwidth1/2]" info:`
-py[7]=`convert xc: -format "%[fx:-$lastheight1/2]" info:`
-pz[7]=`convert xc: -format "%[fx:-$lastwidth2/2]" info:`
+py[7]=`convert xc: -format "%[fx:-($lastheight1/2)]" info:`
+pz[7]=`convert xc: -format "%[fx:-($lastwidth2/2)]" info:`
 
 # create world X,Y,Z points from box corners (with origin at centroid)
 pt0=(${px[0]},${py[0]},${pz[0]})
@@ -768,7 +775,7 @@ if [ "$type" = "perspective" ]; then
 	# compute new field of view based upon pef (pfact) and focal
 	dfov=`convert xc: -format "%[fx: $pfact*$dfov ]" info:`
 	focal=`convert xc: -format "%[fx: $maxdist/(tan(pi*$dfov/360)) ]" info:`
-	mfocalinv=`convert xc: -format "%[fx: -1/$focal ]" info:`
+	mfocalinv=`convert xc: -format "%[fx: -(1/$focal) ]" info:`
 #	echo "pef=$pef; pfact=$pfact; dfov=$dfov; focal=$focal; mfocalinv=$mfocalinv"
 	
 	# define the output (inverse) conversion matrix Ai=A' merged with M as Aim
@@ -1089,8 +1096,8 @@ elif [ "$format" = "auto" -a "$im_version" -lt "06030506" ]; then
 	vmax=`convert xc: -format "%[fx: max($v7,max($v6,max($v5,max($v4,max($v3,max($v2,max($v1,max($v0,-1000000)))))))) ]" info:`
 	bbwidth=`convert xc: -format "%[fx: ceil($umax - $umin) ]" info:`
 	bbheight=`convert xc: -format "%[fx: ceil($vmax - $vmin) ]" info:`
-	bbminx=`convert xc: -format "%[fx: -$umin ]" info:`
-	bbminy=`convert xc: -format "%[fx: -$vmin ]" info:`	
+	bbminx=`convert xc: -format "%[fx: -($umin) ]" info:`
+	bbminy=`convert xc: -format "%[fx: -($vmin) ]" info:`	
 #	merge="-background $bgcolor -repage ${bbwidth}x${bbheight}+${bbminx}+${bbminy}! -flatten"
 	merge="-background $bgcolor -crop ${bbwidth}x${bbheight}-${bbminx}-${bbminy}! -flatten"
 elif [ "$format" = "center" -a "$size" = "" ]; then
@@ -1120,4 +1127,3 @@ eval 'convert \
 	"$outfile"'
 
 exit 0
-

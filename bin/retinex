@@ -271,7 +271,7 @@ fi
 
 # get IM version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # test for hdri enabled
 # NOTE: must put grep before trap using ERR in case it does not find a match
@@ -498,4 +498,3 @@ fi
 convert $tmp1 $gamma $modulate "$outfile"
 
 exit 0
-

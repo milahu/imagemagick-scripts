@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 10/22/2007 .......... revised 11/29/2017
+# Developed by Fred Weinhaus 10/22/2007 .......... revised 2/1/2019
 #
 # ------------------------------------------------------------------------------
 # 
@@ -162,7 +162,7 @@ else
 					   exit 0
 					   ;;
 				-c)    # get center
-					   shift  # to get the next parameter - spacing
+					   shift  # to get the next parameter
 					   # test if parameter starts with minus sign 
 					   errorMsg="--- INVALID CENTER SPECIFICATION ---"
 					   checkMinus "$1"
@@ -170,13 +170,13 @@ else
 					   [ "$center" = "" ] && errMsg "--- CENTER=$center MUST BE A COMMA SEPARATED PAIR OF FLOATS ---"
 					   ;;
 				-m)    # get maxradius
-					   shift  # to get the next parameter - spacing
+					   shift  # to get the next parameter
 					   # test if parameter starts with minus sign 
 					   checkMinus "$1"
 					   maxradius=`echo "$1" | tr "[:upper:]" "[:lower:]"`
 					   ;;
 				-n)    # get numcircles
-					   shift  # to get the next parameter - thickness
+					   shift  # to get the next parameter
 					   # test if parameter starts with minus sign 
 					   errorMsg="--- INVALID NUMCIRCLES SPECIFICATION ---"
 					   checkMinus "$1"
@@ -187,17 +187,17 @@ else
 					   [ $test -eq 1 ] && errMsg "--- NUMCIRCLES=$numcircles MUST BE A POSITIVE INTEGER ---"
 					   ;;
 				-s)    # get spacing
-					   shift  # to get the next parameter - spacing
+					   shift  # to get the next parameter
 					   # test if parameter starts with minus sign 
 					   errorMsg="--- INVALID SPACING SPECIFICATION ---"
 					   checkMinus "$1"
-					   center=`expr "$1" : '\([.0-9]*\)'`
+					   spacing=`expr "$1" : '\([.0-9]*\)'`
 					   [ "$spacing" = "" ] && errMsg "--- SPACING=$spacing MUST BE A NON-NEGATIVE FLOAT ---"
 					   testA=`echo "$spacing == 0" | bc`
 					   [ $testA -eq 1 ] && errMsg "--- SPACING=$spacing MUST BE A POSITIVE FLOAT ---"
 					   ;;
 				-C)    # get color
-					   shift  # to get the next parameter - lineval
+					   shift  # to get the next parameter
 					   # test if parameter starts with minus sign 
 					   errorMsg="--- INVALID COLOR SPECIFICATION ---"
 					   checkMinus "$1"
@@ -205,7 +205,7 @@ else
 					   color="$1"
 					   ;;
 				-t)    # get thickness
-					   shift  # to get the next parameter - thickness
+					   shift  # to get the next parameter
 					   # test if parameter starts with minus sign 
 					   errorMsg="--- INVALID THICKNESS SPECIFICATION ---"
 					   checkMinus "$1"
@@ -216,7 +216,7 @@ else
 					   [ $test -eq 1 ] && errMsg "--- THICKNESS=$thickness MUST BE A POSITIVE INTEGER ---"
 					   ;;
 				-o)    # get opacity
-					   shift  # to get the next parameter - opacity
+					   shift  # to get the next parameter
 					   # test if parameter starts with minus sign 
 					   errorMsg="--- INVALID OPACITY SPECIFICATION ---"
 					   checkMinus "$1"
@@ -271,6 +271,7 @@ height=`convert -ping $tmpA -format "%h" info:`
 if [ "$center" = "" ]; then
 	centx=`convert xc: -format "%[fx:($width-1)/2]" info:`
 	centy=`convert xc: -format "%[fx:($height-1)/2]" info:`
+	center="$centx,$centy"
 fi
 #echo "centx=$centx; centy=$centy;"
 
@@ -296,7 +297,7 @@ fi
 #echo "numcircles=$numcircles; spacing=$spacing;"
 
 # get string for drawing circles
-graphic="translate $centx,$centy stroke-opacity $opacity"
+graphic="translate $center stroke-opacity $opacity"
 for ((i=0; i<=numcircles; i++)); do
 	radius=`convert xc: -format "%[fx:$i*$spacing]" info:`
 	graphic="$graphic circle 0,0 0,$radius"

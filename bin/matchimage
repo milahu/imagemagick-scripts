@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 7/2/2016 .......... revised 1/14/2017
+# Developed by Fred Weinhaus 7/2/2016 .......... revised 7/15/2019
 #
 # ------------------------------------------------------------------------------
 # 
@@ -181,8 +181,6 @@ else
 				   checkMinus "$1"
 				   dmean=`expr "$1" : '\([,.0-9]*\)'`
 				   [ "$dmean" = "" ] && errMsg "--- MEAN=$dmean MUST BE A FLOAT ---"
-				   testA=`echo "$dmean > 1" | bc`
-				   [ $testA -eq 1 ] && errMsg "--- MEAN=$dmean MUST BE A FLOAT BETWEEN 0 AND 1 ---"
 				   ;;
 			-s)    # get dstd
 				   shift  # to get the next parameter
@@ -191,8 +189,6 @@ else
 				   checkMinus "$1"
 				   dstd=`expr "$1" : '\([,.0-9]*\)'`
 				   [ "$dstd" = "" ] && errMsg "--- STD=$dstd MUST BE A FLOAT ---"
-				   testA=`echo "$dstd > 1" | bc`
-				   [ $testA -eq 1 ] && errMsg "--- STD=$dstd MUST BE A FLOAT BETWEEN 0 AND 1 ---"
 				   ;;
 			 -)    # STDIN and end of arguments
 				   break
@@ -213,7 +209,7 @@ else
 		infile2="$2"
 		outfile="$3"
 	elif [ $numfiles -eq 2 ]; then
-		infile="$1"
+		infile1="$1"
 		outfile="$2"
 	else
 		errMsg "--- INCOMPATIBLE NUMBER OF FILES SPECIFIED ---"
@@ -239,7 +235,7 @@ trap "rm -rf $dir; exit 1" 1 2 3 15
 
 # get im version
 im_version=`convert -list configure | \
-sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+sed '/^LIB_VERSION_NUMBER */!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 
 # function to get mean of image
@@ -266,12 +262,12 @@ getLinearCoefs()
 
 # read infile1
 convert -quiet "$infile1" $dir/tmpA1.mpc ||
-errMsg  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+errMsg  "--- FILE $infile1 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 if [ $numfiles -eq 3 ]; then
 	# read infile2
 	convert -quiet "$infile2" $dir/tmpA2.mpc ||
-	errMsg  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+	errMsg  "--- FILE $infile2 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 fi
 
 # get channel means and stds
@@ -283,15 +279,15 @@ if [ $numfiles -eq 2 ]; then
 		dstdr=`echo "$dstd" | cut -d, -f1`
 		dstdg=`echo "$dstd" | cut -d, -f2`
 		dstdb=`echo "$dstd" | cut -d, -f3`
+		#echo "$dmeanr,$dmeang,$dmeanb; $dstdr,$dstdg,$dstdb;"
 	else
 		errMsg  "--- NO INFILE2 SPECIFIED AND NO DMEAN AND/OR NO STD PROVIDED  ---"
 	fi
-
 fi
 
 # process image
 if [ "$colormode" = "lab" ]; then
-	convert $dir/tmpA1.mpc -colorspace "$colormode" -separate $dir/tmpL1.mpc
+	convert $dir/tmpA1.mpc -colorspace "$colormode" -separate +channel $dir/tmpL1.mpc
 	getMeanStd "$dir/tmpL1.mpc[0]"
 	mean1=$mean
 	std1=$std
@@ -315,13 +311,13 @@ if [ "$colormode" = "lab" ]; then
 		"$outfile"
 	
 elif [ "$colormode" = "hsi" ]; then
-	convert $dir/tmpA1.mpc -colorspace "$colormode" -separate $dir/tmpI1.mpc
+	convert $dir/tmpA1.mpc -colorspace "$colormode" -separate +channel $dir/tmpI1.mpc
 	getMeanStd "$dir/tmpI1.mpc[2]"
 	mean1=$mean
 	std1=$std
 	
 	if [ $numfiles -eq 3 ]; then
-		convert $dir/tmpA2.mpc -colorspace "$colormode" -channel blue -separate +channel -separate $dir/tmpI2.mpc
+		convert $dir/tmpA2.mpc -colorspace "$colormode" -channel blue -separate +channel $dir/tmpI2.mpc
 		getMeanStd "$dir/tmpI2.mpc"
 		mean2=$mean
 		std2=$std
@@ -338,13 +334,13 @@ elif [ "$colormode" = "hsi" ]; then
 		"$outfile"
 
 elif [ "$colormode" = "ycbcr" ]; then
-	convert $dir/tmpA1.mpc -colorspace "$colormode" -separate $dir/tmpY1.mpc
+	convert $dir/tmpA1.mpc -colorspace "$colormode" -separate +channel $dir/tmpY1.mpc
 	getMeanStd "$dir/tmpY1.mpc[0]"
 	mean1=$mean
 	std1=$std
 	
 	if [ $numfiles -eq 3 ]; then
-		convert $dir/tmpA2.mpc -colorspace "$colormode" -channel red -separate +channel -separate $dir/tmpY2.mpc
+		convert $dir/tmpA2.mpc -colorspace "$colormode" -channel red -separate +channel $dir/tmpY2.mpc
 		getMeanStd "$dir/tmpY2.mpc"
 		mean2=$mean
 		std2=$std
@@ -361,7 +357,7 @@ elif [ "$colormode" = "ycbcr" ]; then
 		"$outfile"
 
 elif [ "$colormode" = "rgb" ]; then
-	convert $dir/tmpA1.mpc -separate $dir/tmpRGB1.mpc
+	convert $dir/tmpA1.mpc -separate +channel $dir/tmpRGB1.mpc
 	
 	# get red mean, std for infile 1
 	getMeanStd "$dir/tmpRGB1.mpc[0]"
@@ -378,16 +374,16 @@ elif [ "$colormode" = "rgb" ]; then
 	bmean1=$mean
 	bstd1=$std
 	
-	convert $dir/tmpA2.mpc -separate $dir/tmpRGB2.mpc
 
 	if [ $numfiles -eq 3 ]; then
+		convert $dir/tmpA2.mpc -separate +channel $dir/tmpRGB2.mpc
 		# get red mean, std for infile 2
 		getMeanStd "$dir/tmpRGB2.mpc[0]"
 		rmean2=$mean
 		rstd2=$std
 	elif [ $numfiles -eq 2 -a "$dmeanr" != "" -a "$dstdr" != "" ]; then
-		mean2=$dmeanr
-		std2=$dstdr
+		rmean2=$dmeanr
+		rstd2=$dstdr
 	fi
 
 	if [ $numfiles -eq 3 ]; then
@@ -396,8 +392,8 @@ elif [ "$colormode" = "rgb" ]; then
 		gmean2=$mean
 		gstd2=$std
 	elif [ $numfiles -eq 2 -a "$dmeang" != "" -a "$dstdg" != "" ]; then
-		mean2=$dmeang
-		std2=$dstdg
+		gmean2=$dmeang
+		gstd2=$dstdg
 	fi
 
 	if [ $numfiles -eq 3 ]; then
@@ -406,8 +402,8 @@ elif [ "$colormode" = "rgb" ]; then
 		bmean2=$mean
 		bstd2=$std
 	elif [ $numfiles -eq 2 -a "$dmeanb" != "" -a "$dstdb" != "" ]; then
-		mean2=$dmeanb
-		std2=$dstdb
+		bmean2=$dmeanb
+		bstd2=$dstdb
 	fi
 	
 	# get red A, B coefs
@@ -425,15 +421,9 @@ elif [ "$colormode" = "rgb" ]; then
 	BA=$A
 	BB=$B
 	
-	convert \( $dir/tmpRGB1.mpc[0] -function polynomial "$RA $RB" \) \
+	# adding -set colorspace sRGB before -combine and -colorspace sRGB after causes problems in IM 6.9.9.43
+	convert -respect-parenthesis \( $dir/tmpRGB1.mpc[0] -function polynomial "$RA $RB" \) \
 		\( $dir/tmpRGB1.mpc[1] -function polynomial "$GA $GB" \) \
-		\( $dir/tmpRGB1.mpc[2] -function polynomial "$BA $BB" \) \
-		-set colorspace sRGB -combine -colorspace sRGB \
-		"$outfile"
-fi
-
-exit 0
-al "$GA $GB" \) \
 		\( $dir/tmpRGB1.mpc[2] -function polynomial "$BA $BB" \) \
 		-combine \
 		"$outfile"

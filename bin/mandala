@@ -39,7 +39,7 @@
 # 
 # OPTIONS: 
 #
-# -d dimensions ... DIMENSION of square output image. Values are integers>0. The 
+# -d dimension ... DIMENSION of square output image. Values are integers>0. The 
 # default=500.
 # 
 # -t type ... TYPE (shape) of graphic figure. The choices are: line (l), square (s), 
@@ -49,8 +49,8 @@
 # Values are integers>0. The default=150.
 # 
 # -n number ... NUMBER of repeats of the graphic figure. Values are integers>0. 
-# The default=16. Maximum value is OS dependent on the maximum allowed string length. 
-# On my Mac is seems to peak at about 2300.
+# The default=16. Maximum value is OS dependent on the maximum allowed string length  
+# and arguments used. On my Mac is seems to peak at about 2000.
 # 
 # -w width ... WIDTH is the stroke width use to draw graphic figure. Values are 
 # integers>0. The default=1.
@@ -305,10 +305,6 @@ else
 fi
 
 convert -size ${dim}x${dim} xc:"$bgcolor" -fill none -strokewidth $width -draw "$graphic" -alpha off "$outfile"
-
-
-exit 0
-$outfile"
 
 
 exit 0

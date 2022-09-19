@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 3/18/2013 .......... revised 9/28/2015
+# Developed by Fred Weinhaus 3/18/2013 .......... revised 2/6/2019
 #
 # ------------------------------------------------------------------------------
 # 
@@ -179,7 +179,7 @@ else
 		do
 			# get parameter values
 			case "$1" in
-		  -h|-help)    # help information
+		  	 -help)    # help information
 					   echo ""
 					   usage2
 					   exit 0
@@ -234,7 +234,7 @@ else
 					   errorMsg="--- INVALID YOFFSET SPECIFICATION ---"
 					   #checkMinus "$1"
 					   yoffset=`expr "$1" : '\([-0-9]*\)'`
-					   [ "$height" = "" ] && errMsg "--- YOFFSET=$yoffset MUST BE AN INTEGER ---"
+					   [ "$yoffset" = "" ] && errMsg "--- YOFFSET=$yoffset MUST BE AN INTEGER ---"
 		   			   testA=`echo "$yoffset < -100" | bc`
 		   			   testB=`echo "$yoffset > 100" | bc`
 					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- YOFFSET=$yoffset MUST BE AN INTEGER BETWEEN -100 AND 100 ---"
@@ -338,7 +338,7 @@ convert -quiet "$infile" +repage "$tmpA1" ||
 
 # get im_version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # get infile dimensions
 ww=`identify -ping -format "%w" $tmpA1`
@@ -481,18 +481,11 @@ fi
 
 # add background color
 if [ "$thick" = "0" -o "$opacity" != "0" ]; then
-	convert $tmpA1 -background $bgcolor -flatten "$outfile"
+	convert $tmpA1 +repage -background $bgcolor -flatten "$outfile"
 else
-	convert $tmpA1 -bordercolor black -border 2 \
+	convert $tmpA1 +repage -bordercolor black -border 2 \
 		-fuzz $fuzzval% -fill none -draw "$matte_alpha 0,0 floodfill" \
 		-background $bgcolor -flatten "$outfile"
-fi
-
-exit 0
-
-
-
-"
 fi
 
 exit 0

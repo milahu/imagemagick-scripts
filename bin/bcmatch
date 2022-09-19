@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 6/25/2009 .......... revised 4/25/2015
+# Developed by Fred Weinhaus 6/25/2009 .......... revised 10/8/2018
 #
 # ------------------------------------------------------------------------------
 # 
@@ -256,18 +256,19 @@ fi
 # test for minimum IM version required
 # IM 6.4.8.9 or higher to conform to -function polynomial
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 [ "$im_version" -lt "06040809" ] && errMsg "--- REQUIRES IM VERSION 6.4.6-9 OR HIGHER ---"
 
 
 # test if infiles are grayscale
 # NOTE: must put grep before trap using ERR in case it does not find a match
+# NOTE: removed -ping; cause %r to report gray rather than srgb for truecolor images 
 gray1="no"
 gray2="no"
-grayscale1=`convert -ping "$infile1" -format "%[colorspace]" info:`
-typegray1=`convert -ping "$infile1" -format '%r' info: | grep 'Gray'`
-grayscale2=`convert -ping "$infile2" -format "%[colorspace]" info:`
-typegray2=`convert -ping "$infile2" -format '%r' info: | grep 'Gray'`
+grayscale1=`convert "$infile1" -format "%[colorspace]" info:`
+typegray1=`convert "$infile1" -format '%r' info: | grep 'Gray'`
+grayscale2=`convert "$infile2" -format "%[colorspace]" info:`
+typegray2=`convert "$infile2" -format '%r' info: | grep 'Gray'`
 [ "$grayscale1" = "Gray" -o "$typegray1" != "" ] && gray1="yes"
 [ "$grayscale2" = "Gray" -o "$typegray2" != "" ] && gray2="yes"
 #echo "gray1=$gray1; gray2=$gray2"
@@ -340,7 +341,7 @@ reduction=""
 
 # get im version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
 # though probably not resolved until the latter
@@ -447,10 +448,6 @@ if [ "$satmode" != "" ]; then
 	satpct=`convert xc: -format "%[fx:100*(1+$bb)]" info:`
 	convert $tmpA2 -set option:modulate:colorspace $satmode \
 		-modulate 100,${satpct} "$outfile"
-else
-	convert $tmpA2 $outfile
-fi
-exit 0100,${satpct} "$outfile"
 else
 	convert $tmpA2 $outfile
 fi

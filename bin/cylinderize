@@ -1,6 +1,6 @@
 #!/bin/bash
 # 
-# Developed by Fred Weinhaus 5/1/2009 .......... revised 4/24/2017
+# Developed by Fred Weinhaus 5/1/2009 .......... revised 11/9/2021
 #
 # ------------------------------------------------------------------------------
 # 
@@ -43,7 +43,8 @@
 #                        depending upon mode and adjusted for the cylinder 
 #                        pitch angle.
 # -w      wrap           percentage of image to wrap about the cylinder; float; 
-#                        10<=wrap<=100; default=50
+#                        10<=wrap<=100 or 0; default=50; use wrap=0 to preserve 
+#                        aspect ratio of input as it is wrapped about the cylinder
 # -f      fcolor         fill color for portion of cylinder not covered by the 
 #                        image; default=none (transparent)
 # -a      angle          rotation angle in degrees about cylinder axis; 
@@ -121,7 +122,8 @@
 # the ends will still be adjusted for pitch.
 # 
 # -w wrap ... WRAP is the percentage of the cylinder circumference that is wrapped 
-# with the image. Values are floats such that 10<=wrap<=100. Default=50.
+# with the image. Values are floats such that 10<=wrap<=100 or 0. Default=50. Use 
+# wrap=0 to preserve aspect ratio of input as it is wrapped around the cylinder.
 # 
 # -f fcolor ... FCOLOR is the fill color to put on the remainder of the cylinder 
 # that is not covered by the image. Any valid IM color is allowed. The default 
@@ -331,7 +333,7 @@ else
 					   #checkMinus "$1"
 					   wrap=`expr "$1" : '\([.0-9]*\)'`
 					   [ "$wrap" = "" ] && errMsg "--- WRAP=$wrap MUST BE A NON-NEGATIVE FLOAT ---"
-					   testA=`echo "$wrap < 10" | bc`
+					   testA=`echo "$wrap < 10 && $wrap != 0" | bc`
 					   testB=`echo "$wrap > 100" | bc`
 					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- WRAP=$wrap MUST BE A FLOAT BETWEEN 10 AND 100 ---"
 					   ;;
@@ -513,7 +515,7 @@ trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4; exit 1" ERR
 
 # get im_version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # get image dimensions
 width=`convert -ping "$infile" -format "%w" info:`
@@ -545,6 +547,8 @@ if [ "$mode" = "vertical" ]; then
 	else
 		rproc=""
 	fi
+	# if wrap = 0, then wrap = ratio of aspect ratios
+	[ "$wrap" = "0" ] && wrap=`convert xc: -format "%[fx:100*($width/$height)/(2*pi*$radius/$length)]" info:`
 	pwidth=`convert xc: -format "%[fx:100*$width/$wrap]" info:`
 	pheight=$height
 elif [ "$mode" = "horizontal" ]; then
@@ -559,6 +563,7 @@ elif [ "$mode" = "horizontal" ]; then
 	else
 		rproc=""
 	fi
+	[ "$wrap" = "0" ] && wrap=`convert xc: -format "%[fx:100*($height/$width)/(2*pi*$radius/$length)]" info:`
 	pwidth=$width
 	pheight=`convert xc: -format "%[fx:100*$height/$wrap]" info:`
 fi
@@ -786,7 +791,8 @@ if [ "$mode" = "vertical" ]; then
 		composite $tmpA3 $tmpA1 $tmpA4 $channels -virtual-pixel $vpmethod \
 			$backgroundcolor -displace ${xc}x${radius2} $tmpA1
 	else
-		convert $tmpA1 $tmpA3 $tmpA4 $channels -virtual-pixel $vpmethod $backgroundcolor \
+		# issue in IM 7, need to make all images 3 channel
+		convert $tmpA1 $tmpA3 $tmpA4 -colorspace sRGB $channels -virtual-pixel $vpmethod $backgroundcolor \
 			-define compose:args=${xc}x${radius2} -compose displace -composite $tmpA1
 	fi
 
@@ -939,28 +945,6 @@ echo "fcolor=\"$fcolor\""
 echo "vpmethod=\"$vpmethod\""
 echo "bgcolor=\"$bgcolor\""
 echo "width=\"$width\""
-echo "height=\"$height\""
-echo "length2=\"$length2\""
-echo "pwidth=\"$pwidth\""
-echo "pheight=\"$pheight\""
-echo "width1=\"$width1\""
-echo "height1=\"$height1\""
-echo "width12=\"$width12\""
-echo "height12=\"$height12\""
-echo "xc=\"$xc\""
-echo "yc=\"$yc\""
-echo "radius2=\"$radius2\""
-echo "coords=\"$coords\""
-echo "offsets=\"$offsets\""
-echo "rotation=\"$rotation\""
-echo "wbg=\"$wbg\""
-echo "hbg=\"$hbg\""
-echo "pad=\"$pad\""
-echo "compose=\"$compose\""
-fi
-
-exit 0
-width=\"$width\""
 echo "height=\"$height\""
 echo "length2=\"$length2\""
 echo "pwidth=\"$pwidth\""

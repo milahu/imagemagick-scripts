@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 3/24/2014 .......... revised  4/29/2015
+# Developed by Fred Weinhaus 3/24/2014 .......... revised  10/12/2018
 #
 # ------------------------------------------------------------------------------
 # 
@@ -26,7 +26,7 @@
 # 
 ####
 #
-# USAGE: zerocrossing [-w width ] [-b brightness] [-s smoothing] [-g] infile outfile
+# USAGE: zerocrossing [-e edge ] [-l laplace] [-a amplifiy] [-s size] [-g] infile outfile
 # USAGE: zerocrossing [-h or -help]
 #
 # OPTIONS:
@@ -129,7 +129,7 @@ if [ $# -eq 0 ]
    echo ""
    usage2
    exit 0
-elif [ $# -gt 9 ]
+elif [ $# -gt 11 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -170,14 +170,6 @@ else
 					   amplify=`expr "$1" : '\([0-9]*\)'`
 					   [ "$amplify" = "" ] && errMsg "--- AMPLIFY=$amplify MUST BE AN INTEGER ---"
 					   ;;
-				-a)    # get amplify
-					   shift  # to get the next parameter
-					   # test if parameter starts with minus sign 
-					   errorMsg="--- INVALID AMPLIFY SPECIFICATION ---"
-					   checkMinus "$1"
-					   amplify=`expr "$1" : '\([0-9]*\)'`
-					   [ "$amplify" = "" ] && errMsg "--- AMPLIFY=$amplify MUST BE A NON-NEGATIVE INTEGER ---"
-					   ;;
 				-s)    # get size
 					   shift  # to get the next parameter
 					   # test if parameter starts with minus sign 
@@ -185,7 +177,7 @@ else
 					   checkMinus "$1"
 					   size=`expr "$1" : '\([0-9]*\)'`
 					   [ "$size" = "" ] && errMsg "SIZE=$size MUST BE A NON-NEGATIVE INTEGER ---"
-					   test1=`echo "$dark < 2" | bc`
+					   test1=`echo "$size < 2" | bc`
 					   [ $test1 -eq 1 ] && errMsg "--- SIZE=$size MUST BE AN INTEGER GREATER THAN 1 ---"
 					   ;;
 				-g)    # set grayscale
@@ -228,7 +220,7 @@ convert -quiet "$infile" +repage "$tmpA1" ||
 
 # get im version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # set up grayscaling
 if [ "$grayscale" = "yes" ]; then

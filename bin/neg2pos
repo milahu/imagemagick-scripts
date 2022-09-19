@@ -1,4 +1,6 @@
-Cannot Open File!eveloped by Fred Weinhaus 12/15/2016 .......... revised 8/22/2017
+#!/bin/bash
+#
+# Developed by Fred Weinhaus 12/15/2016 .......... revised 10/29/2020
 #
 # ------------------------------------------------------------------------------
 # 
@@ -26,7 +28,7 @@ Cannot Open File!eveloped by Fred Weinhaus 12/15/2016 .......... revised 8/22/20
 #
 # USAGE: neg2pos [-p position] [-o offset] [-C color] [-m method] [-r refinefuzz] 
 # [-t trimfuzz ] [-a area] [-s stretch] [-l cliplow] [-h cliphigh] 
-# [ -c crop] [-cb colorbalance] [-P percent] [-s showmask] infile outfile
+# [ -c crop] [-cb colorbalance] [-P percent] [-S showmask] infile outfile
 #
 # USAGE: neg2pos [-help]
 #
@@ -64,7 +66,7 @@ Cannot Open File!eveloped by Fred Weinhaus 12/15/2016 .......... revised 8/22/20
 #                          white, both, auto or none; default=none
 # -P      percent          percent threshold for colorbalance processing; 
 #                          0<float<100; default=10
-# -s      showmask         show the mask that delineates the perforation region
+# -S      showmask         show the mask that delineates the perforation region
 #                          from the interior image; choices are: view, save or
 #                          none
 #
@@ -139,7 +141,7 @@ Cannot Open File!eveloped by Fred Weinhaus 12/15/2016 .......... revised 8/22/20
 # -P percent ... PERCENT is the percent threshold for detecting gray/white 
 # in the image for auto color balance. Values are 0<floats<100. The default=10.
 # 
-# -s showmask ... SHOWMASK presents the mask image that delineates the 
+# -S showmask ... SHOWMASK presents the mask image that delineates the 
 # perforation region from the interior image. The choices are: view (v), 
 # save (s) or none (n). The default=none. If the value is save, then the 
 # mask will be the input file name with "_mask.gif" appended.
@@ -375,7 +377,7 @@ else
 					   testB=`echo "$percent > 100" | bc`
 					   [ $testA -eq 1 -o $testB -eq 1 ] && errMsg "--- PERCENT=$percent MUST BE A FLOAT BETWEEN 0 AND 100 ---"
 					   ;;
-				-s)    # get  showmask
+				-S)    # get  showmask
 					   shift  # to get the next parameter
 					   # test if parameter starts with minus sign 
 					   errorMsg="--- INVALID SHOWMASK SPECIFICATION ---"
@@ -429,12 +431,12 @@ if [ "$showmask" = "save" ]; then
 fi
 
 # read the input image into the temporary cached image and test if valid
-convert -quiet -regard-warnings "$infile" +repage $dir/tmpI.mpc ||
+convert -quiet "$infile" +repage $dir/tmpI.mpc ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
 
 # get im_version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
 # though probably not resolved until the latter
@@ -541,7 +543,6 @@ if [ "$method" = "threshold" ]; then
 		-scale 1x1! -alpha off -format "%[pixel:u.p{0,0}]" info:`
 	echo "refinedcolor=$color"
 elif [ "$method" = "floodfill" -a "$icolor" = "" ]; then
-echo "got here"
 	color=`convert $dir/tmpI.mpc -fuzz $refinefuzz% -fill none \
 		-draw "matte $coords floodfill" \
 		\( +clone -alpha extract +write $dir/tmpM.mpc -fill white +opaque black -negate \) \

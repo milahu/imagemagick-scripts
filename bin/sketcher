@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 10/31/2015 .......... revised 6/27/2017
+# Developed by Fred Weinhaus 10/31/2015 .......... revised 10/31/2015
 #
 # ------------------------------------------------------------------------------
 # 
@@ -284,4 +284,4 @@ convert $dir/tmpI.mpc $graying \
 	"$outfile"
 
 
-exit 00
+exit 0

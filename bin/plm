@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/18/2007 .......... revised 4/25/2015
+# Developed by Fred Weinhaus 8/18/2007 .......... revised 11/25/2017
 # 
 # ------------------------------------------------------------------------------
 # 
@@ -26,8 +26,8 @@
 # 
 ####
 #
-# USAGE: plm [-s xscale,yscale] [-g] "x1,y1 x2,y2 ..." infile outfile
-# USAGE: plm [-s xscale,yscale] [-g] -f point_file infile outfile
+# USAGE: plm [-s xscale,yscale] [-c channel] [-g] "x1,y1 x2,y2 ..." infile outfile
+# USAGE: plm [-s xscale,yscale] [-c channel] [-g] -f point_file infile outfile
 # USAGE: plm [-h or -help]
 #
 # OPTIONS:
@@ -42,6 +42,9 @@
 #                        one x,y pair per line
 # -s  xscale,yscale      range of values for x,y breakpoint pairs from 0 to xscale,yscale;
 #                        positive integers; default=100,100
+# -c  channel            channel to process; options are: red, green, blue, 
+#                        lightness, brightness, luma and luminosity; 
+#                        default=all rgb channels
 # -g                     enables the creation of a graph of the piece-wise linear
 #                        transformation, which is then displayed automatically.
 #                        There is a default setting below that can be changed 
@@ -89,6 +92,10 @@
 # are specified # between 0 and 255 and the length of the output image is 256. 
 # Equal values for xscale and yscale are not required. 
 # 
+# -c channel ... CHANNEL to process. Options are: red, green, blue, lightness 
+# (L from HSL), brightness (B from HSB), luma (Y from YCbCr) and luminosity 
+# (L from Lab). The default=all rgb channels.
+#
 # -g ... enables the creation of a graph of the piece-wise linear transformation, 
 # which is then displayed automatically. There is a default setting below that can 
 # be changed to enable this to be save to a file named lutfile_graph.gif. The graph 
@@ -106,6 +113,7 @@
 xscale=100
 yscale=100
 height=10
+channel=""
 # maxpoints=40	# no longer a limit
 decimal=1		# decimal precision for re-listing points and graphing
 
@@ -168,7 +176,7 @@ if [ $# -eq 0 ]
    echo ""
    usage2
    exit 0
-elif [ $# -gt 6 ]
+elif [ $# -gt 8 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -201,6 +209,23 @@ else
 					   [ $test -eq 0 ] && errMsg "--- XSCALE AND/OR YSCALE ARE NOT INTEGERS ---"
 					   xscale=`echo "$1" | cut -d, -f1`
 					   yscale=`echo "$1" | cut -d, -f2`  ;;
+				-c)    # get  channel
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CHANNEL SPECIFICATION ---"
+					   checkMinus "$1"
+					   channel=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+						case "$channel" in
+						 red) ;;
+						 green) ;;
+						 blue) ;;
+						 lightness) ;;
+						 brightness) ;;
+						 luma) ;;
+						 luminosity) ;;
+						 *) errMsg="--- UNKNOWN CHANNEL ---"
+						esac
+					   ;;
 				 -)    # STDIN and end of arguments
 					   break
 					   ;;
@@ -334,9 +359,35 @@ plistnew="$plist $xscale,0"
 # echo "plistnew=$plistnew"
 # *************
 
+if [ "$channel" = "red" ]; then
+	cproc1="-channel red"
+	cproc2="+channel"
+elif [ "$channel" = "green" ]; then
+	cproc1="-channel green"
+	cproc2="+channel"
+elif [ "$channel" = "blue" ]; then
+	cproc1="-channel blue"
+	cproc2="+channel"
+elif [ "$channel" = "lightness" ]; then
+	cproc1="$setcspace -colorspace HSL -channel blue"
+	cproc2="+channel -colorspace $cspace"
+elif [ "$channel" = "brightness" ]; then
+	cproc1="$setcspace -colorspace HSB -channel blue"
+	cproc2="+channel -colorspace $cspace"
+elif [ "$channel" = "luma" ]; then
+	cproc1="$setcspace -colorspace YCbCr -channel red"
+	cproc2="+channel -colorspace $cspace"
+elif [ "$channel" = "luminosity" ]; then
+	cproc1="$setcspace -colorspace Lab -channel red"
+	cproc2="+channel -colorspace $cspace"
+else
+	cproc1=""
+	cproc2=""
+fi
+
 # create and apply lut
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 if [ "$im_version" -ge "06030507" ]
 	then 
 	proc="-clut"
@@ -347,60 +398,6 @@ fi
 # remove first row corresponding to zero as cannot have any white on this row.
 # then box average the columns to get the lut and apply it to the image.
 ww=`convert xc: -format "%[fx:$xscale+1]" info:`
-hh=`convert xc: -format "%[fx:$yscale+1]" info:`
-convert $tmpA \
-	\( -size ${ww}x${hh} xc:black -fill white \
-	-draw "polygon $plistnew" \
-	-crop ${ww}x${yscale}+0+1 +repage \
-	-scale ${ww}x1! \) \
-	$proc "$outfile"
-
-# display graph if option -g
-if [ "$display_graph" = "yes" ]
-	then
-	# create pair array
-	pairArray=($plist)
-	numpairs=${#pairArray[*]}
-	
-	# get xArray and yArray
-	i=0
-	while [ $i -lt $numpairs ]
-		do
-		xArray[$i]=`echo "${pairArray[$i]}" | cut -d, -f1`
-		yArray[$i]=`echo "${pairArray[$i]}" | cut -d, -f2`
-		i=`expr $i + 1`
-	done
-	
-	# scale xArray and yArray
-	i=0
-	while [ $i -lt $numpairs ]
-		do
-		xArray[$i]=`echo "scale=$decimal; 100 * ${xArray[$i]} / $xscale" | bc`
-		yArray[$i]=`echo "scale=$decimal; 100 * ${yArray[$i]} / $yscale" | bc`
-		i=`expr $i + 1`
-	done
-	
-	# regenerate scaled pairArray
-	i=0
-	while [ $i -lt $numpairs ]
-		do
-		pairArray[$i]=${xArray[$i]},${yArray[$i]}
-		i=`expr $i + 1`
-	done
-		
-	# regenerate scaled list
-	points=${pairArray[*]}
-	
-	# create and display graph
-echo "Break Points = $points"
-	convert -size 150x150 xc: -fill white -stroke black -draw "rectangle 40,10 141,112" $tmp1
-	convert $tmp1 \( -size 100x101 xc: -stroke red -fill white -draw "polyline $points" -flip \) -compose over -geometry 100x101+41+11 -composite $tmp1
-	convert $tmp1 -font Arial -pointsize 10 -draw "text 30,122 '0' text 20,17 '100' text 20,17 '100' text 40,60 '_' text 27,65 '50' text 90,112 '|' text 85,125 '50' text 70,140 'i n p u t'" $tmp1
-	convert -respect-parenthesis $tmp1 \( -background white -fill black -font Arial -pointsize 10 -gravity center label:'o \nu \nt \np \nu \nt ' -trim \) -geometry +10+20 -compose over -composite $tmp1
-	display $tmp1
-fi
-exit 0
-fo:`
 hh=`convert xc: -format "%[fx:$yscale+1]" info:`
 convert $tmpA \
 	\( -size ${ww}x${hh} xc:black -fill white \

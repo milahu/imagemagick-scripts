@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 4/14/2013 .......... revised 6/20/2015
+# Developed by Fred Weinhaus 4/14/2013 .......... revised 8/27/2020
 # 
 # Licensing:
 # 
@@ -235,8 +235,8 @@ else
 					   shift  # to get the next parameter
 					   # test if parameter starts with minus sign 
 					   errorMsg="--- INVALID MAMOUNT SPECIFICATION ---"
-					   checkMinus "$1"
-					   mamt=`expr "$1" : '\([0-9]*\)'`
+					   #checkMinus "$1"
+					   mamt=`expr "$1" : '\([0-9-]*\)'`
 					   [ "$mamt" = "" ] && errMsg "--- MAMOUNT=$mamt MUST BE A NON-NEGATIVE INTEGER ---"
 		   			   testA=`echo "$mamt < -100" | bc`
 		   			   testB=`echo "$mamt > 100" | bc`
@@ -246,8 +246,8 @@ else
 					   shift  # to get the next parameter
 					   # test if parameter starts with minus sign 
 					   errorMsg="--- INVALID CAMOUNT SPECIFICATION ---"
-					   checkMinus "$1"
-					   camt=`expr "$1" : '\([0-9]*\)'`
+					   #checkMinus "$1"
+					   camt=`expr "$1" : '\([0-9-]*\)'`
 					   [ "$camt" = "" ] && errMsg "--- CAMOUNT=$camt MUST BE A NON-NEGATIVE INTEGER ---"
 		   			   testA=`echo "$camt < -100" | bc`
 		   			   testB=`echo "$camt > 100" | bc`

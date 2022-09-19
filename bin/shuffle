@@ -54,9 +54,9 @@
 #
 # NAME: SHUFFLE 
 # 
-# PURPOSE: To randomly shuffle positions of square sized tiles in an image.
+# PURPOSE: To randomly shuffle positions of square sized tiles of an image.
 # 
-# DESCRIPTION: SHUFFLE randomly shuffle the positions of square sized tiles in 
+# DESCRIPTION: SHUFFLE randomly shuffle the positions of square sized tiles of 
 # an image. An optional round rectangle mask may be defined to delineate where
 # the shuffling will be shown. Or an external mask image may be provided.
 # 

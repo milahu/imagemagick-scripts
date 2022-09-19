@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/27/2007 .......... revised 10/20/2017
+# Developed by Fred Weinhaus 8/27/2007 .......... revised 1/21/2020
 # Contrast limiting technique by Alan Gibson (user snibgo) ... 7/3/2013
 #
 # ------------------------------------------------------------------------------
@@ -39,7 +39,7 @@
 #                    default -> see below
 # -g   graytype      type of grayscale image to use when colormodel=RGB;
 #                    choices are: gray, rec601, rec709, lightness, brightness, 
-#                    ave, demodhsl, demodhcl; default=gray
+#                    ave, luminance, demodhsl, demodhcl; default=gray
 # -f   factor        factor the contrast gain limiting factor; smaller values  
 #                    will limit contrast gain more; values above about 3 will 
 #                    produce no contrast limit; float>=0; 
@@ -235,7 +235,7 @@ cumHistogram()
 	img="$1"
 	
 	histArr=(`convert $img -colorspace gray -depth 8 -format "%c" histogram:info:- \
-	| tr -cs '0-9\012' ' ' |\
+	| sed -n 's/[ ]*\([0-9]*\).*gray[(]\([0-9]*\).*$/\1 \2/p' |\
 	awk '
 	# AWK to generate a zero filled histogram
 	{ bin[int($2)] += $1; } 
@@ -531,7 +531,7 @@ fi
 
 # get im_version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
 # though probably not resolved until the latter
@@ -615,7 +615,7 @@ if convert -quiet "$infile" -strip +repage "$tmpA"
 		elif [ "$colorspace" != "Gray" -a "$colormodel" = "RGB" -a "$graytype" = "AVE" -a "$channel" = "" ]
 			then
 			 	convert $tmpA $setcspace -colorspace LAB -channel R -separate $tmp2
-		elif [ "$colorspace" != "Gray" -a "$colormodel" = "RGB" -a "$graytype" = "LAB" -a "$channel" = "" ]
+		elif [ "$colorspace" != "Gray" -a "$colormodel" = "RGB" -a "$graytype" = "LUMINANCE" -a "$channel" = "" ]
 			then
 			 	convert $tmpA -define modulate:colorspace=HSL -modulate 100,0,100 $tmp2
 		elif [ "$colorspace" != "Gray" -a "$colormodel" = "RGB" -a "$graytype" = "DEMODHCL" -a "$channel" = "" ]
@@ -769,7 +769,5 @@ if [ $display_graph = "yes" ]
 fi
 
 [ "$savelut" = "yes" ] && convert $tmp3 redist_lut.png
-
-exit 0st_lut.png
 
 exit 0

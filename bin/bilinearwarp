@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 11/21/2008 .......... revised 4/25/2015
+# Developed by Fred Weinhaus 11/21/2008 .......... revised 3/1/2020
 #
 # ------------------------------------------------------------------------------
 # 
@@ -311,8 +311,8 @@ if [ "$format" = "box" ]; then
 	minx=`convert xc: -format "%[fx:min($x3,min($x2,min($x1,min($x0,1000000))))]" info:`
 	maxy=`convert xc: -format "%[fx:max($y3,max($y2,max($y1,max($y0,-1000000))))]" info:`
 	miny=`convert xc: -format "%[fx:min($y3,min($y2,min($y1,min($y0,1000000))))]" info:`
-	ww=`convert xc: -format "%[fx:floor($maxx-$minx)]" info:`
-	hh=`convert xc: -format "%[fx:floor($maxy-$miny)]" info:`
+	ww=`convert xc: -format "%[fx:floor($maxx-$minx)+1]" info:`
+	hh=`convert xc: -format "%[fx:floor($maxy-$miny)+1]" info:`
 		
 	# compute output coords relative to bounding box
 	x0=`convert xc: -format "%[fx:$x0-$minx]" info:`

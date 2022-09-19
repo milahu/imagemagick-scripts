@@ -1,5 +1,6 @@
 #!/bin/bash
 #
+# revised by Fred Weinhaus 8/22/2018
 # Developed by Greg McNeil 12/1/2017 ..... revised by Fred Weinhaus 12/7/2017
 #
 # ------------------------------------------------------------------------------
@@ -237,7 +238,7 @@ $tmpA \
 -virtual-pixel mirror \
 -set option:distort:viewport "%[fx:ceil(h*tan(pi/$number))]x%[h]" \
 -distort affine "%[fx:w/2],0 0,0" \
--distort SRT "0,0 "%[fx:1/$scale]" $rotate %[fx:$translate*w/100],0" \
+-distort SRT "0,0 %[fx:1/$scale] $rotate %[fx:$translate*w/100],0" \
 -virtual-pixel none \
 -distort affine "0,%[fx:h-1] %[fx:w-1],%[fx:h-1]  0,0 0,0  %[fx:w-1],0 %[fx:w-1],0" \
 -virtual-pixel mirror \
@@ -246,14 +247,9 @@ $tmpA \
 -duplicate $((number-1)) \
 -virtual-pixel none \
 -set option:distort:viewport %[h]x%[h] \
--distort SRT "%[fx:w/2],%[h]  "%[fx:1/$zoom]"  %[fx:t*360/n]  %[fx:h/2],%[fx:h/2]" \
+-distort SRT "%[fx:w/2],%[h]  %[fx:1/$zoom]  %[fx:t*360/n]  %[fx:h/2],%[fx:h/2]" \
 -background "$bgcolor" \
 -layers merge \
-+repage \
-"$outfile"
-
-exit 0
-e \
 +repage \
 "$outfile"
 

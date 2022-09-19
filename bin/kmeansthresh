@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 10/29/2008 .......... revised 3/19/2016
+# Developed by Fred Weinhaus 10/29/2008 .......... revised 1/18/2020
 #
 # ------------------------------------------------------------------------------
 # 
@@ -193,7 +193,7 @@ trap "rm -f $tmpA1 $tmpA2 $histfile; exit 1" 1 2 3 15
 
 # get im_version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
 # though probably not resolved until the latter
@@ -250,7 +250,7 @@ fi
 
 	# get filled value array from IM histogram
 	nvalueArr=(`convert $tmpA1 -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- \
-	| tr -cs '0-9\012' ' ' | sed -n 's/[ ]*\([0-9]*\)[ ]*\([0-9]*\).*$/\1 \2/p' |\
+	| sed -n 's/[ ]*\([0-9]*\).*gray[(]\([0-9]*\).*$/\1 \2/p' |\
 	awk '
 	# AWK 
 	{ vbin[$2] += $2;} 
@@ -262,7 +262,7 @@ fi
 	
 	# get filled and normalized count array from IM histogram
 	ncountArr=(`convert $tmpA1 -depth 8 -format "%c" -define histogram:unique-colors=true histogram:info:- \
-	| tr -cs '0-9\012' ' ' | sed -n 's/[ ]*\([0-9]*\)[ ]*\([0-9]*\).*$/\1 \2/p' |\
+	| sed -n 's/[ ]*\([0-9]*\).*gray[(]\([0-9]*\).*$/\1 \2/p' |\
 	awk -v totpix="$totpix" '
 	# AWK 
 	{ cbin[$2] += $1; } 
@@ -423,7 +423,6 @@ if [ "$graph" = "view" ]; then
 fi
 
 exit 0
-
 
 
 

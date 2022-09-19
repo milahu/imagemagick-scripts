@@ -284,7 +284,7 @@ fi
 # IM 6.4.5.1 or higher to conform to -set option:modulate:colorspace or
 # IM 6.3.9.2 or higher to conform to -format "%[colorspace]"
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 [ "$im_version" -lt "06040501" -a "$satmode" != "" ] && errMsg "--- REQUIRES IM VERSION 6.4.5-1 OR HIGHER ---"
 #[ "$im_version" -lt "06030902" -a "$satmode" = "" ] && errMsg "--- REQUIRES IM VERSION 6.3.9-2 OR HIGHER ---"
 
@@ -500,4 +500,4 @@ fi
 
 [ "$savelut" = "yes" ] && convert $tmpL histmatch_lut.png
 
-exit 00
+exit 0

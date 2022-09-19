@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/18/2009 .......... revised 9/12/2015
+# Developed by Fred Weinhaus 8/18/2009 .......... revised 5/12/2019
 #
 # ------------------------------------------------------------------------------
 # 
@@ -176,7 +176,7 @@ trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA; exit 1" ERR
 
 # test for valid version of IM
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 [ "$im_version" -lt "06050407" ] && errMsg "--- REQUIRES IM VERSION 6.5.4-7 OR HIGHER ---"
 
 
@@ -188,9 +188,14 @@ convert -quiet "$infile" +repage "$tmpA1" ||
 convert -quiet "$filtfile" -alpha off +repage "$tmpA2" ||
 	errMsg "--- FILE $filtfile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
+if [ "$im_version" -ge "07000000" ]; then
+	identifying="magick identify"
+else
+	identifying="identify"
+fi
 
 # test if image has alpha and set up copy to output
-is_alpha=`identify -ping -verbose $tmpA1 | grep "Alpha" | head -n 1`
+is_alpha=`$identifying -ping -verbose $tmpA1 | grep "Alpha" | head -n 1`
 if [ "$is_alpha" != "" ]; then
 	convert $tmpA1 -alpha extract $tmpA 
 	addalpha="$tmpA -compose over -alpha off -compose copy_opacity -composite"
@@ -211,8 +216,8 @@ FxP= ACexp(iD)
 # This can be demonstrated by doing -fft -ift on filter image and see that it is no longer centered
 
 # get image dimensions for later cropping as inputs are padded to square, even dimensions
-width=`identify -ping -format "%w" $tmpA2`
-height=`identify -ping -format "%h" $tmpA2`
+width=`$identifying -ping -format "%w" $tmpA2`
+height=`$identifying -ping -format "%h" $tmpA2`
 
 # get padded to even square size
 dim=`convert xc: -format "%[fx:floor((2*max($width,$height)+1)/2)]" info:`
@@ -233,4 +238,3 @@ convert \( $tmpA1 -fft \) \
 	-crop ${width}x${height}+0+0 +repage $addalpha "$outfile"
 
 exit 0
-

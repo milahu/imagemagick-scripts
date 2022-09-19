@@ -1,6 +1,6 @@
 #!/bin/bash
 # 
-# Developed by Fred Weinhaus 9/18/2017 .......... revised 9/18/2017
+# Developed by Fred Weinhaus 9/18/2017 .......... revised 10/11/2017
 #
 # ------------------------------------------------------------------------------
 # 
@@ -224,16 +224,13 @@ trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2; exit 1" 1 2 3 15
 convert -quiet -regard-warnings "$infile" +repage "$tmpA1" ||
 	errMsg "--- 1 FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
 
-# get output name and suffix
-file=$(basename "$outfile")
-extension="${file##*.}"
-name="${file%.*}"
-#echo "file=$file"
-#echo "extension=$extension"
-#echo "name=$name"
-outname="$name"
-suffix="$extension"
-
+# get output path, name and suffix
+outpath="${outfile%.*}"
+#echo "outpath=$outpath"
+filename=$(basename "$outfile")
+#echo "filename=$filename"
+suffix="${filename##*.}"
+#echo "suffix=$suffix"
 
 # get pano image dimensions
 declare `convert -ping $tmpA1 -format "ww=%w\nhh=%h\n" info:`
@@ -255,12 +252,12 @@ for ((i=0; i<6; i++)); do
 
 	# set output name
 	case $i in
-		0) outfile="${outname}_front.${suffix}" ;;
-		1) outfile="${outname}_left.${suffix}" ;;
-		2) outfile="${outname}_right.${suffix}" ;;
-		3) outfile="${outname}_back.${suffix}" ;;
-		4) outfile="${outname}_over.${suffix}" ;;
-		5) outfile="${outname}_under.${suffix}" ;;
+		0) outfile="${outpath}_front.${suffix}" ;;
+		1) outfile="${outpath}_left.${suffix}" ;;
+		2) outfile="${outpath}_right.${suffix}" ;;
+		3) outfile="${outpath}_back.${suffix}" ;;
+		4) outfile="${outpath}_over.${suffix}" ;;
+		5) outfile="${outpath}_under.${suffix}" ;;
 	esac
 
 	echo ""
@@ -342,11 +339,11 @@ done
 
 if [ "$montage" = "yes" ]; then
 	convert -size ${dimension}x${dimension} xc:white $tmpA2
-	montage $tmpA2 "${outname}_over.${suffix}" $tmpA2 $tmpA2 \
-		"${outname}_left.${suffix}" "${outname}_front.${suffix}" "${outname}_right.${suffix}" "${outname}_back.${suffix}" \
-		$tmpA2 "${outname}_under.${suffix}" $tmpA2 $tmpA2 \
+	montage $tmpA2 "${outpath}_over.${suffix}" $tmpA2 $tmpA2 \
+		"${outpath}_left.${suffix}" "${outpath}_front.${suffix}" "${outpath}_right.${suffix}" "${outpath}_back.${suffix}" \
+		$tmpA2 "${outpath}_under.${suffix}" $tmpA2 $tmpA2 \
 		-background white -tile 4x3 -geometry +0+0 \
-		"${outname}_montage.${suffix}"
+		"${outpath}_montage.${suffix}"
 fi
 
 exit 0

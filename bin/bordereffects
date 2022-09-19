@@ -259,7 +259,7 @@ trap "rm -f $tmpA1 $tmpA2 $tmp0 $tmp1 $tmp2; exit 1" ERR
 
 # get im_version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
 # though probably not resolved until the latter
@@ -386,4 +386,4 @@ fi
 convert \( -size ${ww}x${hh} xc:"$bgcolor" \) $tmpA1 $tmp2 \
 	-compose over -composite \
 	-trim +repage -gravity center -background "$bgcolor" -extent ${ww}x${hh} "$outfile"
-exit 00
+exit 0

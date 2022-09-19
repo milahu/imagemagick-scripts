@@ -232,7 +232,7 @@ convert -quiet "$infile" +repage "$tmpA1" ||
 
 # get im_version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # test for proper IM version
 [ "$im_version" -lt "06070802" ] && errMsg "--- REQUIRES IM 6.7.8.2 OR HIGHER  ---"
@@ -266,4 +266,4 @@ convert $tmpA1 -colorspace LAB \
 	-colorspace sRGB \
 	"$outfile"
 
-exit 00
+exit 0

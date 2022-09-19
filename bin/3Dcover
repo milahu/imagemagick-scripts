@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 1/3/2013 .......... revised 5/3/2017
+# Developed by Fred Weinhaus 1/3/2013 .......... revised 10/4/2017
 #
 # ------------------------------------------------------------------------------
 # 
@@ -29,7 +29,8 @@
 # USAGE: 3Dcover [-s size] [-a angle] [-e exfact] [-w weight] [-t tone] 
 # [-o opacity] [-d diameter] [-r ramp] [-g gamma] [-v vcolor] [-m method] 
 # [-u umbra] [-p penumbra] [-l length] [-b bcolor] [-x xyoffset] [-f fuzzval] 
-# [-H oheight] [-S sharpen] [-P pad] [-sc scolor] [-F fadeval] infile outfile
+# [-H oheight] [-S sharpen] [-P pad] [-sc scolor] [-F fadeval] [-M mirror] 
+# infile outfile
 # 
 # USAGE: 3Dcover [-h or -help]
 # 
@@ -101,6 +102,9 @@
 #                     integers between 0 and 100; The first value is the front 
 #                     value and the second is the back value; 0 is black
 #                     and 100 is no fade; default="100,100" (no fade)
+# -M     mirror       mirror the appropriate side of the image to use for the left 
+#                     or right side of the box; only allowed if size is not specified 
+#                     as TxWxH; yes or no; default=no
 # 
 ###
 # 
@@ -216,6 +220,12 @@
 # value and the second is the back value. 0 is black and 100 is no fade. The 
 # default="100,100" (no fade). 
 # 
+# -M mirror ... MIRROR the appropriate side of the image to use for the left 
+# or right side of the box. This is only allowed, if size is not specified 
+# as TxWxH. If mirror=yes, then the specified size will be cropped from the 
+# image and used for the side and the full image will be used for the front. 
+# The choices are: yes or no. The default=no.
+#
 # REQUIREMENTS: This script requires my 3Drotate script to function.
 # 
 # NOTE: For mode=ground, the ground shadow works between IM 6.6.0.10 and 
@@ -256,6 +266,7 @@ sharpen=0			# input image sharpening; float>=0
 pad=0				# padding for the output; integer>=0
 sc=""				# spine color; default=""
 fadevals="100,100"	# fadevals; 0<=integers<=100
+mirror="no"			# mirror the side crop
 
 # set directory for temporary files
 dir="."    # suggestions are dir="." or dir="/tmp"
@@ -303,7 +314,7 @@ if [ $# -eq 0 ]
    echo ""
    usage2
    exit 0
-elif [ $# -gt 48 ]
+elif [ $# -gt 50 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -537,6 +548,19 @@ else
 					   fadevals=`expr "$1" : '\([0-9]*,[0-9]*\)'`
 					   [ "$fadevals" = "" ] && errMsg "--- FADEVALS=$fadevals MUST BE NON-NEGATIVE, COMMA SEPARATED PAIR OF INTEGERS  ---"
 					   ;;
+				-M)    # get mirror
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID MIRROR SPECIFICATION ---"
+					   checkMinus "$1"
+					   mirror="$1"
+					   mirror=`echo "$mirror" | tr "[:upper:]" "[:lower:]"`
+					   case "$mirror" in 
+					   		yes|y) mirror="yes" ;;
+					   		no|n) mirror="no" ;;
+					   		*) errMsg "--- MIRROR=$mirror IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
 				 -)    # STDIN and end of arguments
 					   break
 					   ;;
@@ -583,7 +607,7 @@ trap "rm -f $tmpA1 $tmpB1 $tmpL1 $tmpL2 $tmpR1 $tmpR2 $tmpS1 $tmpS2; exit 1" 1 2
 
 # get im_version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 # colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
 # though probably not resolved until the latter
@@ -721,22 +745,43 @@ else
 	composingleft=""
 fi
 
+# setup for mirror crop
+if [ "$mirror" = "yes" ]; then
+	mirroring="-flop"
+else
+	mirroring=""
+fi
+
 # crop the input into left and right faces
 if [ "$scolor" = "" ]; then
-	convert $tmpA1 -gravity northwest -crop $lcrop +repage \
-		\( $fadeleft \) $composingleft $tmpL1
-	convert $tmpA1 -gravity northwest -crop $rcrop +repage \
-		\( $faderight \) $composingright $tmpR1
+	# no scolor
+	if [ "$mirror" = "yes" -a $sign -eq 1 ]; then
+		#mirror on left side
+		convert $tmpA1 -gravity northwest -crop $lcrop +repage $mirroring \
+			\( $fadeleft \) $composingleft $tmpL1
+		convert $tmpA1 $tmpR1
+	elif [ "$mirror" = "yes" -a $sign -ne 1 ]; then
+		#mirror on right side
+		convert $tmpA1 $tmpL1
+		convert $tmpA1 -gravity northwest -crop $rcrop +repage $mirroring \
+				\( $faderight \) $composingright $tmpR1
+	else
+		# no mirror, just crop
+		convert $tmpA1 -gravity northwest -crop $lcrop +repage \
+			\( $fadeleft \) $composingleft $tmpL1
+		convert $tmpA1 -gravity northwest -crop $rcrop +repage \
+			\( $faderight \) $composingright $tmpR1
+	fi
 elif [ $sign -eq 1 ]; then
-	#create scolor on left side and rotate about join line
-	convert -size ${side}x${hh} xc:"$scolor" \
-		\( $fadeleft \) $composingleft $tmpL1
-	convert $tmpA1 $tmpR1
+		#create scolor on left side and rotate about join line
+		convert -size ${side}x${hh} xc:"$scolor" \
+			\( $fadeleft \) $composingleft $tmpL1
+		convert $tmpA1 $tmpR1
 else 
-	#create scolor on right side and rotate about join line
-	convert $tmpA1 $tmpL1
-	convert -size ${side}x${hh} xc:"$scolor" \
-		\( $faderight \) $composingright $tmpR1
+		#create scolor on right side and rotate about join line
+		convert $tmpA1 $tmpL1
+		convert -size ${side}x${hh} xc:"$scolor" \
+			\( $faderight \) $composingright $tmpR1
 fi
 
 # apply vignette to appropriate face
@@ -939,52 +984,6 @@ elif [ "$method" = "ground" ]; then
 		# compute xshift to partially take into account the penumbra blurring, fudge in proportion to $angle
 		xshift=`convert xc: -format "%[fx:round(min(1.5,($angle/30))*$penumbra/tan($aleft))]" info:`
 		# adjust bx and tx for xshift
-		bx=$((bx+xshift))
-		tx=$((tx+xshift))
-		xoff=`echo "$xyoffset" | cut -d, -f 1`
-		yoff=`echo "$xyoffset" | cut -d, -f 2`
-		if [ "$im_version" -ge "06080400" ]; then
-			pageax=$((tx-2-xshift-xoff+6))
-			pageay=$((-yoff))
-			penumbra=$((penumbra+1))
-		else
-			pageax=$((tx-2-xshift-xoff))
-			pageay=$((-yoff))
-		fi
-		pagesx=0
-		pagesy=$((hh-ht-hl))
-		pageshadow=`printf "%+d%+d"  ${pagesx} ${pagesy}`
-		pageimage=`printf "%+d%+d"  ${pageax} ${pageay}`
-#		echo "pagesx=$pagesx; pagesy=$pagesy; pageax=$pageax; pageay=$pageay;"
-	fi
-#echo "wd=$wd; xshift=$xshift; ht=$ht; bx=$bx; by=$by; mx=$mx; my=$my; tx=$tx; ty=$ty; umbra=$umbra; penumbra=$penumbra;"
-
-		# draw shadow triangle
-		convert -size $((wd+$xshift))x${ht} xc:"rgba(255,255,255,0)" -fill "gray($umbra%)" \
-			-draw "polygon $bx,$by $mx,$my $tx,$ty" -flip \
-			-channel rgba -bordercolor "rgba(255,255,255,0)" -border ${penumbra} \
-			-background "rgba(255,255,255,0)" -alpha background $aproc1 -blur ${penumbra}x65000 $aproc2 \
-			-level 0x100% -gravity south +repage $tmpS1
-
-		# merge shadow and image and background color
-#		echo "wl=$wl; hh=$hh; hl=$hl; pagesx=$pagesx; pagesy=$pagesy; pageax=$pageax; pageay=$pageay"
-		if [ "$im_version" -ge "07000000" ]; then
-			convert $setcspace \( -page $pageshadow $tmpS1 \) \
-				\( -page $pageimage $tmpA1 \) \
-				-background none -layers merge +repage $coloring -fuzz $fuzzval% -trim +repage \
-				$resizing $padding "$outfile"
-		else
-			convert $setcspace -page $pageshadow $tmpS1 \
-				-page $pageimage $tmpA1 \
-				-background none -layers merge +repage $coloring -fuzz $fuzzval% -trim +repage \
-				$resizing $padding "$outfile"
-		fi
-fi
-
-exit 0
-
-
- tx for xshift
 		bx=$((bx+xshift))
 		tx=$((tx+xshift))
 		xoff=`echo "$xyoffset" | cut -d, -f 1`

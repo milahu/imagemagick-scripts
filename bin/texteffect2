@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 9/9/2015 .......... revised 9/12/2015
+# Developed by Fred Weinhaus 9/9/2015 .......... revised 11/9/2021
 #
 # ------------------------------------------------------------------------------
 # 
@@ -736,8 +736,10 @@ if [ "$style" = "plain" ]; then
 fi
 if [ "$style" = "stroke" ]; then
 	strokewidth=`convert xc: -format "%[fx:($linewidth+0.5)/3]" info:`
+	strokewidth2=`convert xc: -format "%[fx:5*$strokewidth]" info:`
 	strokeproc0="-channel A -level 50x100% +channel"
-	strokeproc1="+clone -alpha deactivate -fill $strokecolor -colorize 100% -alpha on -channel A -blur 0x$strokewidth -level 0x0 +channel "
+#	strokeproc1="+clone -alpha deactivate -fill $strokecolor -colorize 100% +write tmp4.png -alpha on +write tmp5.png -channel A -blur 0x$strokewidth +write tmp6.png -level 0x0 +write tmp7.png +channel"
+	strokeproc1="+clone -channel rgb -fill $strokecolor -colorize 100% +channel -channel A -morphology dilate disk:$strokewidth2 +channel"
 	strokeproc2="+swap -background none -compose over -layers merge +repage -channel a -morphology erode diamond:1 -blur 0x1 -level 50x100% +channel "
 	offsets=+0+0
 fi

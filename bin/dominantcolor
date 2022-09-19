@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 8/3/2016 .......... revised 10/26/2016
+# Developed by Fred Weinhaus 8/3/2016 .......... revised 12/17/2021
 # 
 # ------------------------------------------------------------------------------
 # 
@@ -27,7 +27,8 @@
 ####
 #
 # USAGE: dominantcolor [-m mode] [-n numcolors] [-e excludecolor] 
-# [-f fuzzval] [-p print] [-s swatches] infile
+# [-f fuzzval] [-p print] [-s swatches] [-u units] [-r reduce] [-c compaction] 
+# infile
 # USAGE: dominantcolor [-h or -help]
 # 
 # OPTIONS:
@@ -47,8 +48,13 @@
 # -p     print            print options: all (hexcolors and counts for all 
 #                         numcolors) or dominant (only the hexcolor for the 
 #                         dominant color; default=dominant
-# -s     swatches         display swatches for option -p print; yes or no; 
-#                         default=no
+# -s     swatches         view or save swatches for option -p print; 
+#                         view or save; default is no swatches
+# -u     units            units for counts; counts or percent; default=counts
+# -r     reduce           reduce (mimimize) image dimensions; choices are: 
+#                         scale, sample or none; default=scale
+# -c     compaction       color compaction method; choices are: quantize 
+#                         or kmeans; default=quantize
 # 
 ###
 # 
@@ -72,7 +78,8 @@
 # color reduction. Values are integers>1. The default=6.
 # 
 # -e excludecolor ... EXCLUDECOLOR is an exclude color to be ignored in 
-# getting the dominant color. Any valid opaque IM color. The default=black.
+# getting the dominant color. Any valid opaque IM color. The default=black for 
+# -m 4; otherwise, not used.
 # 
 # -f fuzzval ... FUZZVAL is the fuzz value for modes 2-6. Smaller values  
 # select colors closer to the mode desired, but may lead to less than the 
@@ -81,8 +88,24 @@
 # -p print ... PRINT options: all (hexcolors and counts for all numcolors) or 
 # dominant (only the hexcolor for the dominant color. The default=dominant.
 # 
-# -s swatches ... display SWATCHES for option -p print. Choices are: yes or no. 
-# The default=no.
+# -s swatches ... view or save SWATCHES for option -p print. Choices are: view (v) 
+# or save (s). The default is no swatches. If save, then the output will be named 
+# with either _dominantcolor or _swatches appended to the input name as a gif image. 
+# 
+# -u units ... UNITS for counts. Choices are: counts (c) or percent (p).
+# The default=counts.
+# 
+# -r reduce ... REDUCE (mimimize) image dimensions. The choices are: 
+# scale, sample or none. Scale does a block average to minimize the image. 
+# Sample skips pixels to minimize the image. None means use the full size 
+# input image.
+# 
+# -c compaction ... color COMPACTION (reduction) method. The choices are: 
+# quantize (q) or kmeans (k). The default=quantize. The kmeans compaction 
+# requires Imagemagick 7.0.9-10 or higher.
+# 
+# Requirements: -c compact choice of kmeans requires Imagemagick 7.0.9-10 
+# or higher
 # 
 # CAVEAT: No guarantee that this script will work on all platforms, 
 # nor that trapping of inconsistent parameters is complete and 
@@ -92,12 +115,15 @@
 # 
 
 # set default values
-mode=1				# mode=1,2,3,4,5,6
-numcolors=6			# integer>1
-ecolor="black"		# exclude color
-fuzzval=50			# fuzz value
-print="dominant"	# all hexcolors or dominant hexcolor
-swatches="yes"		# view swatches; yes or no
+mode=1					# mode=1,2,3,4,5,6
+numcolors=6				# integer>1
+ecolor="black"			# exclude color
+fuzzval=50				# fuzz value
+print="dominant"		# all hexcolors or dominant hexcolor
+swatches=""		    	# view swatches; view or save
+units="counts"			# counts or percent
+reduce="scale"			# scale, sample, none
+compaction="quantize"	# quantize or kmeans
 
 # set directory for temporary files
 dir="."    # suggestions are dir="." or dir="/tmp"
@@ -145,7 +171,7 @@ if [ $# -eq 0 ]
    echo ""
    usage2
    exit 0
-elif [ $# -gt 12 ]
+elif [ $# -gt 19 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -217,9 +243,46 @@ else
 					   checkMinus "$1"
 					   swatches=`echo "$1" | tr "[:upper:]" "[:lower:]"`
 					   case "$swatches" in 
-							yes|y) swatches="yes" ;;
-							no|n) swatches="no" ;;
+							view|v) swatches="view" ;;
+							save|s) swatches="save" ;;
 							*) errMsg "--- SWATCHES=$swatches IS AN INVALID VALUE ---" 
+					   esac
+				   	   ;;
+				-u)    # units
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID UNITS SPECIFICATION ---"
+					   checkMinus "$1"
+					   units=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$units" in 
+							counts|c) units="counts" ;;
+							percent|p) units="percent" ;;
+							*) errMsg "--- UNITS=$units IS AN INVALID VALUE ---" 
+					   esac
+				   	   ;;
+				-r)    # reduce
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID REDUCE SPECIFICATION ---"
+					   checkMinus "$1"
+					   reduce=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$reduce" in 
+							scale) reduce="scale" ;;
+							sample) reduce="sample" ;;
+							none) reduce="none" ;;
+							*) errMsg "--- REDUCE=$reduce IS AN INVALID VALUE ---" 
+					   esac
+				   	   ;;
+				-c)    # compaction
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID COMPACTION SPECIFICATION ---"
+					   checkMinus "$1"
+					   compaction=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$compaction" in 
+							quantize|q) compaction="quantize" ;;
+							kmeans|k) compaction="kmeans" ;;
+							*) errMsg "--- COMPACTION=$compaction IS AN INVALID VALUE ---" 
 					   esac
 				   	   ;;
 				 -)    # STDIN and end of arguments
@@ -243,6 +306,8 @@ fi
 # test that infile provided
 [ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
 
+inname=`convert -ping "$infile" -format "%t" info:`
+
 # setup temporary images
 tmpA1="$dir/dominantcolor_1_$$.mpc"
 tmpB1="$dir/dominantcolor_1_$$.cache"
@@ -253,79 +318,118 @@ trap "rm -f $tmpA1 $tmpB1 $tmpA2; exit 1" 1 2 3 15
 # read the input image into the temporary cached image and test if valid
 convert -quiet -regard-warnings "$infile" -alpha off +repage "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
+	
+# get image dimensions
+dims=`convert $tmpA1 -format "%wx%h" info:`
+area=`convert $tmpA1 -format "%[fx:w*h]" info:`
 
+# get im version
+im_version=`convert -list configure | \
+sed '/^LIB_VERSION_NUMBER */!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+[ "$im_version" -lt "07000910" -a "$compaction" = "kmeans" ] && errMsg "--- KMEANS COMPACTION REQUIRES IM 7.0.9-10 OR HIGHER  ---"
+
+# set up for reduce
+if [ "$reduce" = "scale" ]; then
+	reduction="-scale 50x50!"
+	dimensions="50x50"
+	totpix=2500
+elif [ "$reduce" = "sample" ]; then
+	reduction="-sample 50x50!"
+	dimensions="50x50"
+	totpix=2500
+else
+	reduction=""
+	dimensions="$dims"
+	totpix=$area
+fi
+#echo "reduction=$reduction; dimensions=$dimensions;"
+
+# set up for compaction
+if [ "$compaction" = "quantize" ]; then
+	compacting="+dither -colors"
+elif [ "$compaction" = "kmeans" ]; then
+	compacting="-kmeans"
+fi
+#echo "compacting=$compacting;"
 
 if [ $mode -eq 1 ]; then
-	sortedfinalcolors=`convert $tmpA1 -scale 50x50! -depth 8 \
-		+dither -colors $numcolors -depth 8 -format "%c" histogram:info: |\
+	sortedfinalcolors=`convert $tmpA1 $reduction -depth 8 \
+		$compacting $numcolors -depth 8 -format "%c" histogram:info: |\
 		sed -n 's/^[ ]*\(.*\):.*[#]\([0-9a-fA-F]*\) .*$/\1,#\2/p' | sort -r -n -k 1 -t ","`
 elif [ $mode -eq 2 ]; then
-	sortedfinalcolors=`convert $tmpA1 -scale 50x50! -depth 8 \
+	sortedfinalcolors=`convert $tmpA1 $reduction -depth 8 \
 		-fuzz $fuzzval% -transparent black sparse-color:- |\
-		convert -size 50x50 xc: -sparse-color voronoi '@-' \
-		+dither -colors $numcolors -depth 8 -format "%c" histogram:info: |\
+		convert -size $dims xc: -sparse-color voronoi '@-' \
+		$compacting $numcolors -depth 8 -format "%c" histogram:info: |\
 		sed -n 's/^[ ]*\(.*\):.*[#]\([0-9a-fA-F]*\) .*$/\1,#\2/p' | sort -r -n -k 1 -t ","`
 elif [ $mode -eq 3 ]; then
-	sortedfinalcolors=`convert $tmpA1 -scale 50x50! -depth 8 \
+	sortedfinalcolors=`convert $tmpA1 $reduction -depth 8 \
 		-fuzz $fuzzval% -transparent white sparse-color:- |\
-		convert -size 50x50 xc: -sparse-color voronoi '@-' \
-		+dither -colors $numcolors -depth 8 -format "%c" histogram:info: |\
+		convert -size $dims xc: -sparse-color voronoi '@-' \
+		$compacting $numcolors -depth 8 -format "%c" histogram:info: |\
 		sed -n 's/^[ ]*\(.*\):.*[#]\([0-9a-fA-F]*\) .*$/\1,#\2/p' | sort -r -n -k 1 -t ","`
 elif [ $mode -eq 4 ]; then
-	sortedfinalcolors=`convert $tmpA1 -scale 50x50! -depth 8 \
+	sortedfinalcolors=`convert $tmpA1 $reduction -depth 8 \
 		-fuzz $fuzzval% -transparent $ecolor sparse-color:- |\
-		convert -size 50x50 xc: -sparse-color voronoi '@-' \
-		+dither -colors $numcolors -depth 8 -format "%c" histogram:info: |\
+		convert -size $dims xc: -sparse-color voronoi '@-' \
+		$compacting $numcolors -depth 8 -format "%c" histogram:info: |\
 		sed -n 's/^[ ]*\(.*\):.*[#]\([0-9a-fA-F]*\) .*$/\1,#\2/p' | sort -r -n -k 1 -t ","`
 elif [ $mode -eq 5 ]; then
 	thresh=$((100-fuzzval))
-	sortedfinalcolors=`convert $tmpA1 -scale 50x50! -depth 8 \
+	sortedfinalcolors=`convert $tmpA1 $reduction -depth 8 \
 		\( -clone 0 -colorspace HSB -channel g -separate +channel -threshold $thresh% \) \
 		-alpha off -compose copy_opacity -composite sparse-color:- |\
-		convert -size 50x50 xc: -sparse-color voronoi '@-' \
-		+dither -colors $numcolors -depth 8 -format "%c" histogram:info: |\
+		convert -size $dims xc: -sparse-color voronoi '@-' \
+		$compacting $numcolors -depth 8 -format "%c" histogram:info: |\
 		sed -n 's/^[ ]*\(.*\):.*[#]\([0-9a-fA-F]*\) .*$/\1,#\2/p' | sort -r -n -k 1 -t ","`
 elif [ $mode -eq 6 ]; then
 	thresh=$((100-fuzzval))
-	sortedfinalcolors=`convert $tmpA1 -scale 50x50! -depth 8 \
+	sortedfinalcolors=`convert $tmpA1 $reduction -depth 8 \
 	\( -clone 0 -colorspace HSB -channel gb -separate +channel -threshold $thresh% \
 	-compose multiply -composite \) \
 	-alpha off -compose copy_opacity -composite sparse-color:- |\
-	convert -size 50x50 xc: -sparse-color voronoi '@-' \
-	+dither -colors $numcolors -depth 8 -format "%c" histogram:info: |\
+	convert -size $dims xc: -sparse-color voronoi '@-' \
+	$compacting $numcolors -depth 8 -format "%c" histogram:info: |\
 	sed -n 's/^[ ]*\(.*\):.*[#]\([0-9a-fA-F]*\) .*$/\1,#\2/p' | sort -r -n -k 1 -t ","`
 fi
 
+sortedfinalcolorsARR=()
+i=0
+for item in $sortedfinalcolors; do
+	if [ "$units" = "percent" ]; then
+		count=`echo $item | cut -d, -f1`
+		color=`echo $item | cut -d, -f2`
+		percent=`convert xc: -format "%[fx:100*$count/$totpix]" info:`
+		sortedfinalcolorsARR[$i]="${percent}%,$color"
+	else
+		sortedfinalcolorsARR[$i]="$item"
+	fi
+	i=$((i+1))
+done
+num=${#sortedfinalcolorsARR[*]}
 
 if [ "$print" = "dominant" ]; then
 	dominantcolor=`echo "$sortedfinalcolors" | head -n 1 | cut -d, -f2`
 	echo "$dominantcolor"
-	if [ "$swatches" = "yes" ]; then
-		convert xc:"$dominantcolor" -scale 5000% show:
+	if [ "$swatches" != "" ]; then
+		if [ "$swatches" = "view" ]; then
+			action="show:"
+		elif [ "$swatches" = "save" ]; then
+			action="${inname}_dominantcolor.gif"
+		fi
+		convert xc:"$dominantcolor" -scale 5000% $action
 	fi
 elif [ "$print" = "all" ]; then
 	echo "dominant colors:"
-	echo "count,hexcolor"
-	echo "$sortedfinalcolors"
-	if [ "$swatches" = "yes" ]; then
-		swatch_list=""
-		for item in $sortedfinalcolors; do
-			color=`echo "$item" | cut -d, -f2`
-			pixel="xc:'$color'"
-			swatch_list="$swatch_list $pixel"
-		done
-		eval 'convert '$swatch_list' +append -scale 5000% show:'
+	if [ "$units" = "percent" ]; then
+		echo "percent,hexcolor"
+	else
+		echo "count,hexcolor"
 	fi
-fi
-
-
-exit 0
-lor" -scale 5000% $action
-	fi
-elif [ "$print" = "all" ]; then
-	echo "dominant colors:"
-	echo "count,hexcolor"
-	echo "$sortedfinalcolors"
+	for ((i=0; i<num; i++)); do
+		echo "${sortedfinalcolorsARR[$i]}"
+	done		
 	if [ "$swatches" != "" ]; then
 		swatch_list=""
 		for item in $sortedfinalcolors; do

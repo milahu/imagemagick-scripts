@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Developed by Fred Weinhaus 9/18/2018 .......... revised 10/9/2018
+# Developed by Fred Weinhaus 9/18/2018 .......... revised 1/16/2022
 #
 # ------------------------------------------------------------------------------
 # 
@@ -41,7 +41,7 @@
 # -m     mode           mode for the stretch direction of the output; horizontal (h)
 #                       or vertical (v); typically used to expand the same direction  
 #                       as the input aspect; default=horizontal
-# -p     protect        protect range of the image as specified by a hyphen separate 
+# -p     protect        protect range of the image as specified by a colon separate 
 #                       increasing pair of integer coordinates within the bounds of  
 #                       the input image; default is no protect region and the expansion 
 #                       will be relative to the of the image center. 
@@ -78,7 +78,7 @@
 # aspect of the input. The default=horizontal.
 # 
 # -p protect ... PROTECT range of the image where the scale will not be changed. 
-# This is specified by a hyphen separate pair of increasing integer coordinates that 
+# This is specified by a colon separate pair of increasing integer coordinates that 
 # fall within the bounds of the input image. The coordinates are both in the same 
 # direction of the image as specified by the mode. The first coordinate must be 
 # smaller than the second coordinate in the protect range. The default is no protect 
@@ -188,7 +188,7 @@ else
 					   errorMsg="--- INVALID PROTECT SPECIFICATION ---"
 					   checkMinus "$1"
 					   protect=`expr "$1" : '\([0-9]*[:][0-9]*\)'`
-					   [ "$protect" = "" ] && errMsg "--- PROTECT=$protect MUST BE A HYPHEN SEPARATED PAIR OF NON-NEGATIVE INTEGER VALUES (with no sign) ---"
+					   [ "$protect" = "" ] && errMsg "--- PROTECT=$protect MUST BE A COLON SEPARATED PAIR OF NON-NEGATIVE INTEGER VALUES (with no sign) ---"
 					   ;;
 				 -)    # STDIN and end of arguments
 					   break
@@ -234,7 +234,7 @@ if [ "$colon_test" != "" ]; then
 	den=`expr "$den" : '\([0-9]*\)'`
 	[ "$den" = "" ] && errMsg "--- INVALID DENOMINATOR OF ASPECT RATIO DIMENSION ---"
 else
-	dimension=`expr "$1" : '\([0-9]*\)'`
+	dimension=`expr "$dimension" : '\([0-9]*\)'`
 	[ "$dimension" = "" ] && errMsg "--- INVALID INTEGER DIMENSION SPECIFIED ---"
 fi	
 
@@ -255,7 +255,9 @@ hic=`convert xc: -format "%[fx:($hi-1)/2]" info:`
 
 # compute output center
 if [ "$mode" = "horizontal" ]; then
-	dimension=`convert xc: -format "%[fx:round($wi*$num/$den)]" info:`
+	if [ "$colon_test" != "" ]; then
+		dimension=`convert xc: -format "%[fx:round($wi*$num/$den)]" info:`
+	fi
 	test=`convert xc: -format "%[fx:$dimension>$wi?1:0]" info:`
 	[ $test -eq 0 ]	&& 	echo "--- OUTPUT WIDTH MUST BE LARGER THAN INPUT WIDTH  ---"
 		
@@ -265,8 +267,8 @@ if [ "$mode" = "horizontal" ]; then
 			-fx "v.p{ ( (i-$woc) + sign(i-$woc)*pow((i-$woc),2)*($wic-$woc)/pow($woc,2) + $wic ),j}" \
 			"$outfile"
 	else
-		x1=`echo "$protect" | cut -d- -f1`
-		x2=`echo "$protect" | cut -d- -f2`
+		x1=`echo "$protect" | cut -d: -f1`
+		x2=`echo "$protect" | cut -d: -f2`
 		[ $x1 -lt 0 -o $x1 -ge $x2 ] && echo "--- INVALID PROTECT RANGE LOW VALUE  ---"
 		[ $x2 -gt $((wi-1)) -o $x2 -le $x1 ] && echo "--- INVALID PROTECT RANGE HIGH VALUE ---"
 
@@ -282,7 +284,7 @@ if [ "$mode" = "horizontal" ]; then
 			convert $tmpI -write mpr:img +delete \
 				\( mpr:img[$crop1] \) \
 				\( -size ${wo2}x$hi xc: mpr:img[$crop2] \
-				-fx "v.p{ ( i + pow(i,2)*(v.w-u.w)/pow(u.w,2) ) ),j}" \) \
+				-fx "v.p{ ( i + pow(i,2)*(v.w-u.w)/pow(u.w,2) ),j}" \) \
 				+append "$outfile"
 
 		elif [ $x2 -eq $((wi-1)) ]; then
@@ -296,7 +298,7 @@ if [ "$mode" = "horizontal" ]; then
 			wo1=$((dimension-wi2))
 			convert $tmpI -write mpr:img +delete \
 				\( -size ${wo1}x$hi xc: \( mpr:img[$crop1] -rotate 180 \) \
-					-fx "v.p{ ( i + pow(i,2)*(v.w-u.w)/pow(u.w,2) ) ),j}" -rotate 180 \) \
+					-fx "v.p{ ( i + pow(i,2)*(v.w-u.w)/pow(u.w,2) ),j}" -rotate 180 \) \
 				\( mpr:img[$crop2] \) \
 				+append "$outfile"
 
@@ -315,10 +317,10 @@ if [ "$mode" = "horizontal" ]; then
 			wo3=`convert xc: -format "%[fx:round($wi3*($dimension-$wi2)/($wi-$wi2))]" info:`
 			convert $tmpI -write mpr:img +delete \
 				\( -size ${wo1}x$hi xc: \( mpr:img[$crop1] -rotate 180 \) \
-					-fx "v.p{ ( i + pow(i,2)*(v.w-u.w)/pow(u.w,2) ) ),j}" -rotate 180 \) \
+					-fx "v.p{ ( i + pow(i,2)*(v.w-u.w)/pow(u.w,2) ),j}" -rotate 180 \) \
 				\( mpr:img[$crop2] \) \
 				\( -size ${wo3}x$hi xc: mpr:img[$crop3] \
-					-fx "v.p{ ( i + pow(i,2)*(v.w-u.w)/pow(u.w,2) ) ),j}" \) \
+					-fx "v.p{ ( i + pow(i,2)*(v.w-u.w)/pow(u.w,2) ),j}" \) \
 				+append "$outfile"
 			
 		fi
@@ -327,7 +329,9 @@ if [ "$mode" = "horizontal" ]; then
 
 
 elif [ "$mode" = "vertical" ]; then
-	dimension=`convert xc: -format "%[fx:round($hi*$num/$den)]" info:`
+	if [ "$colon_test" != "" ]; then
+		dimension=`convert xc: -format "%[fx:round($hi*$num/$den)]" info:`
+	fi
 	test=`convert xc: -format "%[fx:$dimension>$hi?1:0]" info:`
 	[ $test -eq 0 ]	&& 	echo "--- OUTPUT HEIGHT MUST BE LARGER THAN INPUT HEIGHT  ---"
 

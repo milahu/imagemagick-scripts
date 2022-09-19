@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Revised by Fred Weinhaus ...................... revised 2/18/2021
 # Revised by Anthony Thyssen to add -b option ... revised 8/24/2010

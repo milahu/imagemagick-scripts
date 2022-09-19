@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Developed by Fred Weinhaus 3/31/2008 .......... revised 8/11/2021
 # Added wedge-top and wedge-bottom effects ...... revised 6/24/2010

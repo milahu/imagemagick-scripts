@@ -1,0 +1,13 @@
+parse file time from revised date in comment
+
+# Developed by Fred Weinhaus 8/22/2009 .......... revised 5/15/2023
+
+
+
+run update script as github workflow
+
+
+
+download html docs
+
+for example doc/curves.html from http://www.fmwconcepts.com/imagemagick/curves/index.php

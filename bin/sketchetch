@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 6/10/2017 .......... revised 6/10/2017
+# Developed by Fred Weinhaus 6/10/2017 .......... revised 12/8/2023
 #
 # ------------------------------------------------------------------------------
 # 
@@ -313,11 +313,11 @@ elif [ "$mode" = "grayscale" ]; then
 		-compose overlay -composite -modulate 100,0,100 \
 		"$outfile"
 		
-elif [ "$mode" = "colorize" ]; then
+elif [ "$mode" = "colorized" ]; then
 	convert $tmpA1 \
-		\( +clone $etching \) \
-		-compose overlay -composite -modulate 100,0,100 \
-		\( +clone -fill $color -colorize $coloramount \) \
+		\( +clone $etching +write t1.png \) \
+		-compose overlay -composite -compose over +compose -modulate 100,0,100 +write t2.png \
+		\( +clone -fill "$color" -colorize $coloramt +write t3.png \) \
 		+swap -compose overlay -composite \
 		"$outfile"
 		

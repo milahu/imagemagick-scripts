@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 1/14/2010 .......... revised 5/3/2015
+# Developed by Fred Weinhaus 1/14/2010 .......... revised 11/22/2023
 #
 # ------------------------------------------------------------------------------
 # 
@@ -167,7 +167,7 @@ else
 					   # test if parameter starts with minus sign 
 					   errorMsg="--- INVALID EDGE METHOD SPECIFICATION ---"
 					   checkMinus "$1"
-					   edge="$1"
+					   method="$1"
 					   [ $method -ne 1 -a $method -ne 2 ] && errMsg "--- METHOD=$method MUST BE EITHER 1 OR 2 ---"
 					   ;;
 				-b)    # get bright
@@ -250,7 +250,7 @@ tmpA1="$dir/uwcorrect_A_$$.mpc"
 tmpA2="$dir/uwcorrect_A_$$.cache"
 trap "rm -f $tmpA1 $tmpA2;" 0
 trap "rm -f $tmpA1 $tmpA2; exit 1" 1 2 3 15
-trap "rm -f $tmpA1 $tmpA2; exit 1" ERR
+#trap "rm -f $tmpA1 $tmpA2; exit 1" ERR
 
 # get im_version
 im_version=`convert -list configure | \

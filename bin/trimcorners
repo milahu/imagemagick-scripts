@@ -2,7 +2,7 @@
 
 #!/usr/bin/env bash
 # 
-# Developed by Fred Weinhaus 10/13/2017 .......... revised  10/13/2017
+# Developed by Fred Weinhaus 10/13/2017 .......... revised  12/22/2023
 #
 # ------------------------------------------------------------------------------
 # 
@@ -339,7 +339,8 @@ btmrighty=`convert xc: -format "%[fx:$H-1-floor($btmright*sin($absang*pi/180))]"
 #echo "topleftx=$topleftx; toplefty=$toplefty; btmrightx=$btmrightx; btmrighty=$btmrighty;"
 
 # rotate clockwise so diagonal is horizontal and crop center line.
-angle=`convert xc: -format "%[fx:-$angle]" info:`
+angle=`convert xc: -format "%[fx:-($angle)]" info:`
+echo "angle=$angle; diag=$diag;"
 trimvals=`convert $tmpA2 \
 	-virtual-pixel background -background black \
 	+distort SRT "$angle" +repage \
@@ -400,7 +401,7 @@ if [ "$graphic" = "yes" ]; then
 	# and use morphology edgein to create an inner line and compose with red over the image
 	convert $tmpA1 \
 		\( -clone 0 -fill "$scolor" -colorize 100 \) \
-		\( -clone 0 -fill black -colorize 100 -fill white -draw "polygon $polygon" -morphology edgein octagon:$thick \) \
+		\( -clone 0 -fill black -colorize 100 -fill white -draw "polygon $polygon" -alpha off -morphology edgein octagon:$thick \) \
 		-compose over -composite ${outname}_box.$suffix
 fi
 

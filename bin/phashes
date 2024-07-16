@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 5/2/2018 .......... revised 1/29/2022
+# Developed by Fred Weinhaus 5/2/2018 .......... revised 2/25/2024
 #
 # ------------------------------------------------------------------------------
 # 
@@ -233,17 +233,18 @@ checkMinus()
 storeMetaData()
 	{		
 	# write to comment or label meta data
+	# modified by Viorel Tabara <viorel.tabara@infrabit.net> for unique comment/label
 	if [ "$save" = "comment" ]; then
 		if [ "$comment" = "" ]; then
 			comment="$method $phash"
 		else
-			comment="$comment\n$method $phash"
+			comment=$(echo -e "$comment\n$method $phash" | sort -u)
 		fi
 	elif [ "$save" = "label" ]; then
 		if [ "$label" = "" ]; then
 			label="$method $phash"
 		else
-			label="$label\n$method $phash"
+			label=$(echo -e "$label\n$method $phash" | sort -u)
 		fi
 	fi
 	}
@@ -495,7 +496,7 @@ if [ $num_images -eq 1 -a $num_methods -eq 1 ]; then
 
 		# compute var of each ring distorted so equal area rings
 		phash=`convert "$img" +repage -alpha off -colorspace gray -resize 256x256! \
-			-auto-level -blur 0x1 distort depolar 0 -write mpr:img +delete \
+			-auto-level -blur 0x1 -distort depolar 0 -write mpr:img +delete \
 			\( mpr:img -scale 1x256! \) \
 			\( mpr:img mpr:img -compose multiply -composite -scale 1x256! \) \
 			\( -clone 0 -clone 0 -compose multiply -composite \) \

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 10/10/2012 .......... revised 11/25/2019
+# Developed by Fred Weinhaus 10/10/2012 .......... revised 12/9/2023
 #
 # ------------------------------------------------------------------------------
 # 
@@ -309,8 +309,8 @@ getTriangle()
 	# get min bounding box for viewport
 	xmin=`convert xc: -format "%[fx:min($d1x,min($d2x,$d3x))]" info:`
 	ymin=`convert xc: -format "%[fx:min($d1y,min($d2y,$d3y))]" info:`
-	wd=`convert xc: -format "%[fx:max($d1x,max($d2x,$d3x)) - $xmin + 1]" info:`
-	ht=`convert xc: -format "%[fx:max($d1y,max($d2y,$d3y)) - $ymin + 1]" info:`
+	wd=`convert xc: -format "%[fx:max($d1x,max($d2x,$d3x)) - ($xmin) + 1]" info:`
+	ht=`convert xc: -format "%[fx:max($d1y,max($d2y,$d3y)) - ($ymin) + 1]" info:`
 
 if $debug; then
 	echo ""

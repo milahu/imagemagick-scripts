@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 8/27/2007 .......... revised 1/21/2020
+# Developed by Fred Weinhaus 8/27/2007 .......... revised 12/18/2022
 # Contrast limiting technique by Alan Gibson (user snibgo) ... 7/3/2013
 #
 # ------------------------------------------------------------------------------
@@ -533,6 +533,12 @@ fi
 im_version=`convert -list configure | \
 	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
+if [ "$im_version" -ge "07000000" ]; then
+	identifying="magick identify"
+else
+	identifying="identify"
+fi
+
 # colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
 # though probably not resolved until the latter
 # then -colorspace gray changed to linear between 6.7.6.7 and 6.7.8.2 
@@ -564,8 +570,9 @@ fi
 if convert -quiet "$infile" -strip +repage "$tmpA"
 	then
 		# get colorspace and type
-		colorspace=`identify -ping -verbose $tmpA | sed -n 's/^.*Colorspace: \([^ ]*\).*$/\1/p'`
-		type=`identify -ping -verbose $tmpA | sed -n 's/^.*Type: \([^ ]*\).*$/\1/p'`
+		# add LC_ALL=C before sed to change language so that "bad" characters can be read without error
+		colorspace=`$identifying -ping -verbose $tmpA | LC_ALL=C sed -n 's/^.*Colorspace: \([^ ]*\).*$/\1/p'`
+		type=`$identifying -ping -verbose $tmpA | LC_ALL=C sed -n 's/^.*Type: \([^ ]*\).*$/\1/p'`
 
 		[ "$type" = "Grayscale" ] && colorspace="Gray"
 

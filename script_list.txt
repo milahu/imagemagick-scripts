@@ -442,6 +442,10 @@ ptilethresh --- Automatically thresholds an image to binary (b/w) format at a sp
 
 puzzle --- Applies a puzzle like effect to an image.
 
+quadcorners1 --- Finds the four corners of a binary quadrilateral using the intersection of Hough lines.
+
+quadcorners2 --- Finds the four corners of a binary quadrilateral by finding maximum curvature on the convex hull outline.
+
 radialgradient --- Creates a radial gradient image.
 
 radialgrid --- Superimposes circular grid lines on an image.
@@ -681,6 +685,8 @@ unrotate2 --- Automatically unrotates a rotated image and trims the surrounding 
 unrotate3 --- Automatically unrotates a rotated image and trims the surrounding border.
 
 unsaturatehue --- Desaturates a given hue (range) in an image.
+
+unwatermark --- removes a larger (uniform colored) watermark from a small font text image.
 
 uwcorrect --- Corrects the color balance for red light attenuation in pictures taken underwater.
 

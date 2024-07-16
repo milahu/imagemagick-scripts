@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 12/26/2007 .......... revised 4/25/2015
+# Developed by Fred Weinhaus 12/26/2007 .......... revised 11/11/2023
 #
 # ------------------------------------------------------------------------------
 # 
@@ -283,20 +283,31 @@ tmp2B="$dir/split_2_$$.cache"
 tmp0="$dir/split_0_$$.miff"
 trap "rm -f $tmp1A $tmp1B $tmp2A $tmp2B $tmp0;" 0
 trap "rm -f $tmp1A $tmp1B $tmp2A $tmp2B $tmp0; exit 1" 1 2 3 15
-trap "rm -f $tmp1A $tmp1B $tmp2A $tmp2B $tmp0; exit 1" ERR
+#trap "rm -f $tmp1A $tmp1B $tmp2A $tmp2B $tmp0; exit 1" ERR
+
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+if [ "$im_version" -ge "07000000" ]; then
+	identifying="magick identify"
+else
+	identifying="identify"
+fi
 
 if convert -quiet "$infile1" $resize +repage "$tmp1A"
 	then
-	width1=`identify -format %w $tmp1A`
-	height1=`identify -format %h $tmp1A`
+	width1=`$identifying -format %w $tmp1A`
+	height1=`$identifying -format %h $tmp1A`
 else
 	errMsg "--- FILE $infile1 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 fi
 
 if convert -quiet -regard-warnings "$infile2" $resize +repage "$tmp2A"
 	then
-	width2=`identify -format %w $tmp2A`
-	height2=`identify -format %h $tmp2A`
+	width2=`$identifying -format %w $tmp2A`
+	height2=`$identifying -format %h $tmp2A`
 else
 	errMsg "--- FILE $infile2 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE ---"
 fi

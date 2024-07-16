@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 12/15/2016 .......... revised 10/29/2020
+# Developed by Fred Weinhaus 12/15/2016 .......... revised 12/11/2023
 #
 # ------------------------------------------------------------------------------
 # 
@@ -468,6 +468,13 @@ if [ "$im_version" -gt "06080504" ]; then
 fi
 #echo "setscpace=$setscpace; cspace1=$cspace1; cspace2=$cspace2;"
 
+# set up floodfill
+if [ "$im_version" -ge "07000000" ]; then
+	matte_alpha="alpha"
+else
+	matte_alpha="matte"
+fi
+
 # get image dimensions and corner coords
 wxh=`convert -ping $dir/tmpI.mpc -format "%wx%h" info:`
 ww=`echo "$wxh" | cut -dx -f1`
@@ -518,22 +525,17 @@ if [ "$icolor" = "" ]; then
 			-format "%[pixel:u.p{0,0}]" info:`
 		coords="$sw"
 	fi
-	echo "color=$color; coords=$coords"
+	#echo "color=$color; coords=$coords"
 else
 	color=$icolor
-	echo "color=$color"
 fi
-
-# set up floodfill
-if [ "$im_version" -ge "07000000" ]; then
-	matte_alpha="alpha"
-else
-	matte_alpha="matte"
-fi
+#echo "position=$position; coords=$coords; offset=$offset; color=$color"
 
 # pad image with color
 convert $dir/tmpI.mpc -bordercolor "$color" -border 10 $dir/tmpI.mpc
 
+color_alpha=`convert xc:"$color" -alpha set -format "%[pixel:u.p]" info:`
+#echo "color=$color; color_alpha=$color_alpha;"
 
 # refine color
 if [ "$method" = "threshold" ]; then
@@ -541,22 +543,19 @@ if [ "$method" = "threshold" ]; then
 		\( +clone -background black -alpha background -alpha off \
 			-fill white +opaque black -negate +write $dir/tmpM.mpc \) +delete \
 		-scale 1x1! -alpha off -format "%[pixel:u.p{0,0}]" info:`
-	echo "refinedcolor=$color"
 elif [ "$method" = "floodfill" -a "$icolor" = "" ]; then
-	color=`convert $dir/tmpI.mpc -fuzz $refinefuzz% -fill none \
-		-draw "matte $coords floodfill" \
-		\( +clone -alpha extract +write $dir/tmpM.mpc -fill white +opaque black -negate \) \
-		-alpha off -compose over -compose copy_opacity -composite \
+	color=`convert $dir/tmpI.mpc +write f1.png \( +clone -fuzz $refinefuzz% -fill "none" \
+		-draw "$matte_alpha $coords floodfill" -alpha extract +write f2.png +write $dir/tmpM.mpc -fill white +opaque black -negate +write f3.png \) \
+		-alpha off -compose copy_opacity -composite +write f4.png \
 		-scale 1x1! -alpha off -format "%[pixel:u.p{0,0}]" info:`
-	echo "refinedcolor=$color"
-fi
 
+fi
 
 # do CCL to get crop region bbox
 if [ "$method" = "floodfill" -a "$icolor" = "" ]; then
 	OLDIFS=$IFS
 	IFS=$'\n'
-	dataArr=(`convert $dir/tmpM.mpc \
+	dataArr=(`convert $dir/tmpM.mpc -type bilevel \
 		-define connected-components:verbose=true \
 		-connected-components 8 null: | tail -n +2`)
 	IFS=$OLDIFS
@@ -565,13 +564,14 @@ if [ "$method" = "floodfill" -a "$icolor" = "" ]; then
 		bbox=`echo ${dataArr[$i]} | cut -d\  -f2 | sed 's/^[ ]*//'`
 		rcolor=`echo ${dataArr[$i]} | cut -d\  -f5 | sed 's/^[ ]*//'`
 		if [ "$rcolor" = "white" -o "$rcolor" = "gray(255)" -o "$rcolor" = "srbg(255,255,255)" ]; then
-			echo "bbox=$bbox; rcolor=$rcolor;"
+			#echo "bbox=$bbox; rcolor=$rcolor;"
 			break
 		fi
 	done
-		
+
 elif [ "$method" = "threshold" ]; then
-	convert $dir/tmpM.mpc -define connected-components:verbose=true \
+	convert $dir/tmpM.mpc -type bilevel \
+		-define connected-components:verbose=true \
 		-define connected-components:area-threshold=$area \
 		-define connected-components:mean-color=true \
 		-connected-components 8 \
@@ -616,11 +616,12 @@ if [ "$trimfuzz" != "none" ]; then
 else
 	trimming=""
 fi
+#echo "trimming=$trimming;"
 
 # crop image
 if [ "$crop" = "yes" -a "$method" != "none" -a "$icolor" = "" ]; then
-	convert $dir/tmpI.mpc \( +clone -fill "$color" -colorize 100% \) \
-		+swap -compose divide -composite -negate \
+	convert $dir/tmpI.mpc +repage +write t1.png \( +clone -fill "$color" -colorize 100% +write t2.png \) \
+		+swap -compose divide -composite -negate +write t3.png \
 		-crop $bbox +repage \
 		$trimming $stretching $dir/tmpI.mpc
 else
@@ -635,7 +636,6 @@ if [ "$im_version" -lt "06060100" ]; then
 else
 	process="-color-matrix"
 fi
-
 
 # Process colorbalance
 if [ "$colorbalance" = "gray" -o "$colorbalance" = "both" -o "$colorbalance" = "auto" ]; then

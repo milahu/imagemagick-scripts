@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 8/29/2012 .......... revised 6/5/2016
+# Developed by Fred Weinhaus 8/29/2012 .......... revised 7/7/2016
 #
 # ------------------------------------------------------------------------------
 # 
@@ -111,8 +111,8 @@
 # 
 # RESTRICTIONS: IM 6.5.5-1 or higher due to the use of -autolevel to do the 
 # autostretch. Also only works on RGB images (not CMYK). Set colorbalance to
-# none for grayscale images. Note that this script may be slow due to the use 
-# of -fx, if not using HDRI compiled Imagemagick.
+# none for grayscale images. Note that this script may be slow when using the  
+# older (slow) -fx.
 # 
 # NOTE: I thank Dr. Guenter Grau for the suggestion to normalize the r,g,b 
 # ratios by their average in the color balance part of the code.
@@ -366,7 +366,6 @@ getRatio()
 	ratio=`convert xc: -format "%[fx:$ref/$ave]" info:`
 	}
 
-
 # set up -recolor or -color-matrix for color balancing
 if [ "$im_version" -lt "06060100" ]; then
 	process="-recolor"
@@ -424,7 +423,6 @@ elif [ "$autostretch" = "auto" ]; then
 	fi
 fi
 
-
 # autostretch as above
 convert $dir/tmpI.mpc $aproc $dir/tmpI.mpc 
 
@@ -455,7 +453,6 @@ if [ $noise -gt 0 ]; then
 fi
 #echo "denoise=$denoise"
 
-
 # Process auto bri/con via space2 technique
 
 convert $dir/tmpI.mpc $setcspace -colorspace Gray $dir/tmp0.mpc
@@ -472,7 +469,7 @@ if [ $test -eq 1 ]; then
 else
 	#decrease brightness
 	#note must invert ratio and change sign for sigmoidal adjustment
-	bri=`convert xc: -format "%[fx:-$bri*pow(1/$bratio,2.5)]" info:`
+	bri=`convert xc: -format "%[fx:-($bri)*pow(1/$bratio,2.5)]" info:`
 fi
 cratio=`convert xc: -format "%[fx:$dstd/$std]" info:`
 test=`convert xc: -format "%[fx:$cratio>=1?1:0]" info:`
@@ -482,7 +479,7 @@ if [ $test -eq 1 ]; then
 else
 	#decrease contrast
 	#note must invert ratio and change sign for sigmoidal adjustment
-	con=`convert xc: -format "%[fx:-$con*pow(1/$cratio,2.5)]" info:`
+	con=`convert xc: -format "%[fx:-($con)*pow(1/$cratio,2.5)]" info:`
 fi
 #echo "bri=$bri; con=$con;"
 
@@ -574,7 +571,7 @@ convert $dir/tmpS.mpc -resize $dim! $dir/tmpSE.mpc
 # set dstd to std
 dstd=`convert xc: -format "%[fx:$std]" info:`
 
-if [ "$hdri_on" = "" ]; then
+if [ "$hdri_on" = "" -o "$im_version" -ge "06060100" ]; then
 	dsdmaxgain=`convert xc: -format "%[fx:$std/$maxgain]" info:`
 #	echo "dstd=$dstd; dsdmaxgain=$dsdmaxgain"
 	convert $dir/tmpI.mpc $dir/tmpME.mpc $dir/tmpSE.mpc -monitor \
@@ -611,10 +608,12 @@ if [ "$colorbalance" = "gray" -o "$colorbalance" = "both" ]; then
 		\( -clone 0 -colorspace HSB -channel B -separate +channel -solarize 50% -level 0x50% \) \
 		\( -clone 1 -clone 2 -compose multiply -composite \) \
 		\( -clone 3 -contrast-stretch 0,${percent}% -fill black +opaque white \) \
-		-delete 0-3 $dir/tmpM.mpc
-	
+		-delete 0-3 $dir/tmpMA.mpc
+		
+convert $dir/tmpMA.mpc[-1] $dir/tmpMA.mpc
+
 	# get mean of mask
-	getMean $dir/tmpM.mpc
+	getMean $dir/tmpMA.mpc
 	maskmean=$mean
 	[ "$maskmean" = "0" ] && errMsg "--- GRAY BALANCE ERROR - INCREASE PERCENT ARGUMENT ---"
 	#echo "maskmean=$maskmean"
@@ -622,19 +621,19 @@ if [ "$colorbalance" = "gray" -o "$colorbalance" = "both" ]; then
 	# use mask image to isolate user supplied percent of pixels closest to white
 	# then get ave graylevel for each channel of mask selected pixels
 		
-	convert $dir/tmpRGB.mpc[0] $dir/tmpM.mpc -compose multiply -composite $dir/tmpT.mpc
+	convert $dir/tmpRGB.mpc[0] $dir/tmpMA.mpc -compose multiply -composite $dir/tmpT.mpc
 	getRatio "$dir/tmpT.mpc[0]" "0.5"
 	redave=$ave
 	redratio=$ratio
 	#echo "R: ave=$ave; redratio=$ratio"
 	
-	convert $dir/tmpRGB.mpc[1] $dir/tmpM.mpc -compose multiply -composite $dir/tmpT.mpc
+	convert $dir/tmpRGB.mpc[1] $dir/tmpMA.mpc -compose multiply -composite $dir/tmpT.mpc
 	getRatio "$dir/tmpT.mpc[1]" "0.5"
 	greenave=$ave
 	greenratio=$ratio
 	#echo "G: ave=$ave; greenratio=$ratio;"
 	
-	convert $dir/tmpRGB.mpc[2] $dir/tmpM.mpc -compose multiply -composite $dir/tmpT.mpc
+	convert $dir/tmpRGB.mpc[2] $dir/tmpMA.mpc -compose multiply -composite $dir/tmpT.mpc
 	getRatio "$dir/tmpT.mpc[2]" "0.5"
 	blueave=$ave
 	blueratio=$ratio
@@ -653,8 +652,6 @@ if [ "$colorbalance" = "gray" -o "$colorbalance" = "both" ]; then
 	convert $dir/tmpI.mpc $process "$redratio 0 0 0 $greenratio 0 0 0 $blueratio" $dir/tmpI.mpc
 fi
 
-
-
 # Process whitebalance
 if [ "$colorbalance" = "white" -o "$colorbalance" = "both" ]; then
 
@@ -668,10 +665,10 @@ if [ "$colorbalance" = "white" -o "$colorbalance" = "both" ]; then
 		-colorspace HSB -channel G -negate -channel GB -separate +channel \
 		-compose multiply -composite \
 		-contrast-stretch 0,${percent}% -fill black +opaque white \
-		$dir/tmpM.mpc
+		$dir/tmpMA.mpc
 	
 	# get mean of mask
-	getMean $dir/tmpM.mpc
+	getMean $dir/tmpMA.mpc
 	maskmean=$mean
 	[ "$maskmean" = "0" ] && errMsg "--- WHITE BALANCE ERROR - INCREASE PERCENT ARGUMENT ---"
 	#echo "maskmean=$maskmean"
@@ -679,21 +676,21 @@ if [ "$colorbalance" = "white" -o "$colorbalance" = "both" ]; then
 	# use mask image to isolate user supplied percent of pixels closest to white
 	# then get ave graylevel for each channel of mask selected pixels
 	
-	convert $dir/tmpRGB.mpc $dir/tmpM.mpc -compose multiply -composite $dir/tmpT.mpc
+	convert $dir/tmpRGB.mpc $dir/tmpMA.mpc -compose multiply -composite $dir/tmpT.mpc
 	
-	convert $dir/tmpRGB.mpc[0] $dir/tmpM.mpc -compose multiply -composite $dir/tmpT.mpc
+	convert $dir/tmpRGB.mpc[0] $dir/tmpMA.mpc -compose multiply -composite $dir/tmpT.mpc
 	getRatio "$dir/tmpT.mpc[0]" "1"
 	redave=$ave
 	redratio=$ratio
 	#echo "R: ave=$ave; redratio=$ratio"
 	
-	convert $dir/tmpRGB.mpc[1] $dir/tmpM.mpc -compose multiply -composite $dir/tmpT.mpc
+	convert $dir/tmpRGB.mpc[1] $dir/tmpMA.mpc -compose multiply -composite $dir/tmpT.mpc
 	getRatio "$dir/tmpT.mpc[1]" "1"
 	greenave=$ave
 	greenratio=$ratio
 	#echo "G: ave=$ave; greenratio=$ratio;"
 	
-	convert $dir/tmpRGB.mpc[2] $dir/tmpM.mpc -compose multiply -composite $dir/tmpT.mpc
+	convert $dir/tmpRGB.mpc[2] $dir/tmpMA.mpc -compose multiply -composite $dir/tmpT.mpc
 	getRatio "$dir/tmpT.mpc[2]" "1"
 	blueave=$ave
 	blueratio=$ratio
@@ -711,8 +708,6 @@ if [ "$colorbalance" = "white" -o "$colorbalance" = "both" ]; then
 	fi
 	convert $dir/tmpI.mpc $process "$redratio 0 0 0 $greenratio 0 0 0 $blueratio" $dir/tmpI.mpc
 fi
-
-
 
 # Save to Output
 convert $dir/tmpI.mpc "$outfile"

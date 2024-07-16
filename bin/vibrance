@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 2/18/2012 .......... revised 6/2/2015
+# Developed by Fred Weinhaus 2/18/2012 .......... revised 11/22/2023
 #
 # ------------------------------------------------------------------------------
 # 
@@ -159,7 +159,7 @@ tmp1A="$dir/vibrance_1_$$.mpc"
 tmp1B="$dir/vibrance_1_$$.cache"
 trap "rm -f $tmp1A $tmp1B;" 0
 trap "rm -f $tmp1A $tmp1B; exit 1" 1 2 3 15
-trap "rm -f $tmp1A $tmp1B; exit 1" ERR
+#trap "rm -f $tmp1A $tmp1B; exit 1" ERR
 
 # test input image
 convert -quiet "$infile" +repage "$tmp1A" ||
@@ -167,9 +167,9 @@ convert -quiet "$infile" +repage "$tmp1A" ||
 
 # setup gval from amount
 if [ $amount -lt 0 ]; then
-	gval=`convert xc: -format "%[fx:1-$amount*(0.25/100)]" info:`
+	gval=`convert xc: -format "%[fx:1-($amount*(0.25/100))]" info:`
 else
-	gval=`convert xc: -format "%[fx:1-$amount*(0.50/100)]" info:`
+	gval=`convert xc: -format "%[fx:1-($amount*(0.50/100))]" info:`
 fi
 
 # convert amount for use by -modulate

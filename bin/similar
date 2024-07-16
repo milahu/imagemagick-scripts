@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 12/30/2009 .......... revised 7/13/2016
+# Developed by Fred Weinhaus 12/30/2009 .......... revised 12/6/2023
 #
 # ------------------------------------------------------------------------------
 # 
@@ -204,7 +204,7 @@ tmpB4="$dir/similar_4_$$.cache"
 
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4;" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4; exit 1" 1 2 3 15
-trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4; exit 1" ERR
+#trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3 $tmpA4 $tmpB4; exit 1" ERR
 
 # get im_version
 im_version=`convert -list configure | \
@@ -251,7 +251,6 @@ convert -quiet "$infile1" $cspace +repage "$tmpA1" ||
 convert -quiet "$infile2" $cspace +repage "$tmpA2" ||
 	errMsg "--- FILE $infile2 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
-echo ""
 # test image sizes
 w1=`convert $tmpA1 -ping -format "%w" info:`
 w2=`convert $tmpA2 -ping -format "%w" info:`

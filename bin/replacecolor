@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 4/21/2016 .......... revised 12/16/2019
+# Developed by Fred Weinhaus 4/21/2016 .......... revised 9/13/2023
 #
 # ------------------------------------------------------------------------------
 # 
@@ -293,27 +293,48 @@ fi
 # convert input color to hsl in quantumrange values, then divide by quantumrange so in range 0 to 1
 # convert ihue to range 0 to 360
 ihsl=`convert xc:"$icolor" -colorspace $colormode txt: | \
-	tail -n +2 | sed 's/%//g' | sed 's/,[ ]*/,/g' | \
-	tr -cs ",0-9\n" " " | awk '{print $2}'`
-ihue=`echo "$ihsl" | cut -d, -f1`
-isat=`echo "$ihsl" | cut -d, -f2`
-ibri=`echo "$ihsl" | cut -d, -f3`
-ihue=`convert xc: -format "%[fx:360*$ihue/quantumrange]" info:`
-isat=`convert xc: -format "%[fx:$isat/quantumrange]" info:`
-ibri=`convert xc: -format "%[fx:$ibri/quantumrange]" info:`
+	tail -n +2 | sed 's/,[ ]*/,/g' | \
+	tr -cs ".,%0-9\n" " " | awk '{print $2}'`
+
+ihue=`echo $ihsl | cut -d, -f1 | sed 's/%//g;'`
+isat=`echo $ihsl | cut -d, -f2 | sed 's/%//g;'`
+ibri=`echo $ihsl | cut -d, -f3 | sed 's/%//g;'`
+#echo "ihsl=$ihsl; ihue=$ihue; isat=$isat; ibri=$ibri;"
+
+# test if ihsl contains % symbols
+ihsl_pct=`echo "$ihsl" | grep "%"`
+if [ "$ihsl_pct" != "" ]; then
+	# contains % for sat and bri, hue in range 0 to 360
+	isat=`convert xc: -format "%[fx:$isat/100]" info:`
+	ibri=`convert xc: -format "%[fx:$ibri/100]" info:`
+else
+	ihue=`convert xc: -format "%[fx:360*$ihue/quantumrange]" info:`
+	isat=`convert xc: -format "%[fx:$isat/quantumrange]" info:`
+	ibri=`convert xc: -format "%[fx:$ibri/quantumrange]" info:`
+fi
 #echo "ihsl=$ihsl; ihue=$ihue; isat=$isat; ibri=$ibri;"
 
 # convert output color to hsl in quantumrange values, then divide by quantumrange so in range 0 to 1
 # convert ohue to percent
 ohsl=`convert xc:"$ocolor" -colorspace $colormode txt: | \
-	tail -n +2 | sed 's/%//g' | sed 's/,[ ]*/,/g' | \
-	tr -cs ",0-9\n" " " | awk '{print $2}'`
-ohue=`echo "$ohsl" | cut -d, -f1`
-osat=`echo "$ohsl" | cut -d, -f2`
-obri=`echo "$ohsl" | cut -d, -f3`
-ohue=`convert xc: -format "%[fx:100*$ohue/quantumrange]" info:`
-osat=`convert xc: -format "%[fx:$osat/quantumrange]" info:`
-obri=`convert xc: -format "%[fx:$obri/quantumrange]" info:`
+	tail -n +2 | sed 's/,[ ]*/,/g' | \
+	tr -cs ".,%0-9\n" " " | awk '{print $2}'`
+
+ohue=`echo $ohsl | cut -d, -f1 | sed 's/%//g;'`
+osat=`echo $ohsl | cut -d, -f2 | sed 's/%//g;'`
+obri=`echo $ohsl | cut -d, -f3 | sed 's/%//g;'`
+
+# test if ihsl contains % symbols
+ohsl_pct=`echo "$ohsl" | grep "%"`
+if [ "$ohsl_pct" != "" ]; then
+	# contains % for sat and bri, hue in range 0 to 360
+	osat=`convert xc: -format "%[fx:$osat/100]" info:`
+	obri=`convert xc: -format "%[fx:$obri/100]" info:`
+else
+	ohue=`convert xc: -format "%[fx:360*$ohue/quantumrange]" info:`
+	osat=`convert xc: -format "%[fx:$osat/quantumrange]" info:`
+	obri=`convert xc: -format "%[fx:$obri/quantumrange]" info:`
+fi
 #echo "ohsl=$ohsl; ohue=$ohue; osat=$osat; obri=$obri;"
 
 # compute saturation and brightness as fraction relative to input saturation and brightness
@@ -343,7 +364,6 @@ convert -size 35999x1 xc:black \
 
 # set up gain from change to absolute value for +level where 100 is no change
 gain=$((100+gain))
-
 
 # do processing
 # line 1 - convert to depth 8

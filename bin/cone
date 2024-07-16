@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 5/27/2010 .......... 12/11/2014
+# Developed by Fred Weinhaus 5/27/2010 .......... 12/22/2023
 #
 # ------------------------------------------------------------------------------
 # 
@@ -300,8 +300,7 @@ tnum=`echo "$tcolors" | tr "," " " | wc -w`
 tcolor=`echo "$tcolors" | cut -d, -f 1`
 tstroke=`echo "$tcolors" | cut -d, -f 2`
 twidth=`echo "$tcolors" | cut -d, -f 3`
-test=`expr "$twidth" : '\([0-9]*\)'`
-[ $test -ne 1 ] && errMsg "--- TWIDTH MUST BE A NON-NEGATIVE INTEGER ---"
+[[ $twidth == [[:digit:]] ]] || echo "--- TWIDTH MUST BE A NON-NEGATIVE INTEGER ---"
 
 ecolors=`echo "$ecolors" | sed 's/ //g'`
 enum=`echo "$ecolors" | tr "," " " | wc -w`
@@ -309,14 +308,13 @@ enum=`echo "$ecolors" | tr "," " " | wc -w`
 ecolor=`echo "$ecolors" | cut -d, -f 1`
 estroke=`echo "$ecolors" | cut -d, -f 2`
 ewidth=`echo "$ecolors" | cut -d, -f 3`
-test=`expr "$ewidth" : '\([0-9]*\)'`
-[ $test -ne 1 ] && errMsg "--- EWIDTH MUST BE A NON-NEGATIVE INTEGER ---"
+[[ $ewidth == [[:digit:]] ]] || echo "--- EWIDTH MUST BE A NON-NEGATIVE INTEGER ---"
 
 
 # do calculations
 
 # calc horizontal ellipse points relative to center
-x2=`convert xc: -format "%[fx:$xc-$a]" info:`
+x2=`convert xc: -format "%[fx:($xc-$a)]" info:`
 y2=$yc
 x3=`convert xc: -format "%[fx:$xc+$a]" info:`
 y3=$yc
@@ -343,17 +341,17 @@ y6=0
 
 A=`convert xc: -format "%[fx:$a*$a*$y4*$y4 + $b*$b*$x4*$x4]" info:`
 B=`convert xc: -format "%[fx:-2*$a*$a*$b*$b*$x4]" info:`
-C=`convert xc: -format "%[fx:$a*$a*$a*$a*($b*$b-$y4*$y4)]" info:`
-x7=`convert xc: -format "%[fx:(-$B-sqrt($B*$B-4*$A*$C))/(2*$A)]" info:`
-x8=`convert xc: -format "%[fx:(-$B+sqrt($B*$B-4*$A*$C))/(2*$A)]" info:`
+C=`convert xc: -format "%[fx:$a*$a*$a*$a*($b*$b-($y4*$y4))]" info:`
+x7=`convert xc: -format "%[fx:(-$B-sqrt($B*$B-(4*$A*$C)))/(2*$A)]" info:`
+x8=`convert xc: -format "%[fx:(-$B+sqrt($B*$B-(4*$A*$C)))/(2*$A)]" info:`
 y7=`convert xc: -format "%[fx:($a*$a*$b*$b-$b*$b*$x4*$x7)/($a*$a*$y4)]" info:`
 y8=`convert xc: -format "%[fx:($a*$a*$b*$b-$b*$b*$x4*$x8)/($a*$a*$y4)]" info:`
 
 # rotate and translate tangent points relative to apex and true ellipse center
-x9=`convert xc: -format "%[fx:($x7)cos(pi*$angle/180)-($y7+$len)sin(pi*$angle/180)+$x1]" info:`
-y9=`convert xc: -format "%[fx:($x7)sin(pi*$angle/180)+($y7+$len)cos(pi*$angle/180)+$y1]" info:`
-x10=`convert xc: -format "%[fx:($x8)cos(pi*$angle/180)-($y8+$len)sin(pi*$angle/180)+$x1]" info:`
-y10=`convert xc: -format "%[fx:($x8)sin(pi*$angle/180)+($y8+$len)cos(pi*$angle/180)+$y1]" info:`
+x9=`convert xc: -format "%[fx:($x7)*cos(pi*$angle/180)-($y7+$len)*sin(pi*$angle/180)+$x1]" info:`
+y9=`convert xc: -format "%[fx:($x7)*sin(pi*$angle/180)+($y7+$len)*cos(pi*$angle/180)+$y1]" info:`
+x10=`convert xc: -format "%[fx:($x8)*cos(pi*$angle/180)-($y8+$len)*sin(pi*$angle/180)+$x1]" info:`
+y10=`convert xc: -format "%[fx:($x8)*sin(pi*$angle/180)+($y8+$len)*cos(pi*$angle/180)+$y1]" info:`
 
 if [ "$infile" != "" ]; then
 	input="$tmpA1"

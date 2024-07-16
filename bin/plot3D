@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 8/5/2014 .......... revised 5/2/2015
+# Developed by Fred Weinhaus 8/5/2014 .......... revised 12/10/2023
 #
 # ------------------------------------------------------------------------------
 # 
@@ -531,7 +531,17 @@ tmpA2="$dir/plot3D_2_$$.png"
 tmpA3="$dir/plot3D_3_$$.png"
 trap "rm -f $tmpA0 $tmpA1 $tmpA2 $tmpA3;" 0
 trap "rm -f $tmpA0 $tmpA1 $tmpA2 $tmpA3; exit 1" 1 2 3 15
-trap "rm -f $tmpA0 $tmpA1 $tmpA2 $tmpA3; exit 1" ERR
+#trap "rm -f $tmpA0 $tmpA1 $tmpA2 $tmpA3; exit 1" ERR
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+if [ "$im_version" -ge "07000000" ]; then
+	identifying="magick identify"
+else
+	identifying="identify"
+fi
 
 # set up autolevel processing
 if [ "$autolevel" = "on" ]; then 
@@ -548,7 +558,7 @@ elif [ "$channel" != "color" ]; then
 fi
 
 # get for colorspace
-data=`identify -verbose "$infile"`
+data=`$identifying -verbose "$infile"`
 colorspace=`echo "$data" | sed -n 's/^.*Colorspace: \([^ ]*\).*$/\1/p'`
 [ "$colorspace" = "Gray" ] && channel="gray"
 #echo $colorspace
@@ -572,8 +582,8 @@ else
 fi
 
 # get width, height and half dimensions
-ww=`identify -ping -format "%w" $tmpA0`
-hh=`identify -ping -format "%h" $tmpA0`
+ww=`$identifying -ping -format "%w" $tmpA0`
+hh=`$identifying -ping -format "%h" $tmpA0`
 ww2=`convert xc: -format "%[fx:round($ww/2)]" info:`
 hh2=`convert xc: -format "%[fx:round($hh/2)]" info:`
 
@@ -637,7 +647,8 @@ set nokey
 set xrange [0:$ww]
 
 # set y range with reverse on y for image input
-set yrange [0:$hh] reverse
+# set yrange [0:$hh] reverse    # reverse no longer works
+set yrange [$hh:0]
 
 # set zrange
 set zrange [0:255]

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 5/10/2010 .......... 11/7/2014
+# Developed by Fred Weinhaus 5/10/2010 .......... 12/10/2022
 #
 # ------------------------------------------------------------------------------
 # 
@@ -197,9 +197,9 @@ values=`echo $values | sed 's/[ ]*//g'`
 vals=`echo $values | cut -d, -f 1`
 valm=`echo $values | cut -d, -f 2`
 valh=`echo $values | cut -d, -f 3`
-vals=`convert xc: -format "%[fx:$vals/100]" info:`
-valm=`convert xc: -format "%[fx:$midy+$valm/100]" info:`
-valh=`convert xc: -format "%[fx:1+$valh/100]" info:`
+vals=`convert xc: -format "%[fx:($vals/100)]" info:`
+valm=`convert xc: -format "%[fx:$midy+($valm/100)]" info:`
+valh=`convert xc: -format "%[fx:1+($valh/100)]" info:`
 #echo "$vals, $valm, $valh"
 
 # create 256 long gradient for use as lut
@@ -209,7 +209,7 @@ x2=$midx
 y2=$valm
 x3=255
 y3=$valh
-convert -size 256x1 xc: -fx "(i>=0&&i<$midx)?(i-$x1)*($y2-$y1)/($x2-$x1)+$y1:(i-$x2)*($y3-$y2)/($x3-$x2)+$y2" $tmpA2
+convert -size 256x1 xc: -fx "(i>=0&&i<$midx)?(i-$x1)*($y2-($y1))/($x2-$x1)+($y1):(i-$x2)*($y3-$y2)/($x3-$x2)+$y2" $tmpA2
 #vv=`echo $values | tr "," "_" | tr "-" "m"`
 #bb=`echo $bias | tr "-" "m"`
 #im_profile $tmpA2 balance_${vv}_b${bb}_profile.gif

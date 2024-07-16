@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
 # Developed by Greg McNeil 2/22/2019 .... converted by Fred Weinhaus 5/5/2019
+# ........................................................ revised 11/20/2023
 #
 # ------------------------------------------------------------------------------
 # 
@@ -130,12 +131,12 @@ else
 					   usage2
 					   exit 0
 					   ;;
-				-f)    # get  fontname
+				-f)    # get  font
 					   shift  # to get the next parameter
 					   # test if parameter starts with minus sign 
 					   errorMsg="--- INVALID FONT SPECIFICATION ---"
 					   checkMinus "$1"
-					   fontname="$1"
+					   font="$1"
 					   ;;
 				-p)    # get pointsize
 					   shift  # to get the next parameter

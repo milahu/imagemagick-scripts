@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 10/16/2008 .......... revised 4/25/2015
+# Developed by Fred Weinhaus 10/16/2008 .......... revised 7/9/2024
 #
 # ------------------------------------------------------------------------------
 # 
@@ -37,7 +37,7 @@
 #                           count or percent; default is 0.1%
 #                           if percent then float; 0<=cliplow<=100
 #                           if count then integer; 0<=cliplow<=quantumrange
-# -l      cliphigh          clip amount on high end of histogram;
+# -h      cliphigh          clip amount on high end of histogram;
 #                           count or percent; default is 0.1%
 #                           if percent then float; 0<=cliphigh<=100
 #                           if count then integer; 0<=cliphigh<=quantumrange
@@ -75,7 +75,7 @@
 # higher. If cliplow=cliphigh=0 or 0%, then the stretch will locate the
 # minimum value in the channel histogram. The default=0.1%
 # 
-# -l cliphigh ... CLIPHIGH is the count or percent at the high end of the 
+# -h cliphigh ... CLIPHIGH is the count or percent at the high end of the 
 # histogram whose corresponding graylevel will be stretch to full white. 
 # Values for percent are floats between 0% and 100%. Values for count are 
 # integers between 0 and quantumrange for your Q level (e.g. 255 for Q8 

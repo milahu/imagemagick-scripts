@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 12/3/2010 .......... revised 12/3/2010
+# Developed by Fred Weinhaus 12/3/2010 .......... revised 11/24/2023
 #
 # ------------------------------------------------------------------------------
 # 
@@ -229,16 +229,16 @@ else
 					   # test if parameter starts with minus sign 
 					   errorMsg="--- INVALID SIZE SPECIFICATION ---"
 					   checkMinus "$1"
-					   tsize=`expr "$1" : '\([0-9]*,[0-9]*\)'`
-					   [ "$tsize" = "" ] && errMsg "--- SIZE=$tsize MUST BE TWO COMMA DELIMITED NON-NEGATIVE INTEGERS ---"
+					   tsize=`expr "$1" : '\([0-9]*x[0-9]*\)'`
+					   [ "$tsize" = "" ] && errMsg "--- SIZE=$tsize MUST BE TWO x DELIMITED NON-NEGATIVE INTEGERS ---"
  					   ;;
 				-o)    # get offset
 					   shift  # to get the next parameter
 					   # test if parameter starts with minus sign 
 					   errorMsg="--- INVALID OFFSET SPECIFICATION ---"
 					   checkMinus "$1"
-					   offset=`expr "$1" : '\([0-9]*,[0-9]*\)'`
-					   [ "$offset" = "" ] && errMsg "--- OFFSET=$offset MUST BE TWO COMMA DELIMITED NON-NEGATIVE INTEGERS ---"
+					   offset=`expr "$1" : '\([0-9]*x[0-9]*\)'`
+					   [ "$offset" = "" ] && errMsg "--- OFFSET=$offset MUST BE TWO x DELIMITED NON-NEGATIVE INTEGERS ---"
  					   ;;
 				-a)    # get angle
 					   shift  # to get the next parameter

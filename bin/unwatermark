@@ -1,0 +1,263 @@
+#!/usr/bin/env bash
+#
+# Developed by Fred Weinhaus 7/8/2024 ..... revised 7/8/2024
+#
+# ------------------------------------------------------------------------------
+# 
+# Licensing:
+# 
+# Copyright © Fred Weinhaus
+# 
+# My scripts are available free of charge for non-commercial use, ONLY.
+# 
+# For use of my scripts in commercial (for-profit) environments or 
+# non-free applications, please contact me (Fred Weinhaus) for 
+# licensing arrangements. My email address is fmw at alink dot net.
+# 
+# If you: 1) redistribute, 2) incorporate any of these scripts into other 
+# free applications or 3) reprogram them in another scripting language, 
+# then you must contact me for permission, especially if the result might 
+# be used in a commercial or for-profit environment.
+# 
+# My scripts are also subject, in a subordinate manner, to the ImageMagick 
+# license, which can be found at: http://www.imagemagick.org/script/license.php
+# 
+# ------------------------------------------------------------------------------
+# 
+####
+# 
+# USAGE: unwatermark [-c close] [-d dilate] infile outfile
+# 
+# USAGE: unwatermark [-h|-help]
+# 
+# OPTIONS:
+# 
+# -c     close          close morphology disk kernel size to extract watermark from 
+#                       image; float>0; default=3
+# -d     dilate         dilate morphology disk kernel size on watermark mask image; 
+#                       float>0; default=1.5
+# -s     save           save intermediate images: watermark (w), mask (m) or both (b) 
+#                       as PNG format named after input.
+# 
+###
+#
+# NAME: UNWATERMARK
+# 
+# PURPOSE: To remove a larger (uniform colored) watermark from a small font text image.
+# 
+# DESCRIPTION: UNWATERMARK removes a larger (uniform colored) watermark from a 
+# small font text image.
+# 
+# OPTIONS: 
+# 
+# -c close ... CLOSE morphology disk kernel size to extract watermark from the image. 
+# Values are floats>0. The default=3. The kernel diameter should be larger than the 
+# smaller font text and much smaller than the larger uniform colored watermark 
+# text. (diameter = 2*radius = 2*3*close (approx.); diameter for close=3 is 2*3*3=18)
+# 
+# -d dilate ... DILATE morphology disk kernel size on watermark mask image. Values  
+# are floats>=0. The default=1.5
+#
+# -s save ... SAVE intermediate images; choices are: watermark (w), mask (m) or 
+# both (b) as PNG format named after input. Default is no save images.
+# 
+# REQUIREMENTS: Requires IM 7 in order to get the median color of just the watermark 
+# in the image.
+# 
+# REFERENCE: Christoph Rackwitz's Python Code at: 
+# https://stackoverflow.com/questions/78130983/opencv-remove-watermark/78672690#78672690
+# 
+# CAVEAT: No guarantee that this script will work on all platforms, 
+# nor that trapping of inconsistent parameters is complete and 
+# foolproof. Use At Your Own Risk. 
+# 
+######
+#
+
+# set default values
+close=3					# close value
+dilate=1.5			    # dilate value
+save=(none)             # save intermediate images
+
+# set directory for temporary files
+tmpdir="."		# suggestions are tmpdir="." or tmpdir="/tmp"
+
+# set up functions to report Usage and Usage with Description
+PROGNAME=`type $0 | awk '{print $3}'`  # search for executable on path
+PROGDIR=`dirname $PROGNAME`            # extract directory of program
+PROGNAME=`basename $PROGNAME`          # base name of program
+usage1() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^###/g;  /^#/!q;  s/^#//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+usage2() 
+	{
+	echo >&2 ""
+	echo >&2 "$PROGNAME:" "$@"
+	sed >&2 -e '1,/^####/d;  /^######/g;  /^#/!q;  s/^#*//;  s/^ //;  4,$p' "$PROGDIR/$PROGNAME"
+	}
+
+
+# function to report error messages
+errMsg()
+	{
+	echo ""
+	echo $1
+	echo ""
+	usage1
+	exit 1
+	}
+
+
+# function to test for minus at start of value of second part of option 1 or 2
+checkMinus()
+	{
+	test=`echo "$1" | grep -c '^-.*$'`   # returns 1 if match; 0 otherwise
+    [ $test -eq 1 ] && errMsg "$errorMsg"
+	}
+
+# test for correct number of arguments and get values
+if [ $# -eq 0 ]
+	then
+	# help information
+   echo ""
+   usage2
+   exit 0
+elif [ $# -gt 8 ]
+	then
+	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
+else
+	while [ $# -gt 0 ]
+		do
+			# get parameter values
+			case "$1" in
+		  -h|-help)    # help information
+					   echo ""
+					   usage2
+					   exit 0
+					   ;;
+				-c)    # get close
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CLOSE SPECIFICATION ---"
+					   #checkMinus "$1"
+					   close=`expr "$1" : '\([0-9.]*\)'`
+					   [ "$close" = "" ] && errMsg "--- CLOSE=$close MUST BE A NON-NEGATIVE FLOAT ---"
+					   test=`echo "$close == 0" | bc`
+					   [ $test -eq 1 ] && errMsg "--- CLOSE=$CLOSE MUST BE A POSITIVE FLOAT ---"
+					   ;;
+				-d)    # get dilate
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID DILATE SPECIFICATION ---"
+					   #checkMinus "$1"
+					   dilate=`expr "$1" : '\([0-9.]*\)'`
+					   [ "$dilate" = "" ] && errMsg "--- DILATE=$dilate MUST BE A NON-NEGATIVE FLOAT ---"
+					   ;;
+				-s)    # get save
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID SAVE SPECIFICATION ---"
+					   checkMinus "$1"
+					   save=`echo "$1" | tr '[A-Z]' '[a-z]'`
+					   case "$save" in 
+					   		watermark|w) save=watermark;;
+					   		mask|m) save=mask;;
+					   		both|b) save=both;;
+					   		*) errMsg "--- SAVE=$save IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				 -)    # STDIN and end of arguments
+					   break
+					   ;;
+				-*)    # any other - argument
+					   errMsg "--- UNKNOWN OPTION ---"
+					   ;;
+		     	 *)    # end of arguments
+					   break
+					   ;;
+			esac
+			shift   # next option
+	done
+	#
+	# get infile and outfile
+	infile="$1"
+	outfile="$2"
+fi
+
+# test that infile provided
+[ "$infile" = "" ] && errMsg "NO INPUT FILE SPECIFIED"
+
+# test that outfile provided
+[ "$outfile" = "" ] && errMsg "NO OUTPUT FILE SPECIFIED"
+
+# define dir
+dir="$tmpdir/UNSATURATEHUE.$$"
+
+mkdir "$dir" || errMsg "--- FAILED TO CREATE TEMPORARY FILE DIRECTORY ---"
+trap "rm -rf $dir;" 0
+trap "rm -rf $dir; exit 1" 1 2 3 15
+trap "rm -rf $dir; exit 1" ERR
+
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER */!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+[ "$im_version" -lt "07000000" ] && errMsg "--- REQUIRES IM VERSION 7.0.0-0 OR HIGHER ---"
+
+# read input image
+convert -quiet "$infile" +repage $dir/tmpI.mpc ||
+echo  "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
+
+# get inname
+inname=`convert -ping "$infile" -format "%t" info:`
+
+# set up for DILATE
+if [ "$dilate" = "0" ]; then
+	dilating=""
+else
+	dilating="-morphology dilate disk:$dilate"
+fi
+
+# do a close on image to remove small black text leaving just the watermark
+# process image as grayscale to get mask
+
+convert "$infile" \
+	-colorspace gray +write $dir/gray.miff \
+	-morphology close disk:4 +write $dir/watermark_gray.miff \
+	-auto-threshold otsu -negate \
+	$dilating $dir/mask.miff
+
+# get median color of watermark
+median_color=`convert "$infile" $dir/mask.miff -compose copy_opacity -composite \
+	-channel-fx "alpha=>read-mask" -channel rgb -alpha off \
+	-format "srgb(%[fx:255*median.r],%[fx:255*median.g],%[fx:255*median.b])\n" info:`
+echo "median_color=$median_color"
+
+# colorize the mask to form the colored watermark
+convert  $dir/mask.miff \( +clone -fill "$median_color" -colorize 100 \) \
+	-colorspace sRGB -compose multiply -composite $dir/watermark.miff
+
+# get a correction factor from estimate of gray value from inverse of median
+correct_factor=`convert $dir/gray.miff $dir/mask.miff -compose copy_opacity -composite \
+-channel-fx "alpha=>read-mask" -channel rgb -format "%[fx:1/median]\n" info:`
+echo "correct_factor=$correct_factor;"
+
+# correct grayscale image by multiplying by correction factor
+# then replace gray image with corrected gray where mask is white and input where mask is black
+# save result 
+convert $dir/gray.miff -write mpr:gray \
+	-evaluate multiply $correct_factor +channel \
+	mpr:gray +swap $dir/mask.miff -compose over -composite \
+	$outfile
+
+# save intermediate images
+if [ "$save" = "watermark" -o "$save" = "both" ]; then
+    convert $dir/watermark.miff "${inname}_watermark.png"
+fi
+if [ "$save" = "mask" -o "$save" = "both" ]; then
+    convert $dir/mask.miff "${inname}_mask.png"
+fi
+
+exit 0
+

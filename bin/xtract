@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 
-# Developed by Fred Weinhaus 7/16/2018 .......... revised 7/16/2018
+# Developed by Fred Weinhaus 7/16/2018 .......... revised 11/26/2023
 # 
 # ------------------------------------------------------------------------------
 # 
@@ -618,7 +618,7 @@ get_ABC_coefs()
 	y2=`echo "$p2" | cut -d, -f2`
 	A=`convert xc: -format "%[fx:($y2-$y1)]" info:`
 	B=`convert xc: -format "%[fx:($x1-$x2)]" info:`
-	C=`convert xc: -format "%[fx:($y1*($x1-$x2) - $x1*($y1-$y2))]" info:`
+	C=`convert xc: -format "%[fx:($y1*($x1-$x2) - ($x1)*($y1-$y2))]" info:`
 	# NOTE: bc calcs give parse errors when x or y is negative
 	}
 	
@@ -633,7 +633,7 @@ get_intersection()
 	if $debug; then
 		echo "A1=$A1; B1=$B1; C1=$C1; A2=$A2; B2=$B2; C2=$C2;"
 	fi
-	det=`convert -precision 16 xc: -format "%[fx:($A1*$B2-$B1*$A2)]" info:`
+	det=`convert -precision 16 xc: -format "%[fx:($A1*$B2-($B1*$A2))]" info:`
 	if $debug; then
 		echo "det=$det;"
 	fi
@@ -642,8 +642,8 @@ get_intersection()
 		echo "test1=$test1;"
 	fi
 	if [ $test1 -eq 1 ]; then
-	X=`convert xc: -format "%[fx:($C1*$B2-$B1*$C2)/$det]" info:`
-	Y=`convert xc: -format "%[fx:($A1*$C2-$C1*$A2)/$det]" info:`
+	X=`convert xc: -format "%[fx:($C1*$B2-($B1*$C2))/$det]" info:`
+	Y=`convert xc: -format "%[fx:($A1*$C2-($C1*$A2))/$det]" info:`
 	else
 	# flag as off image
 	X=-123456
@@ -696,9 +696,9 @@ compute_aspect_ratio()
 	fi
 	
 	#simplified equations, assuming u0=0, v0=0, s=1
-	k2=`echo "scale=8; (($m1y - $m4y)*$m3x - ($m1x - $m4x)*$m3y + $m1x*$m4y - $m1y*$m4x)/(($m2y- $m4y)*$m3x - ($m2x - $m4x)*$m3y + $m2x*$m4y - $m2y*$m4x)" | bc`
-	k3=`echo "scale=8; (($m1y - $m4y)*$m2x - ($m1x - $m4x)*$m2y + $m1x*$m4y - $m1y*$m4x)/(($m3y- $m4y)*$m2x - ($m3x - $m4x)*$m2y + $m3x*$m4y - $m3y*$m4x)" | bc`
-	ff=`echo "scale=8; (($k3*$m3y - $m1y)*($k2*$m2y - $m1y) + ($k3*$m3x - $m1x)*($k2*$m2x- $m1x))/(($k3 - 1)*($k2 - 1))" | bc`
+	k2=`echo "scale=8; (($m1y - $m4y)*$m3x - ($m1x - $m4x)*$m3y + $m1x*$m4y - ($m1y*$m4x))/(($m2y- $m4y)*$m3x - ($m2x - $m4x)*$m3y + $m2x*$m4y - ($m2y*$m4x))" | bc`
+	k3=`echo "scale=8; (($m1y - $m4y)*$m2x - ($m1x - $m4x)*$m2y + $m1x*$m4y - ($m1y*$m4x))/(($m3y- $m4y)*$m2x - ($m3x - $m4x)*$m2y + $m3x*$m4y - ($m3y*$m4x))" | bc`
+	ff=`echo "scale=8; (($k3*$m3y - ($m1y))*($k2*$m2y - ($m1y)) + ($k3*$m3x - ($m1x))*($k2*$m2x- ($m1x)))/(($k3 - 1)*($k2 - 1))" | bc`
 	if $debug; then
 		echo "k2=$k2; k3=$k3; ff=$ff;"
 	fi
@@ -707,7 +707,7 @@ compute_aspect_ratio()
 	else
 		# sqrt( $ff*$ff) = abs($ff)
 		f=`echo "scale=5; sqrt( sqrt( $ff*$ff) )" | bc`
-		aspectratio=`echo "scale=5; sqrt((($k2 - 1)^2 + ($k2*$m2y - $m1y)^2/$f^2 + ($k2*$m2x - $m1x)^2/$f^2)/(($k3 - 1)^2 + ($k3*$m3y - $m1y)^2/$f^2 + ($k3*$m3x - $m1x)^2/$f^2))" | bc`
+		aspectratio=`echo "scale=5; sqrt((($k2 - 1)^2 + ($k2*$m2y - ($m1y))^2/$f^2 + ($k2*$m2x - ($m1x))^2/$f^2)/(($k3 - 1)^2 + ($k3*$m3y - ($m1y))^2/$f^2 + ($k3*$m3x - ($m1x))^2/$f^2))" | bc`
 	fi
 	if $debug; then
 		echo "f=$f; aspectratio=$aspectratio"

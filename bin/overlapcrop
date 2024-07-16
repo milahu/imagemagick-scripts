@@ -27,13 +27,14 @@
 # 
 ####
 #
-# USAGE: overlapcrop [-s size] [-o overlap] [-m mode] [-u] 
-#        [-i initnum] [-z zeropad] [-d delay] [-l loop] [-c canvas] 
-#        [-M] [-L] [-F frame] [-S spacing] [-R] infile outfile
+# USAGE: overlapcrop [-O offset ] [-s size] [-o overlap] [-m mode] [-u uniform] 
+#        [-f fillcolor ] [-i initnum] [-z zeropad] [-d delay] [-l loop]  
+#        [-c canvas] [-M] [-L] [-F frame] [-S spacing] [-R] infile outfile
 # USAGE: overlapcrop [-h or -help]
 #
 # OPTIONS:
 #
+# -O     offset        start offset for cropping; OX,OY; default=0,0
 # -s     size          crop subsection dimensions in pixels; one or two 
 #                      integers>0 with "x" separator; default=128x128
 # -o     overlap       overlap of subsections; pixels or percent 
@@ -44,9 +45,12 @@
 # -m     mode          mode of output; choices are matrix (numbered), 
 #                      sequential (numbered), frames or animation; 
 #                      default=matrix
-# -u     (uniform)     flag to keep only same size crop sections and discard
-#                      smaller pieces on the right and bottom; default is to 
-#                      keep all crop pieces
+# -u     uniform       uniform shape for subsection. Choices are: discard (d) 
+#                      smaller pieces on the right and bottom, or pad (p) smaller 
+#                      pieces on the right and bottom, or just keep (k) the smaller 
+#                      pieces unchanged. The default is to keep all pieces unchanged.
+# -f     fillcolor     fill color if -u uniform=pad; any Imagemagick color allowed; 
+#                      default=none 
 # -i     initnum       initial number for output naming; integer>=0; default=1
 # -z     zeropad       number of digits with zero padding for sequential mode; 
 #                      integer>=0; default=0 (no zero padding)
@@ -82,6 +86,8 @@
 # 
 # OPTIONS: 
 # 
+# -O offset ... OFFSET for starting the cropping. Format is OX,OY. The default=0,0
+# 
 # -s size ... SIZE is the crop subsection WidthxHeight dimensions in pixels. 
 # Either one or two non-negative integers may be used with "x" separator if two. 
 # If only one is provided (with no separator), then it will be used for both 
@@ -98,9 +104,15 @@
 # sequential (numbered) or s, frames (mode) or f and animation (mode) or a. 
 # The default=matrix.
 # 
-# -u (uniform) ... Flag to keep only same size crop sections and discard
-# smaller pieces on the right and bottom. The default is to keep all pieces.
-# 
+# -u uniform ... UNIFORM shape for subsection. Choices are: discard (d) smaller 
+# pieces on the right and bottom, or pad (p) smaller pieces on the right and 
+# bottom, or just keep (k) the smaller pieces unchanged. The default is to keep 
+# all pieces unchanged.
+#
+# -f fillcolor ... FILLCOLOR if -u uniform=pad; any Imagemagick color allowed.
+# Default=none. If output format does not support transparency, then color 
+# will be black
+#  
 # -i initnum ... INITNUM is the initial (starting) number for output naming. 
 # Values are non-negative integers. The default=1.
 # 
@@ -145,10 +157,11 @@
 #
 
 # set default values
-size="128x128"
+offset="0,0"        # offset for starting the cropping
+size="128x128"      # size of the crop sections
 overlap="50%x50%"	# percent or pixels, must not be 100% or size of subsection
 mode="matrix"  		# matrix or sequential or frames or animation
-uniform="no"		# uniform size only, skip small sections at right and bottom; yes or no
+uniform="keep"		# uniform size; keep, discard, pad
 initnum=1			# initial number for sequential or matrix mode; integer>=0
 zeropad=0			# number of digits with zero padding for sequential mode; integer>=0
 delay=50			# delay for animation mode; integer>=0
@@ -207,7 +220,7 @@ if [ $# -eq 0 ]
    echo ""
    usage2
    exit 0
-elif [ $# -gt 24 ]
+elif [ $# -gt 29 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -219,6 +232,14 @@ else
 					   echo ""
 					   usage2
 					   exit 0
+					   ;;
+				-O)    # get offset
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID OFFSET SPECIFICATION ---"
+					   checkMinus "$1"
+					   offset=`expr "$1" : '\([0-9]*,*[0-9]*\)'`
+					   [ "$offset" = "" ] && errMsg "--- OFFSET=$offset MUST BE TWO , SEPARATED NON-NEGATIVE INTEGERS ---"
 					   ;;
 				-s)    # get size
 					   shift  # to get the next parameter
@@ -251,7 +272,21 @@ else
 					   	esac
 					   ;;
 				-u)    # set uniform 
-					   uniform="yes"
+					   shift  # to get the next parameter
+					   uniform=`echo "$1" | tr "[:upper:]" "[:lower:]"`
+					   case "$uniform" in 
+					   		discard|d) uniform="discard" ;;
+					   		pad|p) uniform="pad" ;;
+					   		keep|k) uniform="keep" ;;
+					   		*) errMsg "--- UNIFORM=$uniform IS AN INVALID VALUE ---" 
+					   	esac
+					   ;;
+				-f)    # set fillcolor 
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID FILLCOLOR SPECIFICATION ---"
+					   checkMinus "$1"
+					   fillcolor="$1"
 					   ;;
 				-i)    # get initnum
 					   shift  # to get the next parameter
@@ -345,6 +380,16 @@ if [ "$mode" = "animation" -a "$sfx" != "gif" -a "$sfx" != "miff" ]; then
 	errMsg "--- ANIMATION REQUIRES SUFFIX OF GIF OR MIFF ---"
 fi
 
+# set up for start offset
+if [ "$offset" = "0,0" ]; then
+	cropping=""
+else
+	offsetx=`echo "$offset" | cut -d, -f1`
+	offsety=`echo "$offset" | cut -d, -f2`
+	cropping="-crop +${offsetx}+${offsety}"
+fi
+#echo "cropping=$cropping;"
+
 # setup temporary images
 tmpA1="$dir/overlapcrop_A_$$.mpc"
 tmpA2="$dir/overlapcrop_A_$$.cache"
@@ -353,8 +398,8 @@ trap "rm -f $tmpA1 $tmpA2 $tmp1;" 0
 trap "rm -f $tmpA1 $tmpA2 $tmp1; exit 1" 1 2 3 15
 #trap "rm -f $tmpA1 $tmpA2 $tmp1; exit 1" ERR
 
-# read the input image and filter image into the temp files and test validity.
-convert -quiet "$infile" $gray +repage "$tmpA1" ||
+# read the input image, crop at offset and filter image into the temp files and test validity.
+convert -quiet "$infile" $gray $cropping +repage "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO SIZE  ---"
 
 # get IM version
@@ -370,6 +415,7 @@ fi
 # get width and height of image
 ww=`$identifying -ping -format "%w" $tmpA1`
 hh=`$identifying -ping -format "%h" $tmpA1`
+#echo "ww=$ww; hh=$hh;"
 
 # get width and height of subsection
 sw=`echo "${size}" | cut -dx -f1`
@@ -405,10 +451,10 @@ oh=`convert xc: -format "%[fx:$sh-$oy]" info:`
 
 
 # get ending pixel for stopping loops
-if [ "$uniform" = "no" ]; then
+if [ "$uniform" = "keep" -o "$uniform" = "pad" ]; then
 	ew=`convert xc: -format "%[fx:$ww-$sw+$ow-1]" info:`
 	eh=`convert xc: -format "%[fx:$hh-$sh+$oh-1]" info:`
-elif [ "$uniform" = "yes" ]; then
+elif [ "$uniform" = "discard" ]; then
 	ew=`convert xc: -format "%[fx:$ww-$sw]" info:`
 	eh=`convert xc: -format "%[fx:$hh-$sh]" info:`
 fi	
@@ -421,6 +467,14 @@ else
 	repaging=""
 fi
 
+# set up padding
+if [ "$uniform" = "pad" ]; then
+	padding="-background $fillcolor -extent ${sw}x${sh}"
+else
+	padding=""
+fi
+#echo "uniform=$uniform; padding=$padding;"
+
 # compute number of sections
 k=0
 for ((i=0;i<=eh;i+=oh)); do
@@ -429,6 +483,7 @@ for ((i=0;i<=eh;i+=oh)); do
 	done
 done
 num=$k
+#echo "num=$num;"
 
 #echo "mode=$mode"
 
@@ -449,15 +504,15 @@ for ((i=0;i<=eh;i+=oh)); do
 	for ((j=0;j<=ew;j+=ow)); do
 		echo "Subsection: $t out of $num  (${sw}x${sh}+${dw}+${dh}) row=$m col=$n"
 		if [ "$mode" = "frames" ]; then
-			convert $tmpA1[${sw}x${sh}+${dw}+${dh}] $repaging miff:- | convert $tmp1 - $tmp1
+			convert $tmpA1[${sw}x${sh}+${dw}+${dh}] $padding $repaging miff:- | convert $tmp1 - $tmp1
 		elif [ "$mode" = "animation" ]; then
-			convert $tmpA1[${sw}x${sh}+${dw}+${dh}] $repaging miff:- | convert $tmp1 - $tmp1
+			convert $tmpA1[${sw}x${sh}+${dw}+${dh}] $padding $repaging miff:- | convert $tmp1 - $tmp1
 		elif [ "$mode" = "sequential" ]; then
 			kk=`printf "%0${zeropad}d" $k`
-			convert $tmpA1[${sw}x${sh}+${dw}+${dh}] $repaging ${outname}_$kk.$suffix
+			convert $tmpA1[${sw}x${sh}+${dw}+${dh}] $padding $repaging ${outname}_$kk.$suffix
 			filelist="$filelist ${outname}_$kk.$suffix"
 		elif [ "$mode" = "matrix" ]; then
-			convert $tmpA1[${sw}x${sh}+${dw}+${dh}] $repaging ${outname}_r${m}_c${n}.$suffix
+			convert $tmpA1[${sw}x${sh}+${dw}+${dh}] $padding $repaging ${outname}_r${m}_c${n}.$suffix
 			filelist="$filelist ${outname}_r${m}_c${n}.$suffix"
 		fi
 		dw=$(($dw+$ow))

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 9/22/2008 .......... revised 9/12/2015
+# Developed by Fred Weinhaus 9/22/2008 .......... revised 12/6/2023
 #
 # ------------------------------------------------------------------------------
 # 
@@ -231,7 +231,7 @@ tmpA3="$dir/slice_3_$$.mpc"
 tmpB3="$dir/slice_3_$$.cache"
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3;" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3; exit 1" 1 2 3 15
-trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3; exit 1" ERR
+#trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA3 $tmpB3; exit 1" ERR
 
 # get im_version
 im_version=`convert -list configure | \
@@ -309,6 +309,7 @@ elif [ "$mode" = "" -a $qdepth -ne 32 ]; then
 else
 	errMsg "--- UNKNOWN MODE ---"
 fi
+#echo "mode=$mode; qdepth=$qdepth; qr=$qr; blackpt=$blackpt; whitept=$whitept;"
 
 
 # test if image has alpha and set up copy to output
@@ -320,6 +321,7 @@ if [ "$is_alpha" != "" ]; then
 else
 	addalpha=""
 fi
+#echo "addalpha=$addalpha;"
 
 
 # setup for icolorize
@@ -385,7 +387,7 @@ elif [ "$icolor" != "image" -a "$ecolor" = "none" ]; then
 	icolorize="-fill $icolor -opaque white"
 	ecolorize="-channel rgba -alpha on -transparent black"
 fi
-
+#echo "negatize=$negatize; icolorize=$icolorize; ecolorize=$ecolorize;"
 
 # create gradient for conversion to lut
 # note percents are already converted to raw values in quantumrange
@@ -411,7 +413,6 @@ convert $tmpA2 \
 	-fill white -opaque none \
 	-alpha off \
 	$tmpA2
-	
 
 # process the grayscale image with the lut, use as mask when "image" and colorize as appropriate
 if [ "$icolor" != "image" -a "$ecolor" != "image" ]; then
@@ -420,11 +421,11 @@ if [ "$icolor" != "image" -a "$ecolor" != "image" ]; then
 elif [ "$icolor" = "image" ]; then
 	convert \( $tmpA1 $setcspace -colorspace gray \) $tmpA2 \
 		-interpolate nearest-neighbor -clut $tmpA1 +swap -compose copy_opacity -composite \
-		$ecolorize -alpha off $addalpha "$outfile"
+		$ecolorize $addalpha "$outfile"
 elif [ "$ecolor" = "image" ]; then
 	convert \( $tmpA1 $setcspace -colorspace gray \) \( $tmpA2 -negate \) \
 		-interpolate nearest-neighbor -clut $tmpA1 +swap -compose copy_opacity -composite \
-		$icolorize -alpha off $addalpha "$outfile"
+		$icolorize $addalpha "$outfile"
 fi
 
 exit 0

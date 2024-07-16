@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 6/27/2017 .......... revised 6/27/2017
+# Developed by Fred Weinhaus 6/27/2017 .......... revised 12/8/2023
 #
 # ------------------------------------------------------------------------------
 # 
@@ -223,11 +223,12 @@ fi
 # set up for edge
 edge=$((2*edge+1))
 
-convert $tmpA1 \
+convert $tmpA1 -write mpr:img \
 \( -clone 0 -colorspace gray \) \
 \( -clone 1 -negate -statistic minimum ${edge}x${edge} $colorizing \) \
-\( -clone 1 -clone 2 -compose color_dodge -composite $detailing \) \
--delete 1-2 +swap -compose screen -composite $saturating "$outfile"
+\( -clone 1-2 -compose color_dodge -composite $detailing \) \
+-delete 1-2 -compose screen -composite $saturating "$outfile"
+
 
 exit 0
 

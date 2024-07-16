@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 
-# Developed by Fred Weinhaus 8/10/2008 .......... revised 4/25/2015
+# Developed by Fred Weinhaus 8/10/2008 .......... revised 11/29/2023
 #
 # ------------------------------------------------------------------------------
 # 
@@ -309,19 +309,28 @@ tmpA="$dir/pano2rect_$$.mpc"
 tmpB="$dir/pano2rect_$$.cache"
 trap "rm -f $tmpA $tmpB;" 0
 trap "rm -f $tmpA $tmpB; exit 1" 1 2 3 15
-trap "rm -f $tmpA $tmpB; exit 1" ERR
+#trap "rm -f $tmpA $tmpB; exit 1" ERR
 
 if convert -quiet "$infile" +repage "$tmpA"
 	then
 
+	im_version=`convert -list configure | \
+		sed '/^LIB_VERSION_NUMBER */!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+	if [ "$im_version" -ge "07000000" ]; then
+		identifying="magick identify"
+	else
+		identifying="identify"
+	fi
+
 	# compute width, height, bottom and vertical center of input (source) panorama image
-	swidth=`identify -format %w $tmpA`
-	sheight=`identify -format %h $tmpA`
+	swidth=`$identifying -format %w $tmpA`
+	sheight=`$identifying -format %h $tmpA`
 	shl=`convert xc: -format "%[fx:$sheight-1]" info:`
 	sh2=`convert xc: -format "%[fx:($sheight-1)/2]" info:`
 
 	# compute vrange
-	vrange=`convert xc: -format "%[fx:abs($vtop-$vbot)]" info:`
+	vrange=`convert xc: -format "%[fx:abs($vtop-($vbot))]" info:`
 
 	# compute center of perspective in input panorama image
 	if [ "$format" = "level" ]; then
@@ -361,9 +370,6 @@ fi
 # note r=N/2; N=min(width,height)
 # perspective: r=f*tan(phi); f=r/tan(phi); f=(N/2)/tan((fov/2)*(pi/180))=N/(2*tan(fov*pi/360))
 
-im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER */!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
-
 # see Bourke diagram at http://local.wasp.uwa.edu.au/~pbourke/projection/fish2/
 
 # for testing
@@ -371,11 +377,12 @@ if false; then
 echo "swidth=$swidth; sheight=$sheight; shl=$shl; sh2=$sh2"
 echo "iyc=$iyc; vrange=$vrange; pfov=$pfov; pfoc=$pfoc; pfocinv=$pfocinv"
 echo "height=$height; width=$width; dh2=$dh2; dhl=$dhl; oyc=$oyc"
+echo "vpmethod=$vpmethod; bgcolor=$bgcolor"
 fi
 
 # process image
 	convert \( -size ${width}x${height} xc: \) $tmpA \
 	-virtual-pixel $vpmethod -background $bgcolor -monitor \
-	-fx "yd=j-$oyc; v.p{i,(180*$shl/(pi*$vrange))*atan($pfocinv*yd)+$iyc}" +monitor \
+	-fx "yd=j-($oyc); v.p{i,(180*$shl/(pi*$vrange))*atan($pfocinv*yd)+$iyc}" +monitor \
 	"$outfile"
 exit 0

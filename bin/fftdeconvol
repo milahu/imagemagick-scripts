@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 8/18/2009 .......... revised 5/12/2019
+# Developed by Fred Weinhaus 8/18/2009 .......... revised 12/2/2023
 #
 # USAGE: fftdeconvol [-n noise] infile filtfile outfile
 # USAGE: fftdeconvol [-h or -help]
@@ -197,7 +197,7 @@ tmpB2="$dir/fftdeconvol_2_$$.cache"
 tmpA="$dir/fftdeconvol_A_$$.pfm"
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpP $tmpF $tmpR $tmpI $tmpA;" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpP $tmpF $tmpR $tmpI $tmpA; exit 1" 1 2 3 15
-trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpP $tmpF $tmpR $tmpI $tmpA; exit 1" ERR
+#trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpP $tmpF $tmpR $tmpI $tmpA; exit 1" ERR
 
 # LAST TESTED with IM 6.7.4.10, 6.7.6.10, 6.7.9.4 all HDRI (10/25/2012)
 
@@ -260,9 +260,9 @@ fi
 if [ "$im_version" -ge "06070706" -a "$im_version" -le "06080002" ]; then
 	qnoise=`convert xc: -format "%[fx:quantumrange*($noise+0.000000001)]" info:`
 else
-	qnoise=`convert xc: -format "%[fx:quantumrange*$noise)]" info:`
+	qnoise=`convert xc: -format "%[fx:quantumrange*$noise]" info:`
 fi
-
+#echo "qnoise=$qnoise;"
 
 # test if image has alpha and set up copy to output
 is_alpha=`$identifying -ping -verbose $tmpA1 | grep "Alpha" | head -n 1`
@@ -272,6 +272,7 @@ if [ "$is_alpha" != "" ]; then
 else
 	addalpha=""
 fi
+#echo "addalpha=$addalpha;"
 
 : '
 For deblurring, we use the Wiener filter formulation of a divide of two complex numbers
@@ -324,10 +325,10 @@ else
 	setcspace="-set colorspace RGB"
 	setcspace2="-set colorspace sRGB"
 fi
-# no need for setcspace for grayscale or channels after 6.8.5.4
+# for IM 7 need to setcspace to color due to grayscale filter
 if [ "$im_version" -gt "06080504" ]; then
-	setcspace=""
-	setcspace2=""
+	setcspace="-set colorspace sRGB"
+	setcspace2="-set colorspace sRGB"
 fi
 
 

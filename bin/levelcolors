@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 6/12/2008 .......... revised 4/25/2015
+# Developed by Fred Weinhaus 6/12/2008 .......... revised 12/3/2023
 #
 # ------------------------------------------------------------------------------
 # 
@@ -212,7 +212,7 @@ tmpB="$dir/levelcolors_Bl_$$.cache"
 tmpA="$dir/levelcolors_Al_$$.cache"
 trap "rm -f $tmpA $tmpB $tmpRd $tmpGr $tmpBl $tmpAl $tmpR $tmpG $tmpB $tmpA;" 0
 trap "rm -f $tmpA $tmpB $tmpRd $tmpGr $tmpBl $tmpAl $tmpR $tmpG $tmpB $tmpA; exit 1" 1 2 3 15
-trap "rm -f $tmpA $tmpB $tmpRd $tmpGr $tmpBl $tmpAl $tmpR $tmpG $tmpB $tmpA; exit 1" ERR
+#trap "rm -f $tmpA $tmpB $tmpRd $tmpGr $tmpBl $tmpAl $tmpR $tmpG $tmpB $tmpA; exit 1" ERR
 
 if convert -quiet "$infile" +repage "$tmpA"
 	then
@@ -255,11 +255,17 @@ chi2=`echo "$colors" | sed -n 's/^[^x][^x]*x\([^x][^x]*\)$/\1/p'`
 im_version=`convert -list configure | \
 	sed '/^LIB_VERSION_NUMBER */!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
+if [ "$im_version" -ge "07000000" ]; then
+	identifying="magick identify"
+else
+	identifying="identify"
+fi
+
 # get colorspace and channels of image
 if [ $im_version -ge 06030901 ]; then 
 	colorspace=`convert "$tmpA" -format "%[colorspace]" info:`
 else
-	data=`identify -verbose $tmpA`
+	data=`$identifyinf -verbose $tmpA`
 	colorspace=`echo "$data" | sed -n 's/^.*Colorspace: \([^ ]*\).*$/\1/p'`
 fi
 #echo "colorspace=$colorspace"
@@ -295,8 +301,6 @@ if [ "$im_version" -ge "07000000" ]; then
 	setcspace="-set colorspace sRGB"
 	cspace="sRGB"
 fi
-
-
 
 # Prior to IM 6.7.5.5 colorspace was RGB afterwards colorspace was sRGB
 imagechannels=`convert $tmpA[1x1+0+0] txt:- | sed -n 's/^[#].*,\([srgbacmyk]*\)$/\1/p'`
@@ -464,7 +468,7 @@ elif [ "$imagechannels" = "ga"  -a "$channels" = "ra" ]; then
 	# need to use copy_opacity -composite rather than -channel RA to keep 2 channels
 	convert $tmpRd $tmpAl -alpha off -compose copy_opacity -composite "$outfile"
 elif [ "$imagechannels" = "rgb" -o "$imagechannels" = "g" ]; then
-echo "got here; $cl1; $ch1; $cl2; $ch2; $cl3; $ch3;"
+#echo "got here; $cl1; $ch1; $cl2; $ch2; $cl3; $ch3;"
 	[ $isR -ne 0 ] && convert $tmpRd -level ${cl1},${ch1} $tmpRd
 	[ $isG -ne 0 ] && convert $tmpGr -level ${cl2},${ch2} $tmpGr
 	[ $isB -ne 0 ] && convert $tmpBl -level ${cl3},${ch3} $tmpBl

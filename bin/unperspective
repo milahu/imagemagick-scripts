@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 
-# Developed by Fred Weinhaus 11/16/2011 .......... revised 2/25/2020
+# Developed by Fred Weinhaus 11/16/2011 .......... revised 11/23/2023
 # 
 # Licensing:
 # 
@@ -390,7 +390,7 @@ maxpeaks=40			# trap: threshold on peak number before removing false peaks
 maxratio=10			# trap: maximum intermediate/input dimensions ratio
 traps=""			# turn specified traps off
 viewport="on"       # turn off viewport crop
-debug="false"		# debugging; true or false
+debug="true"		# debugging; true or false
 
 # set directory for temporary files
 tmpdir="."		# suggestions are tmpdir="." or tmpdir="/tmp"
@@ -1427,32 +1427,32 @@ fi
 # points extracted are ccw from top left
 ii=0
 getXY "${maxposArr[$ii]}" "${maxArr[$ii]}"
-xx=`convert xc: -format "%[fx:$xx-$xoffset]" info:`
-yy=`convert xc: -format "%[fx:$yy-$yoffset]" info:`
+xx=`convert xc: -format "%[fx:$xx-($xoffset)]" info:`
+yy=`convert xc: -format "%[fx:$yy-($yoffset)]" info:`
 ix0=$xx
 iy0=$yy
 ipt0="$xx,$yy"
 ii=$((ii+1))
 
 getXY "${maxposArr[$ii]}" "${maxArr[$ii]}"
-xx=`convert xc: -format "%[fx:$xx-$xoffset]" info:`
-yy=`convert xc: -format "%[fx:$yy-$yoffset]" info:`
+xx=`convert xc: -format "%[fx:$xx-($xoffset)]" info:`
+yy=`convert xc: -format "%[fx:$yy-($yoffset)]" info:`
 ix1=$xx
 iy1=$yy
 ipt1="$xx,$yy"
 ii=$((ii+1))
 
 getXY "${maxposArr[$ii]}" "${maxArr[$ii]}"
-xx=`convert xc: -format "%[fx:$xx-$xoffset]" info:`
-yy=`convert xc: -format "%[fx:$yy-$yoffset]" info:`
+xx=`convert xc: -format "%[fx:$xx-($xoffset)]" info:`
+yy=`convert xc: -format "%[fx:$yy-($yoffset)]" info:`
 ix2=$xx
 iy2=$yy
 ipt2="$xx,$yy"
 ii=$((ii+1))
 
 getXY "${maxposArr[$ii]}" "${maxArr[$ii]}"
-xx=`convert xc: -format "%[fx:$xx-$xoffset]" info:`
-yy=`convert xc: -format "%[fx:$yy-$yoffset]" info:`
+xx=`convert xc: -format "%[fx:$xx-($xoffset)]" info:`
+yy=`convert xc: -format "%[fx:$yy-($yoffset)]" info:`
 ix3=$xx
 iy3=$yy
 ipt3="$xx,$yy"
@@ -1554,9 +1554,9 @@ fi
 	
 if [ "$aspect" = "" ]; then
 	#simplified equations, assuming u0=0, v0=0, s=1
-	k2=`echo "scale=8; (($m1y - $m4y)*$m3x - ($m1x - $m4x)*$m3y + $m1x*$m4y - $m1y*$m4x)/(($m2y- $m4y)*$m3x - ($m2x - $m4x)*$m3y + $m2x*$m4y - $m2y*$m4x)" | bc`
-	k3=`echo "scale=8; (($m1y - $m4y)*$m2x - ($m1x - $m4x)*$m2y + $m1x*$m4y - $m1y*$m4x)/(($m3y- $m4y)*$m2x - ($m3x - $m4x)*$m2y + $m3x*$m4y - $m3y*$m4x)" | bc`
-	ff=`echo "scale=8; (($k3*$m3y - $m1y)*($k2*$m2y - $m1y) + ($k3*$m3x - $m1x)*($k2*$m2x- $m1x))/(($k3 - 1)*($k2 - 1))" | bc`
+	k2=`echo "scale=8; (($m1y - $m4y)*$m3x - ($m1x - $m4x)*$m3y + $m1x*$m4y - ($m1y*$m4x))/(($m2y - $m4y)*$m3x - ($m2x - $m4x)*$m3y + $m2x*$m4y - ($m2y*$m4x))" | bc`
+	k3=`echo "scale=8; (($m1y - $m4y)*$m2x - ($m1x - $m4x)*$m2y + $m1x*$m4y - ($m1y*$m4x))/(($m3y - $m4y)*$m2x - ($m3x - $m4x)*$m2y + $m3x*$m4y - ($m3y*$m4x))" | bc`
+	ff=`echo "scale=8; (($k3*$m3y - $m1y)*($k2*$m2y - $m1y) + ($k3*$m3x - $m1x)*($k2*$m2x - $m1x))/(($k3 - 1)*($k2 - 1))" | bc`
 	if $debug; then
 		echo "k2=$k2; k3=$k3"
 	fi
@@ -1664,7 +1664,7 @@ fi
 clist=`convert $dir/tmpA.mpc -verbose \
 	-define distort:viewport=1x1+0+0 +distort perspective \
 	"$ipt0 $opt0  $ipt1 $opt1  $ipt2 $opt2  $ipt3 $opt3" null: 2>&1 \
-	| sed -n '3,4 p' | tr "'" "\000" | tr "," " "`
+	| sed -n '3,4 p' | sed "s/\'//g" | tr "," " "`
 cArr=($clist)
 c1=${cArr[0]}
 c2=${cArr[1]}
@@ -1746,14 +1746,14 @@ if [ "$traps" != "maxratio" -a "$traps" != "all"  ]; then
 		echo "Intermediate/Input Ratios: width ratio=$wratio; height ratio=$hratio"
 	fi
 	# test for dimension ratio too large
-	wtest=`convert xc: -format "%[fx:$wratio>$maxratio)?1:0]" info:`
+	wtest=`convert xc: -format "%[fx:($wratio>$maxratio)?1:0]" info:`
 	if [ $wtest -eq 1 ]; then
 		echo ""
 		echo "Intermediate/Input Width Ratio = $wratio Is Larger Than $maxratio"
 		echo ""
 		exit 1
 	fi
-	htest=`convert xc: -format "%[fx:$hratio>$maxratio)?1:0]" info:`
+	htest=`convert xc: -format "%[fx:($hratio>$maxratio)?1:0]" info:`
 	if [ $htest -eq 1 ]; then
 		echo ""
 		echo "Intermediate/Input Height Ratio = $hratio Is Larger Than $maxratio"

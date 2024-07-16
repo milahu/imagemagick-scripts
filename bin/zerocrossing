@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 3/24/2014 .......... revised  10/12/2018
+# Developed by Fred Weinhaus 3/24/2014 .......... revised  3/1/2024
 #
 # ------------------------------------------------------------------------------
 # 
@@ -31,14 +31,16 @@
 #
 # OPTIONS:
 #
-# -e     edge        edge type; choices are sobel (s) or morphologic (m); 
-#                    default=sobel
-# -l     laplace     laplacian type; choices are: 0, 2 and 5; default=0
-# -a     amplify     zero crossing percent amplification; integer>=0; 
-#                    default=100 (no amplification)
-# -s     size        2x morphologic disk size; values are integer>=2; 
-#                    default=4 (values will be divided by 2 later)
-# -g                 convert image to grayscale before getting edges
+# -e     edge         edge type; choices are sobel (s) or morphologic (m); 
+#                     default=sobel
+# -l     laplace      laplacian type; choices are: 0, 2 and 5; default=0
+# -a     amplify      zero crossing percent amplification; integer>=0; 
+#                     default=100 (no amplification)
+# -s     size         2x morphologic disk size; values are integer>=2; 
+#                     default=4 (values will be divided by 2 later)
+# -g                  convert image to grayscale before getting edges
+# -c     contrast     increase contrast of output (percent); integer>=0;
+#                     default=0 (no change)
 # 
 ###
 #
@@ -66,6 +68,9 @@
 #
 # -g ... converts the input image to GRAYSCALE before extracting edges.
 # 
+# -c ... CONTRAST increases the contrast of the output image (in percent). 
+# Values are integers>=0. The default=0 (no change)
+#
 # REQUIREMENTS: IM 6.5.9.3 is required for the use of -morphology edges. IM 
 # 6.6.1.8 is required for the use of sobel edges.
 # 
@@ -82,6 +87,7 @@ laplace="0"			# laplacian type: 0,2,5
 amplify=100			# zerocrossing amplification
 size=4			    # morphology 2x disk size: integer>=2; default=4
 grayscale="no"		# convert to grayscale
+contrast=0			# contrast of output
 
 # set directory for temporary files
 dir="."    # suggestions are dir="." or dir="/tmp"
@@ -129,7 +135,7 @@ if [ $# -eq 0 ]
    echo ""
    usage2
    exit 0
-elif [ $# -gt 11 ]
+elif [ $# -gt 13 ]
 	then
 	errMsg "--- TOO MANY ARGUMENTS WERE PROVIDED ---"
 else
@@ -183,6 +189,14 @@ else
 				-g)    # set grayscale
 					   grayscale="yes"
 					   ;;
+				-c)    # get contrast
+					   shift  # to get the next parameter
+					   # test if parameter starts with minus sign 
+					   errorMsg="--- INVALID CONTRAST SPECIFICATION ---"
+					   checkMinus "$1"
+					   contrast=`expr "$1" : '\([0-9]*\)'`
+					   [ "$contrast" = "" ] && errMsg "--- CONTRAST=$contrast MUST BE A NON-NEGATIVE INTEGER ---"
+					   ;;
 				 -)    # STDIN and end of arguments
 					   break
 					   ;;
@@ -211,11 +225,11 @@ tmpA1="$dir/zerocrossing_1_$$.mpc"
 tmpB1="$dir/zerocrossing_1_$$.cache"
 trap "rm -f $tmpA1 $tmpB1;" 0
 trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
-trap "rm -f $tmpA1 $tmpB1; exit 1" ERR
+#trap "rm -f $tmpA1 $tmpB1; exit 1" ERR
 
 
 # read the input image into the temporary cached image and test if valid
-convert -quiet "$infile" +repage "$tmpA1" ||
+convert -quiet "$infile" +repage -alpha off "$tmpA1" ||
 	errMsg "--- FILE $infile DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
 
 # get im version
@@ -232,10 +246,9 @@ fi
 # set up size --- divide by 2
 size=`convert xc: -format "%[fx:$size/2]" info:`
 
-
 # setup edge processing
 if [ "$edge" = "sobel" ]; then
-	eproc="-define convolve:scale=100% -define morphology:compose=Lighten -morphology Convolve Sobel:>"
+	eproc="-define convolve:scale=100% -define morphology:compose=Lighten -morphology Convolve Sobel:'>'"
 elif [ "$edge" = "morphologic" ]; then
 	eproc="-morphology edge disk:$size -auto-level "
 fi
@@ -262,6 +275,7 @@ convert $tmpA1 $gproc \
 		-delete 0,2 \
 		\( -clone 1 -clone 2 -compose plus -composite -evaluate pow 0.5 -negate -threshold 0 -negate \) \
 	-delete 1,2 -compose multiply -composite \
+	-contrast-stretch 0x$contrast% \
 	"$outfile"
 
 

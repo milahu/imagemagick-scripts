@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 4/2/2009 .......... revised 4/25/2015
+# Developed by Fred Weinhaus 4/2/2009 .......... revised 12/8/2023
 #
 # ------------------------------------------------------------------------------
 # 
@@ -229,7 +229,7 @@ tmpA="$dir/nearestcolor_$$.mpc"
 tmpB="$dir/nearestcolor_$$.cache"
 trap "rm -f $tmpA $tmpB;" 0
 trap "rm -f $tmpA $tmpB; exit 1" 1 2 3 15
-trap "rm -f $tmpA $tmpB; exit 1" ERR
+#trap "rm -f $tmpA $tmpB; exit 1" ERR
 	
 if convert -quiet "$infile" +repage "$tmpA"
 	then
@@ -250,6 +250,12 @@ else
 	thresh="-fuzz 1000000%"
 fi
 
+if [ "$im_version" -ge "07000000" ]; then
+comparing="magick compare"
+else
+comparing="compare"
+fi
+
 # get im version where -subimage-search introduced for compare
 if [ "$im_version" -ge "06060305" ]; then
 	searching="-subimage-search"
@@ -258,7 +264,7 @@ else
 fi
 
 # compare 1x1 pixel reference color image to infile and get returned information
-data=`compare -metric rmse $thresh $searching $tmpA \( -size 1x1 xc:$color \) null: 2>&1`
+data=`$comparing -metric rmse $thresh $searching $tmpA \( -size 1x1 xc:$color \) null: 2>&1`
 #echo "data=$data"
 
 # extract the coordinates of the closest matched pixel

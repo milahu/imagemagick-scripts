@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 8/20/2015 .......... revised 11/8/2017
+# Developed by Fred Weinhaus 8/20/2015 .......... revised 1/4/2024
 #
 # ------------------------------------------------------------------------------
 # 
@@ -175,6 +175,7 @@ spread=1			# pattern spread; integer>=0; default=1
 newseed=""			# pattern new seed value; integer>=0; default is random value
 mix=100				# mixing between before and after spread result; 0<=integer<=100; 100 is all spread; 0 is no spread; default=100
 gain=0				# pattern contrast gain; 0<=integer<=100; default=0
+
 
 # set directory for temporary files
 tmpdir="."    # suggestions are dir="." or dir="/tmp"
@@ -478,7 +479,6 @@ else
 	convert -quiet "$infile" +repage -alpha off $dir/tmpI.mpc
 fi
 
-
 # get IM version
 im_version=`convert -list configure | \
 	sed '/^LIB_VERSION_NUMBER */!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g'`
@@ -511,7 +511,6 @@ if [ $numcolors -gt 1 ]; then
 	done
 fi
 
-
 # remap colors to remove aliased values
 convert $dir/tmpI.mpc +dither -remap $dir/tmpL.mpc $dir/tmpI.mpc
 
@@ -535,13 +534,13 @@ for ((i=0; i<numcolors; i++)); do
 	sat=`convert xc:"${colorArr[$i]}" -colorspace HSV -channel green -separate +channel -alpha off -format "%[fx:round(100*u)]" info:`
 	wtest=`convert xc:"${colorArr[$i]}" -fuzz $fuzzval% -fill white -opaque white -format "%[pixel:u.p{0,0}]" info:`
 	btest=`convert xc:"${colorArr[$i]}" -fuzz $fuzzval% -fill black -opaque black -format "%[pixel:u.p{0,0}]" info:`
-	#echo "bri=$bri; sat=$sat"
+	#echo "bri=$bri; sat=$sat; wtest=$wtest; btest=$btest;"
 
-	if [ "$wtest" = "white" ] && [ "$bgcolor" != "${colorArr[$i]}" -o "$process" = "yes" ]; then
+	if [ "$wtest" = "white" -o "$wtest" = "srgb(255,255,255)" ] && [ "$bgcolor" != "${colorArr[$i]}" -o "$process" = "yes" ]; then
 		newcolor=`convert xc:"gray($whitept%)" -alpha off -depth 8 txt:- | tail -n +2 | sed -n 's/^.*\([#][^ ]*\).*$/\1/p'`
 	 	recolor="$recolor -fuzz $fuzzval% -fill '$newcolor' -opaque white"
 	 	#echo "newcolor=$newcolor;"
-	elif [ "$btest" = "black" ] && [ "$bgcolor" != "${colorArr[$i]}" -o "$process" = "yes" ]; then
+	elif [ "$btest" = "black" -o "$btest" = "srgb(0,0,0)" ] && [ "$bgcolor" != "${colorArr[$i]}" -o "$process" = "yes" ]; then
 		newcolor=`convert xc:"gray($blackpt%)" -alpha off -depth 8 txt:- | tail -n +2 | sed -n 's/^.*\([#][^ ]*\).*$/\1/p'`
 		recolor="$recolor -fuzz $fuzzval% -fill '$newcolor' -opaque black"
 	 	#echo "newcolor=$newcolor;"
@@ -559,7 +558,6 @@ done
 
 # recolor image
 eval 'convert $dir/tmpI.mpc '$recolor' -depth 8 $dir/tmpR.mpc'
-
 
 # do embroidery for each color at a different angle
 
@@ -594,7 +592,6 @@ if [ "$gain" = "0" ]; then
 else
 	gaining="-sigmoidal-contrast $gain,50%"
 fi
-
 
 # create tiled pattern image
 if [ "$pattern" = "linear" ]; then
@@ -643,6 +640,11 @@ for ((j=0; j<numcolors; j++)); do
 		$dir/tmpI_$j.mpc
 		ang=`convert xc: -format "%[fx:$ang+$anginc]" info:`
 	else
+		if [ "$im_version" -ge "07000000" ]; then
+			set_alpha="-alpha deactivate"
+		else
+			set_alpha="-alpha on"
+		fi
 		convert $dir/tmpR.mpc \
 		\( $dir/tmpI.mpc +transparent "${colorArr[$j]}" -alpha extract \) \
 		\( $dir/tmpP.mpc -rotate $ang +repage -gravity center -crop ${ww}x${hh}+0+0 +repage \) \
@@ -650,8 +652,8 @@ for ((j=0; j<numcolors; j++)); do
 		-delete 0,2 +swap -compose over -alpha off -compose copy_opacity -composite \
 		\
 		\( +clone -alpha extract -write mpr:alpha -blur 0x$bevel -shade ${azimuth}x${elevation} \
-			mpr:alpha -alpha off -compose copy_opacity -composite -alpha on -alpha background \
-			-alpha deactivate -auto-level -function polynomial 3.5,-5.05,2.05,0.25 -sigmoidal-contrast ${contrast}x50% -alpha on \) \
+			mpr:alpha -alpha off -compose copy_opacity -composite -alpha background \
+			$set_alpha -auto-level -function polynomial 3.5,-5.05,2.05,0.25 -sigmoidal-contrast ${contrast}x50% \) \
 		-compose over -compose Hardlight -composite \
 		\
 		\( -clone 0 -background black -shadow ${intensity}x${extent}+0+0 -channel A -level 0,50% +channel \) \
@@ -663,6 +665,7 @@ done
 
 imagelist=""
 for ((k=0; k<numcolors; k++)); do
+#convert $dir/tmpI_$k.mpc tmpI_$k.png
 	imagelist="$imagelist $dir/tmpI_$k.mpc"
 done
 

@@ -174,7 +174,7 @@ tmpB2="$dir/fftconvol_2_$$.cache"
 tmpA="$dir/fftconvol_A_$$.pfm"
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA;" 0
 trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA; exit 1" 1 2 3 15
-trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA; exit 1" ERR
+#trap "rm -f $tmpA1 $tmpB1 $tmpA2 $tmpB2 $tmpA; exit 1" ERR
 
 # LAST TESTED with IM 6.7.4.10, 6.7.6.10, 6.7.9.4 all HDRI (10/25/2012)
 
@@ -277,10 +277,10 @@ else
 	setcspace="-set colorspace RGB"
 	setcspace2="-set colorspace sRGB"
 fi
-# no need for setcspace for grayscale or channels after 6.8.5.4
+# for IM 7 need to setcspace to color due to grayscale filter
 if [ "$im_version" -gt "06080504" ]; then
-	setcspace=""
-	setcspace2=""
+	setcspace="-set colorspace sRGB"
+	setcspace2="-set colorspace sRGB"
 fi
 
 

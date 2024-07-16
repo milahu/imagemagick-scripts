@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 10/3/2011 .......... 4/18/2015
+# Developed by Fred Weinhaus 10/3/2011 .......... 11/10/2023
 #
 # ------------------------------------------------------------------------------
 # 
@@ -258,7 +258,7 @@ tmpA1="$dir/spectrumhist_1_$$.mpc"
 tmpB1="$dir/spectrumhist_1_$$.cache"
 trap "rm -f $tmpA1 $tmpB1;" 0
 trap "rm -f $tmpA1 $tmpB1; exit 1" 1 2 3 15
-trap "rm -f $tmpA1 $tmpB1; exit 1" ERR
+#trap "rm -f $tmpA1 $tmpB1; exit 1" ERR
 
 # test input image
 convert -quiet "$infile" -alpha off +repage "$tmpA1" ||
@@ -270,6 +270,12 @@ hh=$height
 # get im_version
 im_version=`convert -list configure | \
 	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+if [ "$im_version" -ge "07000000" ]; then
+	identifying="magick identify"
+else
+	identifying="identify"
+fi
 
 # colorspace RGB and sRGB swapped between 6.7.5.5 and 6.7.6.7 
 # though probably not resolved until the latter
@@ -292,8 +298,8 @@ if [ "$im_version" -gt "06080504" ]; then
 fi
 
 # get colorspace and type for each image
-cspace=`identify -ping -verbose $tmpA1 | sed -n 's/^[ ]*Colorspace: \(.*\)$/\1/p'`
-ctype=`identify -ping -verbose $tmpA1 | sed -n 's/^[ ]*Type: \(.*\)$/\1/p'`
+cspace=`$identifying -ping -verbose $tmpA1 | sed -n 's/^[ ]*Colorspace: \(.*\)$/\1/p'`
+ctype=`$identifying -ping -verbose $tmpA1 | sed -n 's/^[ ]*Type: \(.*\)$/\1/p'`
 
 # set up for type of color reduction
 if [ "$ctype" = "Grayscale" -o "$cspace" = "Gray" ]; then
@@ -328,9 +334,9 @@ elif [ "$type" = "histogram" -a "$sort" = "count" ]; then
 		awk -v wd="$width" -v mag="$magnify"  -v hh=$hh ' 
 			{ list=""; i=NR; count[i]=$1; color[i]=$2; }
 			END { for (i=1; i<=NR; i++) 
-				{ ht[i]=int(mag*hh*count[i]/count[NR]+0.5); list=(list "\ " "-size\ " wd"x"ht[i] "\ " "xc:hsl("color[i])")" } 
+				{ ht[i]=int(mag*hh*count[i]/count[NR]+0.5); list=(list "\ " "-size\ " wd"x"ht[i] "\ " "xc:\"hsl("color[i]")\""); } 
 				{print list; } } '`
-	convert $string -background $bgcolor +append -flip -gravity south -crop x${hh}+0+0 +repage "$outfile"
+	eval 'convert '$string' -background "$bgcolor" +append -flip +repage -gravity south -crop x${hh}+0+0 +repage "$outfile"'
 
 
 elif [ "$type" = "spectrum" -a "$sort" = "hue" ]; then
@@ -348,9 +354,9 @@ elif [ "$type" = "spectrum" -a "$sort" = "hue" ]; then
 		awk -v wd="$width" -v ht="$height" '
 			{ list=""; i=NR; hue[i]=$1; sat[i]=$2; light[i]=$3; }
 			END { for (i=1; i<=NR; i++) 
-			{ list=(list "\ " "-size\ " wd"x"ht "\ " "xc:hsl("hue[i]"%,"sat[i]"%,"light[i]"%)"); } 
+			{ list=(list "\ " "-size\ " wd"x"ht "\ " "xc:\"hsl("hue[i]"%,"sat[i]"%,"light[i]"%)\""); } 
 			{ print list; } } '`
-	convert $string +append "$outfile"
+	eval 'convert '$string' +append "$outfile"'
 
 
 elif [ "$type" = "histogram" -a "$sort" = "hue" ]; then
@@ -368,9 +374,9 @@ elif [ "$type" = "histogram" -a "$sort" = "hue" ]; then
 		awk -v wd="$width" -v mag="$magnify" -v hh=$hh  '
 			{ list=""; i=NR; count[i]=$1; hue[i]=$2; sat[i]=$3; light[i]=$4; if (count[i]>maxcount) maxcount=count[i]; }
 			END { for (i=1; i<=NR; i++) 
-			{ ht[i]=int(mag*hh*count[i]/maxcount+0.5); list=(list "\ " "-size\ " wd"x"ht[i] "\ " "xc:hsl("hue[i]"%,"sat[i]"%,"light[i]"%)"); } 
+			{ ht[i]=int(mag*hh*count[i]/maxcount+0.5); list=(list "\ " "-size\ " wd"x"ht[i] "\ " "xc:\"hsl("hue[i]"%,"sat[i]"%,"light[i]"%)\""); } 
 			{ print list; } } '`
-	convert $string -background $bgcolor +append -flip -gravity south -crop x${hh}+0+0 +repage "$outfile"
+	eval 'convert '$string' -background "$bgcolor" +append -flip +repage -gravity south -crop x${hh}+0+0 +repage "$outfile"'
 
 
 
@@ -392,9 +398,9 @@ elif [ "$type" = "spectrum" -a "$sort" = "lum" ]; then
 			awk -v wd="$width" -v ht="$height" '
 				{ list=""; i=NR; red[i]=$1; grn[i]=$2; blu[i]=$3; }
 				END { for (i=1; i<=NR; i++) 
-				{ list=(list "\ " "-size\ " wd"x"ht "\ " "xc:rgb("red[i]","grn[i]","blu[i]")"); } 
+				{ list=(list "\ " "-size\ " wd"x"ht "\ " "xc:\"rgb("red[i]","grn[i]","blu[i]")\""); } 
 				{ print list; } } '`
-	convert $string +append "$outfile"
+	eval 'convert '$string' +append "$outfile"'
 
 
 elif [ "$type" = "histogram" -a "$sort" = "lum" ]; then
@@ -415,9 +421,9 @@ elif [ "$type" = "histogram" -a "$sort" = "lum" ]; then
 			awk -v wd="$width" -v mag="$magnify" -v hh=$hh '
 				{ list=""; i=NR; count[i]=$1; red[i]=$2; grn[i]=$3; blu[i]=$4; if (count[i]>maxcount) maxcount=count[i]; }
 				END { for (i=1; i<=NR; i++) 
-				{ ht[i]=int(mag*hh*count[i]/maxcount+0.5); list=(list "\ " "-size\ " wd"x"ht[i] "\ " "xc:rgb("red[i]","grn[i]","blu[i]")"); } 
+				{ ht[i]=int(mag*hh*count[i]/maxcount+0.5); list=(list "\ " "-size\ " wd"x"ht[i] "\ " "xc:\"rgb("red[i]","grn[i]","blu[i]")\""); } 
 				{ print list; } } '`
-	convert $string -background $bgcolor +append -flip -gravity south -crop x${hh}+0+0 +repage "$outfile"
+	eval 'convert '$string' -background $bgcolor +append -flip +repage -gravity south -crop x${hh}+0+0 +repage "$outfile"'
 
 
 elif [ "$type" = "spectrum" -a "$sort" = "sat" ]; then
@@ -435,9 +441,9 @@ elif [ "$type" = "spectrum" -a "$sort" = "sat" ]; then
 		awk -v wd="$width" -v ht="$height" '
 			{ list=""; i=NR; hue[i]=$1; sat[i]=$2; light[i]=$3; }
 			END { for (i=1; i<=NR; i++) 
-			{ list=(list "\ " "-size\ " wd"x"ht "\ " "xc:hsl("hue[i]"%,"sat[i]"%,"light[i]"%)"); } 
+			{ list=(list "\ " "-size\ " wd"x"ht "\ " "xc:\"hsl("hue[i]"%,"sat[i]"%,"light[i]"%)\""); } 
 			{ print list; } } '`
-	convert $string +append "$outfile"
+	eval 'convert '$string' +append "$outfile"'
 
 
 elif [ "$type" = "histogram" -a "$sort" = "sat" ]; then
@@ -455,9 +461,9 @@ elif [ "$type" = "histogram" -a "$sort" = "sat" ]; then
 		awk -v wd="$width" -v mag="$magnify" -v hh=$hh  '
 			{ list=""; i=NR; count[i]=$1; hue[i]=$2; sat[i]=$3; light[i]=$4; if (count[i]>maxcount) maxcount=count[i]; }
 			END { for (i=1; i<=NR; i++) 
-			{ ht[i]=int(mag*hh*count[i]/maxcount+0.5); list=(list "\ " "-size\ " wd"x"ht[i] "\ " "xc:hsl("hue[i]"%,"sat[i]"%,"light[i]"%)"); } 
+			{ ht[i]=int(mag*hh*count[i]/maxcount+0.5); list=(list "\ " "-size\ " wd"x"ht[i] "\ " "xc:\"hsl("hue[i]"%,"sat[i]"%,"light[i]"%)\""); } 
 			{ print list; } } '`
-	convert $string -background $bgcolor +append -flip -gravity south -crop x${hh}+0+0 +repage "$outfile"
+	eval 'convert '$string' -background $bgcolor +append -flip +repage -gravity south -crop x${hh}+0+0 +repage "$outfile"'
 
 
 elif [ "$type" = "spectrum" -a "$sort" = "rgb" -o "$sort" = "bgr" ]; then
@@ -480,9 +486,9 @@ elif [ "$type" = "spectrum" -a "$sort" = "rgb" -o "$sort" = "bgr" ]; then
 		awk -v wd="$width" -v ht="$height" '
 			{ list=""; i=NR; red[i]=$1; grn[i]=$2; blu[i]=$3; }
 			END { for (i=1; i<=NR; i++) 
-			{ list=(list "\ " "-size\ " wd"x"ht "\ " "xc:rgb("red[i]","grn[i]","blu[i]")"); } 
+			{ list=(list "\ " "-size\ " wd"x"ht "\ " "xc:\"rgb("red[i]","grn[i]","blu[i]")\""); } 
 			{ print list; } } '`
-	convert $string +append "$outfile"
+	eval 'convert '$string' +append "$outfile"'
 
 
 elif [ "$type" = "histogram" -a "$sort" = "rgb" -o "$sort" = "bgr" ]; then
@@ -505,9 +511,9 @@ elif [ "$type" = "histogram" -a "$sort" = "rgb" -o "$sort" = "bgr" ]; then
 		awk -v wd="$width" -v mag="$magnify" -v hh=$hh  '
 			{ list=""; i=NR; count[i]=$1; red[i]=$2; grn[i]=$3; blu[i]=$4; if (count[i]>maxcount) maxcount=count[i]; }
 			END { for (i=1; i<=NR; i++) 
-			{ ht[i]=int(mag*hh*count[i]/maxcount+0.5); list=(list "\ " "-size\ " wd"x"ht[i] "\ " "xc:rgb("red[i]","grn[i]","blu[i]")"); }
+			{ ht[i]=int(mag*hh*count[i]/maxcount+0.5); list=(list "\ " "-size\ " wd"x"ht[i] "\ " "xc:\"rgb("red[i]","grn[i]","blu[i]")\""); }
 			{ print list; } } '`
-	convert $string -background $bgcolor +append -flip -gravity south -crop x${hh}+0+0 +repage "$outfile"
+	eval 'convert '$string' -background $bgcolor +append -flip +repage -gravity south -crop x${hh}+0+0 +repage "$outfile"'
 
 fi
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 8/9/2019 .......... revised 8/9/2019
+# Developed by Fred Weinhaus 8/9/2019 .......... revised 12/21/2023
 #
 # ------------------------------------------------------------------------------
 # 
@@ -104,6 +104,7 @@ type="grayscale"	# grayscale (g), binary (b), outline (o)
 threshold=50		# threshold percent for binarizing 
 edgemode="edge"		# edge mode: edge (e), in (i), out (o)
 invert="no"			# invert white <--> black in binary
+precision=3         # output score precision (decimal digits)
 
 # set directory for temporary files
 dir="."    # suggestions are dir="." or dir="/tmp"
@@ -184,6 +185,7 @@ invert="no"			# invert white <--> black in binary
 					   		said) ;;
 					   		sand) ;;
 					   		rssd) ;;
+					   		all) ;;
 					   		*) errMsg "--- MODE=$metric IS AN INVALID VALUE ---"  ;;
 					   esac
 					   ;;
@@ -290,6 +292,8 @@ if [ "$type" = "binary" ]; then
 	proc="-threshold $thresh%"
 elif [ "$type" = "outline" ]; then
 	proc="-threshold $thresh% -morphology $edgemode diamond:1"
+else
+	proc=""
 fi
 
 # read infile1 and process to type
@@ -303,7 +307,6 @@ convert -quiet "$infile1" +repage -alpha off $inverting -colorspace gray $proc -
 # note: need type palette so identify show binary or edge image as Gray stats, not RGB stats
 convert -quiet "$infile2" +repage -alpha off -colorspace gray $proc -type palette $dir/A2.mpc ||
 	errMsg "--- FILE $infile2 DOES NOT EXIST OR IS NOT AN ORDINARY FILE, NOT READABLE OR HAS ZERO size  ---"
-
 
 # get first 7 hu moments from I1.mpc
 hu_Arr1=(`$identifying -verbose -moments $dir/A1.mpc | sed '/^[ ]*Gray:.*$/,/^[ ]*Channel perceptual hash:.*$/!d' | grep -e "I[0-7]" | awk '{print $2}'`)
@@ -326,9 +329,9 @@ num2="${#hu_Arr2[*]}"
 # convert hu moments to log form as HU=-sign(hu)*log(abs(hu))
 for ((i=0; i<7; i++)); do
 	hu1="${hu_Arr1[$i]}"
-	HU_Arr1[$i]=`convert xc: -format "%[fx:-sign($hu1)*log(abs($hu1))]\n" info:`
+	HU_Arr1[$i]=`convert xc: -format "%[fx:-(sign($hu1))*log(abs($hu1))]\n" info:`
 	hu2="${hu_Arr2[$i]}"
-	HU_Arr2[$i]=`convert xc: -format "%[fx:-sign($hu2)*log(abs($hu2))]\n" info:`
+	HU_Arr2[$i]=`convert xc: -format "%[fx:-(sign($hu2))*log(abs($hu2))]\n" info:`
 done
 
 if [ "$metric" = "sad" -o "$metric" = "all" ]; then
@@ -337,9 +340,10 @@ if [ "$metric" = "sad" -o "$metric" = "all" ]; then
 	for ((i=0; i<7; i++)); do
 		HU1="${HU_Arr1[$i]}"
 		HU2="${HU_Arr2[$i]}"
-		score=`convert xc: -format "%[fx:$score + abs($HU1-$HU2)]\n" info:`
-		#echo "$i; HU1=$HU1; HU2=$HU2; score=$score"
+		score=`convert xc: -format "%[fx:$score + abs($HU1-($HU2))]\n" info:`
+		#echo "$i; HU1=$HU1; HU2=$HU2; score=$score;"
 	done
+	score=`echo "$score" | awk '{printf("%0.3f",$0);}'`
 	echo "Metric=$metric1 Score=$score"
 fi
 
@@ -349,9 +353,10 @@ if [ "$metric" = "said" -o "$metric" = "all" ]; then
 	for ((i=0; i<7; i++)); do
 		HU1="${HU_Arr1[$i]}"
 		HU2="${HU_Arr2[$i]}"
-		score=`convert xc: -format "%[fx:$score + abs(1/$HU1-1/$HU2)]\n" info:`
+		score=`convert xc: -format "%[fx:$score + abs((1/($HU1))-(1/($HU2)))]\n" info:`
 		#echo "$i; HU1=$HU1; HU2=$HU2; score=$score"
 	done
+	score=`echo "$score" | awk '{printf("%0.3f",$0);}'`
 	echo "Metric=$metric1 Score=$score"
 fi
 
@@ -361,9 +366,10 @@ if [ "$metric" = "sand" -o "$metric" = "all" ]; then
 	for ((i=0; i<7; i++)); do
 		HU1="${HU_Arr1[$i]}"
 		HU2="${HU_Arr2[$i]}"
-		score=`convert xc: -format "%[fx:$score + abs($HU1-$HU2)/sqrt(abs($HU1)*abs($HU2))]\n" info:`
+		score=`convert xc: -format "%[fx:$score + abs($HU1-($HU2))/sqrt(abs($HU1)*abs($HU2))]\n" info:`
 		#echo "$i; HU1=$HU1; HU2=$HU2; score=$score"
 	done
+	score=`echo "$score" | awk '{printf("%0.3f",$0);}'`
 	echo "Metric=$metric1 Score=$score"
 fi
 
@@ -373,10 +379,11 @@ if [ "$metric" = "rssd" -o "$metric" = "all" ]; then
 	for ((i=0; i<7; i++)); do
 		HU1="${HU_Arr1[$i]}"
 		HU2="${HU_Arr2[$i]}"
-		score=`convert xc: -format "%[fx:$score + ($HU1-$HU2)^2]\n" info:`
+		score=`convert xc: -format "%[fx:$score + ($HU1-($HU2))^2]\n" info:`
 		#echo "$i; HU1=$HU1; HU2=$HU2; score=$score"
 	done
 	score=`convert xc: -format "%[fx:sqrt($score)]\n" info:`
+	score=`echo "$score" | awk '{printf("%0.3f",$0);}'`
 	echo "Metric=$metric1 Score=$score"
 fi
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 7/30/2008 .......... revised 4/25/2015
+# Developed by Fred Weinhaus 7/30/2008 .......... revised 12/9/2023
 #
 # ------------------------------------------------------------------------------
 # 
@@ -265,17 +265,27 @@ tmpA="$dir/polar_$$.mpc"
 tmpB="$dir/polar_$$.cache"
 trap "rm -f $tmpA $tmpB;" 0
 trap "rm -f $tmpA $tmpB; exit 1" 1 2 3 15
-trap "rm -f $tmpA $tmpB; exit 1" ERR
+#trap "rm -f $tmpA $tmpB; exit 1" ERR
+
+# get im_version
+im_version=`convert -list configure | \
+	sed '/^LIB_VERSION_NUMBER */!d; s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+
+if [ "$im_version" -ge "07000000" ]; then
+	identifying="magick identify"
+else
+	identifying="identify"
+fi
 
 if convert -quiet "$infile" +repage "$tmpA"
 	then
 	# set default values
-	w2=`identify -format "%[fx:w/2]" $tmpA`
-	h2=`identify -format "%[fx:h/2]" $tmpA`
-	d2=`identify -format "%[fx:sqrt(w*w+h*h)/2]" $tmpA`
-	m2=`identify -format "%[fx:min(w,h)/2]" $tmpA`
-	centx=`identify -format "%[fx:(w-1)/2]" $tmpA`
-	centy=`identify -format "%[fx:(h-1)/2]" $tmpA`
+	w2=`$identifying -format "%[fx:w/2]" $tmpA`
+	h2=`$identifying -format "%[fx:h/2]" $tmpA`
+	d2=`$identifying -format "%[fx:sqrt(w*w+h*h)/2]" $tmpA`
+	m2=`$identifying -format "%[fx:min(w,h)/2]" $tmpA`
+	centx=`$identifying -format "%[fx:(w-1)/2]" $tmpA`
+	centy=`$identifying -format "%[fx:(h-1)/2]" $tmpA`
 	[ "$rmx" = "w" ] && rmx=$w2
 	[ "$rmx" = "h" ] && rmx=$h2
 	[ "$rmx" = "d" ] && rmx=$d2
@@ -283,7 +293,6 @@ if convert -quiet "$infile" +repage "$tmpA"
 	[ "$xc" = "" ] && xc=$centx
 	[ "$yc" = "" ] && yc=$centy
 fi
-
 #echo "mode=$mode: w=$w2; h=$h2; d=$d2; m=$m2; xc=$xc; yc=$yc; rmn=$rmn; rmx=$rmx; amn=$amn; amx=$amx"
 
 # rect to polar general equations (for inverse transformation)
@@ -298,7 +307,7 @@ fi
 
 # get IM Version
 im_version=`convert -list configure | \
-	sed '/^LIB_VERSION_NUMBER /!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
+	sed '/^LIB_VERSION_NUMBER */!d;  s//,/;  s/,/,0/g;  s/,0*\([0-9][0-9]\)/\1/g' | head -n 1`
 
 
 # set channel if bgcolor=none
@@ -312,9 +321,8 @@ fi
 
 # rect2polar
 if [ "$mode" = "rect2polar" ]; then
-yy="yy=((j-$rmn)*$rmx/(h-1))*cos((($amx-$amn)*pi/180)*(i/(w-1))+($amn*pi/180))+$yc;"
-xx="xx=((j-$rmn)*$rmx/(h-1))*sin((($amx-$amn)*pi/180)*(i/(w-1))+($amn*pi/180))+$xc;"
-
+yy="yy=((j-$rmn)*$rmx/(h-1))*cos((($amx-($amn))*pi/180)*(i/(w-1))+($amn*pi/180))+$yc;"
+xx="xx=((j-$rmn)*$rmx/(h-1))*sin((($amx-($amn))*pi/180)*(i/(w-1))+($amn*pi/180))+$xc;"
 convert $infile -virtual-pixel $vpmode -background $bgcolor -monitor \
 	-fx "$xx $yy u.p{xx,yy}" +monitor "$outfile"
 fi
@@ -327,8 +335,8 @@ else
 	rr="rr=sqrt((i-$xc)*(i-$xc) + (j-$yc)*(j-$yc));"
 fi
 aa="aa=atan2((i-$xc),(j-$yc));"
-xx="xx=(aa-(pi/180)*$amn)*(w-1)/((pi/180)*($amx-$amn));"
-yy="yy=(rr-$rmn)*(h-1)/($rmx-$rmn);"
+xx="xx=(aa-(pi/180)*$amn)*(w-1)/((pi/180)*($amx-($amn)));"
+yy="yy=(rr-($rmn))*(h-1)/($rmx-($rmn));"
 
 convert $infile -virtual-pixel $vpmode -background $bgcolor -monitor \
 	-fx "$rr $aa $xx $yy u.p{xx,yy}" +monitor "$outfile"

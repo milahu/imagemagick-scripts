@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Developed by Fred Weinhaus 8/22/2009 .......... revised 12/23/2021
+# Developed by Fred Weinhaus 8/22/2009 .......... revised 5/15/2023
 #
 # ------------------------------------------------------------------------------
 # 
@@ -237,7 +237,7 @@ tmpA1="$dir/cameradeblur_A_$$.mpc"
 tmpA2="$dir/cameradeblur_A_$$.cache"
 trap "rm -f $tmpI1 $tmpI2 $tmpA1 $tmpA2 $tmpF1 $tmpF2 $tmpL;" 0
 trap "rm -f $tmpI1 $tmpI2 $tmpA1 $tmpA2 $tmpF1 $tmpF2 $tmpL; exit 1" 1 2 3 15
-trap "rm -f $tmpI1 $tmpI2 $tmpA1 $tmpA2 $tmpF1 $tmpF2 $tmpL; exit 1" ERR
+#trap "rm -f $tmpI1 $tmpI2 $tmpA1 $tmpA2 $tmpF1 $tmpF2 $tmpL; exit 1" ERR
 
 # read the input image and filter image into the temp files and test validity.
 convert -quiet "$infile" +repage "$tmpI1" ||

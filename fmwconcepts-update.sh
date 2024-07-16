@@ -6,6 +6,8 @@ cd "$(dirname "$0")"
 
 wget 'http://www.fmwconcepts.com/imagemagick/script_list.txt' -O script_list.txt
 
+git add script_list.txt
+
 [ ! -d tmp ] && mkdir tmp
 
 time (
